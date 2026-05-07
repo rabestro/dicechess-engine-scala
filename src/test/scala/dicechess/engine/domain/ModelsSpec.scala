@@ -19,7 +19,7 @@ class ModelsSpec extends FunSuite:
 
   test("MicroMove.toNotation should format correctly") {
     val from = Square('g', 1)
-    val to = Square('f', 3)
+    val to   = Square('f', 3)
     val move = MicroMove(from, to)
     assertEquals(move.toNotation, "g1f3")
   }
