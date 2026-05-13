@@ -77,3 +77,52 @@ class ModelsSpec extends FunSuite:
     assertEquals(move.promotion, Some(PieceType.Queen))
     assertEquals(move.toNotation, "e7e8q")
   }
+
+  test("Bitboard properties: empty, full, add, remove, and contains") {
+    val empty = Bitboard.empty
+    assert(empty.isEmpty)
+    assertEquals(empty.count, 0)
+
+    val a1 = Square('a', 1)
+    val h8 = Square('h', 8)
+
+    val b1 = empty.add(a1)
+    assert(b1.contains(a1))
+    assert(!b1.contains(h8))
+    assertEquals(b1.count, 1)
+
+    val b2 = b1.add(h8)
+    assert(b2.contains(a1))
+    assert(b2.contains(h8))
+    assertEquals(b2.count, 2)
+
+    val b3 = b2.remove(a1)
+    assert(!b3.contains(a1))
+    assert(b3.contains(h8))
+    assertEquals(b3.count, 1)
+
+    val full = Bitboard.full
+    assertEquals(full.count, 64)
+    assert(full.contains(a1) && full.contains(h8))
+  }
+
+  test("Bitboard bitwise operations (AND, OR, XOR, NOT)") {
+    val sq1 = Bitboard.fromSquare(Square('e', 4))
+    val sq2 = Bitboard.fromSquare(Square('d', 5))
+
+    val union = sq1 | sq2
+    assert(union.contains(Square('e', 4)))
+    assert(union.contains(Square('d', 5)))
+    assertEquals(union.count, 2)
+
+    val intersection = union & sq1
+    assertEquals(intersection, sq1)
+
+    val symDiff = union ^ sq1
+    assertEquals(symDiff, sq2)
+
+    val complement = ~union
+    assert(!complement.contains(Square('e', 4)))
+    assert(!complement.contains(Square('d', 5)))
+    assertEquals(complement.count, 62)
+  }

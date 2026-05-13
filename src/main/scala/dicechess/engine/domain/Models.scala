@@ -148,7 +148,58 @@ object MicroMove:
       s"${Square.toNotation(from)}${Square.toNotation(to)}$promStr"
 
 // ==============================================================================
-// 6. Composite Structures (Domain aggregates)
+// 6. Bitboard Opaque Type
+// ==============================================================================
+
+/** A 64-bit integer representing a set of squares on the chess board.
+  *
+  * Uses Little-Endian Rank-File (LERF) mapping, where bit 0 is a1 and bit 63 is h8.
+  */
+opaque type Bitboard = Long
+
+object Bitboard:
+  /** An empty bitboard (no squares occupied). */
+  val empty: Bitboard = 0L
+
+  /** A full bitboard (all squares occupied). */
+  val full: Bitboard = -1L
+
+  /** Creates a bitboard with a single square occupied. */
+  def fromSquare(sq: Square): Bitboard = 1L << Square.index(sq)
+
+  extension (bb: Bitboard)
+    /** Bitwise AND (Intersection) */
+    inline infix def &(other: Bitboard): Bitboard = bb & other
+
+    /** Bitwise OR (Union) */
+    inline infix def |(other: Bitboard): Bitboard = bb | other
+
+    /** Bitwise XOR (Symmetric Difference) */
+    inline infix def ^(other: Bitboard): Bitboard = bb ^ other
+
+    /** Bitwise NOT (Complement) */
+    inline def unary_~ : Bitboard = ~bb
+
+    /** Adds a square to the bitboard. */
+    inline def add(sq: Square): Bitboard = bb | (1L << Square.index(sq))
+
+    /** Removes a square from the bitboard. */
+    inline def remove(sq: Square): Bitboard = bb & ~(1L << Square.index(sq))
+
+    /** Checks if a square is occupied on this bitboard. */
+    inline def contains(sq: Square): Boolean = (bb & (1L << Square.index(sq))) != 0L
+
+    /** Returns the number of occupied squares (using JVM POPCNT intrinsic). */
+    inline def count: Int = java.lang.Long.bitCount(bb)
+
+    /** Returns true if the bitboard has no occupied squares. */
+    inline def isEmpty: Boolean = bb == 0L
+
+    /** Exposes the underlying Long value. */
+    inline def value: Long = bb
+
+// ==============================================================================
+// 7. Composite Structures (Domain aggregates)
 // ==============================================================================
 
 /** A chess turn consisting of a dice outcome and a sequence of micro-moves.
