@@ -50,6 +50,7 @@ object FenParser:
         fullMoveNumber = fullMove
       )
 
+  @SuppressWarnings(Array("squid:S3776")) // Suppress SonarCloud Cognitive Complexity warning
   private def parseBoard(boardStr: String): Either[
     String,
     (Bitboard, Bitboard, Bitboard, Bitboard, Bitboard, Bitboard, Bitboard, Bitboard, Map[Square, Piece])
