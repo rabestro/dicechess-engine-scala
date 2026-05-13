@@ -7,7 +7,8 @@ Assign tasks to these milestones logically. Each milestone must be fully tested 
 
 ---
 
-### 📦 v0.1 - Foundation & Core Types
+### ✅ v0.1 - Foundation & Core Types
+* **Status**: Completed 🏆
 * **Scope**: Project setup (SBT 1.x / Scala 3), configuration, `mise` setup.
 * **Key Deliverables**:
   * Implementation of basic Opaque Types (`Bitboard`, `Square`, `Piece`, `Color`).
