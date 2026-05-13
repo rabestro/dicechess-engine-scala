@@ -8,7 +8,30 @@ updates:
       time: "08:00"
     open-pull-requests-limit: 5
     labels:
-      - "dependencies"
-      - "github-actions"
+      - "ci-cd"
+    commit-message:
+      prefix: "chore"
+
+  - package-ecosystem: "npm"
+    directory: "/docs"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "ci-cd"
+    commit-message:
+      prefix: "chore"
+
+  - package-ecosystem: "sbt"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "ci-cd"
     commit-message:
       prefix: "chore"
