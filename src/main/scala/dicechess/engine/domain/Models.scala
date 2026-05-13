@@ -4,12 +4,12 @@ package dicechess.engine.domain
 // 1. Color Opaque Type
 // ==============================================================================
 
+opaque type Color = Int
+
 /** Represents the player colors: White (0) or Black (1).
   *
   * Uses bitwise XOR for fast toggling between opponents.
   */
-opaque type Color = Int
-
 object Color:
   val White: Color = 0
   val Black: Color = 1
@@ -30,12 +30,12 @@ object Color:
 // 2. PieceType Opaque Type
 // ==============================================================================
 
+opaque type PieceType = Int
+
 /** Represents chess piece types corresponding to dice values.
   *
   * Values are 1: Pawn, 2: Knight, 3: Bishop, 4: Rook, 5: Queen, 6: King.
   */
-opaque type PieceType = Int
-
 object PieceType:
   val Pawn: PieceType   = 1
   val Knight: PieceType = 2
@@ -63,14 +63,14 @@ object PieceType:
 // 3. Piece Opaque Type (Packed)
 // ==============================================================================
 
+opaque type Piece = Int
+
 /** A packed chess piece combining [[Color]] and [[PieceType]].
   *
   * Memory Layout (4 bits total):
   *   - Bit 3: Color (0 for White, 1 for Black)
   *   - Bits 0-2: PieceType (1-6)
   */
-opaque type Piece = Int
-
 object Piece:
   def apply(color: Color, pieceType: PieceType): Piece =
     (color << 3) | pieceType
@@ -83,12 +83,12 @@ object Piece:
 // 4. Square Opaque Type
 // ==============================================================================
 
+opaque type Square = Int
+
 /** Represents a chess board square index.
   *
   * The index ranges from 0 (a1) to 63 (h8), mapped row by row (a1, b1... h8).
   */
-opaque type Square = Int
-
 object Square:
   /** Builds a square from coordinate syntax.
     */
@@ -121,6 +121,8 @@ object Square:
 // 5. MicroMove Opaque Type (Packed)
 // ==============================================================================
 
+opaque type MicroMove = Int
+
 /** A high-performance 16-bit packed micro-move.
   *
   * Memory Layout:
@@ -128,8 +130,6 @@ object Square:
   *   - Bits 6-11: Target [[Square]] (0-63)
   *   - Bits 0-5: Origin [[Square]] (0-63)
   */
-opaque type MicroMove = Int
-
 object MicroMove:
   def apply(from: Square, to: Square, promotion: Option[PieceType] = None): MicroMove =
     val promValue = promotion.getOrElse(0) // 0 indicates no promotion
@@ -151,12 +151,12 @@ object MicroMove:
 // 6. Bitboard Opaque Type
 // ==============================================================================
 
+opaque type Bitboard = Long
+
 /** A 64-bit integer representing a set of squares on the chess board.
   *
   * Uses Little-Endian Rank-File (LERF) mapping, where bit 0 is a1 and bit 63 is h8.
   */
-opaque type Bitboard = Long
-
 object Bitboard:
   /** An empty bitboard (no squares occupied). */
   val empty: Bitboard = 0L
