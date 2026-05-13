@@ -187,7 +187,26 @@ case class Turn(diceRoll: Int, microMoves: List[MicroMove]):
 
 /** The complete snapshot of a Dice Chess game state.
   *
-  * @param board
+  * Uses a hybrid architecture combining fast Bitboards for move generation and a Map mailbox for constant-time piece
+  * lookups.
+  *
+  * @param whitePieces
+  *   Bitboard for all White pieces.
+  * @param blackPieces
+  *   Bitboard for all Black pieces.
+  * @param pawns
+  *   Bitboard for all Pawns (both colors).
+  * @param knights
+  *   Bitboard for all Knights (both colors).
+  * @param bishops
+  *   Bitboard for all Bishops (both colors).
+  * @param rooks
+  *   Bitboard for all Rooks (both colors).
+  * @param queens
+  *   Bitboard for all Queens (both colors).
+  * @param kings
+  *   Bitboard for all Kings (both colors).
+  * @param mailbox
   *   Map of occupied squares to their respective pieces.
   * @param activeColor
   *   The color of the player whose turn it is.
@@ -201,7 +220,15 @@ case class Turn(diceRoll: Int, microMoves: List[MicroMove]):
   *   The number of the current full move.
   */
 case class GameState(
-    board: Map[Square, Piece],
+    whitePieces: Bitboard,
+    blackPieces: Bitboard,
+    pawns: Bitboard,
+    knights: Bitboard,
+    bishops: Bitboard,
+    rooks: Bitboard,
+    queens: Bitboard,
+    kings: Bitboard,
+    mailbox: Map[Square, Piece],
     activeColor: Color,
     castlingRights: String,
     enPassant: Option[Square],
