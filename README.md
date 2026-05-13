@@ -2,6 +2,8 @@
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=rabestro_dicechess-engine-scala&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=rabestro_dicechess-engine-scala)
 [![CI Pipeline](https://github.com/rabestro/dicechess-engine-scala/actions/workflows/ci.yml/badge.svg)](https://github.com/rabestro/dicechess-engine-scala/actions/workflows/ci.yml)
+[![Architecture Docs](https://img.shields.io/badge/Docs-Architecture-orange)](https://jc.id.lv/dicechess-engine-scala/)
+[![Scaladoc API](https://img.shields.io/badge/Scaladoc-API-blue)](https://jc.id.lv/dicechess-engine-scala/api/)
 
 An open-source, high-performance game engine and probability calculator for **Dice Chess**, built with **Scala 3**.
 
@@ -101,6 +103,13 @@ Dice Chess is a stochastic variant of chess where players must roll a 6-sided di
   "time_ms": 120
 }
 ```
+
+---
+
+## 📚 Documentation & API Reference
+
+* **[Architecture & Developer Guide](https://jc.id.lv/dicechess-engine-scala/)**: Read about our Zero-Cost Abstractions, Hybrid Mailbox, and Milestone roadmap.
+* **[Scaladoc API Reference](https://jc.id.lv/dicechess-engine-scala/api/)**: Comprehensive technical API documentation automatically generated from our codebase.
 
 ---
 
