@@ -26,7 +26,7 @@ object PawnGeneration:
     * @return
     *   A Bitboard of the squares the pawns will land on after a single push.
     */
-  def singlePushes(pawns: Bitboard, emptySquares: Bitboard, color: Color): Bitboard =
+  inline def singlePushes(pawns: Bitboard, emptySquares: Bitboard, color: Color): Bitboard =
     val pushes = if color.isWhite then pawns << 8 else pawns >>> 8
     pushes & emptySquares
 
@@ -39,7 +39,7 @@ object PawnGeneration:
     * @return
     *   A Bitboard of the squares the pawns will land on after a double push.
     */
-  def doublePushes(singlePushes: Bitboard, emptySquares: Bitboard, color: Color): Bitboard =
+  inline def doublePushes(singlePushes: Bitboard, emptySquares: Bitboard, color: Color): Bitboard =
     val pushes = if color.isWhite then (singlePushes & Rank3) << 8 else (singlePushes & Rank6) >>> 8
     pushes & emptySquares
 
@@ -50,7 +50,7 @@ object PawnGeneration:
     * @param enemies
     *   Bitboard of enemy pieces (or En Passant target).
     */
-  def eastCaptures(pawns: Bitboard, enemies: Bitboard, color: Color): Bitboard =
+  inline def eastCaptures(pawns: Bitboard, enemies: Bitboard, color: Color): Bitboard =
     val attacks = if color.isWhite then (pawns & NotHFile) << 9 else (pawns & NotHFile) >>> 7
     attacks & enemies
 
@@ -61,14 +61,14 @@ object PawnGeneration:
     * @param enemies
     *   Bitboard of enemy pieces (or En Passant target).
     */
-  def westCaptures(pawns: Bitboard, enemies: Bitboard, color: Color): Bitboard =
+  inline def westCaptures(pawns: Bitboard, enemies: Bitboard, color: Color): Bitboard =
     val attacks = if color.isWhite then (pawns & NotAFile) << 7 else (pawns & NotAFile) >>> 9
     attacks & enemies
 
   /** Computes all attacked squares by pawns, regardless of whether there is an enemy there. Used primarily to determine
     * if the King is in check or squares are unsafe.
     */
-  def anyAttacks(pawns: Bitboard, color: Color): Bitboard =
+  inline def anyAttacks(pawns: Bitboard, color: Color): Bitboard =
     val east = if color.isWhite then (pawns & NotHFile) << 9 else (pawns & NotHFile) >>> 7
     val west = if color.isWhite then (pawns & NotAFile) << 7 else (pawns & NotAFile) >>> 9
     east | west
