@@ -4,6 +4,8 @@ import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
+	site: 'https://jc.id.lv',
+	base: '/dicechess-engine-scala',
 	integrations: [
 		starlight({
 			title: 'Dice Chess Engine',
