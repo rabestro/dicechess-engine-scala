@@ -1,68 +1,153 @@
 package dicechess.engine.domain
 
-/** Colors of the pieces on the board.
-  */
-enum Color:
-  case White, Black
+// ==============================================================================
+// 1. Color Opaque Type
+// ==============================================================================
 
-  def opponent: Color = this match
-    case White => Black
-    case Black => White
-
-/** Chess piece types corresponding to dice values: 1: Pawn, 2: Knight, 3: Bishop, 4: Rook, 5: Queen, 6: King
+/** Represents the player colors: White (0) or Black (1).
   */
-enum PieceType(val diceValue: Int):
-  case Pawn   extends PieceType(1)
-  case Knight extends PieceType(2)
-  case Bishop extends PieceType(3)
-  case Rook   extends PieceType(4)
-  case Queen  extends PieceType(5)
-  case King   extends PieceType(6)
+opaque type Color = Int
+
+object Color:
+  val White: Color = 0
+  val Black: Color = 1
+
+  /** Safe builder to validate boundary invariants.
+    */
+  def apply(value: Int): Color =
+    require(value == 0 || value == 1, s"Invalid color ID: $value")
+    value
+
+  extension (color: Color)
+    inline def opponent: Color  = color ^ 1
+    inline def isWhite: Boolean = color == Color.White
+    inline def isBlack: Boolean = color == Color.Black
+    inline def value: Int       = color
+
+// ==============================================================================
+// 2. PieceType Opaque Type
+// ==============================================================================
+
+/** Represents chess piece types corresponding to dice values: 1: Pawn, 2: Knight, 3: Bishop, 4: Rook, 5: Queen, 6: King
+  */
+opaque type PieceType = Int
 
 object PieceType:
+  val Pawn: PieceType   = 1
+  val Knight: PieceType = 2
+  val Bishop: PieceType = 3
+  val Rook: PieceType   = 4
+  val Queen: PieceType  = 5
+  val King: PieceType   = 6
+
+  val all: List[PieceType] = List(Pawn, Knight, Bishop, Rook, Queen, King)
+
   def fromDice(value: Int): Option[PieceType] =
-    values.find(_.diceValue == value)
+    if value >= 1 && value <= 6 then Some(value) else None
 
-/** A chess piece on the board.
+  extension (pt: PieceType)
+    inline def diceValue: Int = pt
+    def asNotation: String    = pt match
+      case PieceType.Pawn   => "p"
+      case PieceType.Knight => "n"
+      case PieceType.Bishop => "b"
+      case PieceType.Rook   => "r"
+      case PieceType.Queen  => "q"
+      case PieceType.King   => "k"
+
+// ==============================================================================
+// 3. Piece Opaque Type (Packed)
+// ==============================================================================
+
+/** Packs both Color and PieceType into a single primitive Int. Layout: [Color bit | PieceType bits 0-2]
   */
-case class Piece(color: Color, pieceType: PieceType)
+opaque type Piece = Int
 
-/** A board square representation (e.g. e4, a1).
+object Piece:
+  def apply(color: Color, pieceType: PieceType): Piece =
+    (color << 3) | pieceType
+
+  extension (piece: Piece)
+    inline def color: Color         = piece >>> 3
+    inline def pieceType: PieceType = piece & 7
+
+// ==============================================================================
+// 4. Square Opaque Type
+// ==============================================================================
+
+/** Represents an 8x8 chess board index from 0 (a1) to 63 (h8).
   */
-case class Square(file: Char, rank: Int):
-  require(file >= 'a' && file <= 'h', s"Invalid file: $file. Must be between 'a' and 'h'.")
-  require(rank >= 1 && rank <= 8, s"Invalid rank: $rank. Must be between 1 and 8.")
-
-  def toNotation: String = s"$file$rank"
+opaque type Square = Int
 
 object Square:
+  /** Builds a square from coordinate syntax.
+    */
+  def apply(file: Char, rank: Int): Square =
+    require(file >= 'a' && file <= 'h', s"Invalid file: $file. Must be 'a'-'h'.")
+    require(rank >= 1 && rank <= 8, s"Invalid rank: $rank. Must be 1-8.")
+    ((rank - 1) * 8) + (file - 'a')
+
+  /** Directly injects a pre-validated raw index.
+    */
+  def fromIndex(idx: Int): Square =
+    require(idx >= 0 && idx < 64, s"Invalid square index: $idx")
+    idx
+
   def fromNotation(notation: String): Option[Square] =
     if notation.length == 2 then
-      val file = notation.charAt(0)
-      val rank = notation.charAt(1).asDigit
-      if file >= 'a' && file <= 'h' && rank >= 1 && rank <= 8 then Some(Square(file, rank))
+      val file     = notation.charAt(0)
+      val rankChar = notation.charAt(1)
+      if file >= 'a' && file <= 'h' && rankChar >= '1' && rankChar <= '8' then Some(Square(file, rankChar.asDigit))
       else None
     else None
 
-/** Represents a single micro-move (from square, to square). Dice Chess turns consist of up to 3 micro-moves.
-  */
-case class MicroMove(from: Square, to: Square, promotion: Option[PieceType] = None):
-  def toNotation: String =
-    val promStr = promotion.map(_.toString.take(1).toLowerCase).getOrElse("")
-    s"${from.toNotation}${to.toNotation}$promStr"
+  extension (sq: Square)
+    inline def file: Char         = ((sq % 8) + 'a').toChar
+    inline def rank: Int          = (sq / 8) + 1
+    inline def toNotation: String = s"$file$rank"
+    inline def index: Int         = sq
 
-/** Represents a full turn made by a player: 1 dice roll and up to 3 micro-moves.
+// ==============================================================================
+// 5. MicroMove Opaque Type (Packed)
+// ==============================================================================
+
+/** Packs a micro-move into 16 bits: [Promotion 4 bits | To-Square 6 bits | From-Square 6 bits]
+  */
+opaque type MicroMove = Int
+
+object MicroMove:
+  def apply(from: Square, to: Square, promotion: Option[PieceType] = None): MicroMove =
+    val promValue = promotion.getOrElse(0) // 0 indicates no promotion
+    (promValue << 12) | (to << 6) | from
+
+  extension (mv: MicroMove)
+    inline def from: Square          = mv & 0x3f
+    inline def to: Square            = (mv >>> 6) & 0x3f
+    def promotion: Option[PieceType] =
+      val prom = (mv >>> 12) & 0x0f
+      if prom == 0 then None else Some(prom)
+
+    def toNotation: String =
+      import PieceType.asNotation
+      val promStr = promotion.map(_.asNotation).getOrElse("")
+      s"${Square.toNotation(from)}${Square.toNotation(to)}$promStr"
+
+// ==============================================================================
+// 6. Composite Structures (Domain aggregates)
+// ==============================================================================
+
+/** Represents a full turn: 1 dice roll + up to 3 micro-moves.
   */
 case class Turn(diceRoll: Int, microMoves: List[MicroMove]):
   require(microMoves.nonEmpty, "Turn must contain at least one micro-move")
   require(microMoves.length <= 3, "Turn cannot contain more than 3 micro-moves")
 
-/** The state of the Dice Chess board and turn-related meta-information.
+/** Represents total game state meta-information.
   */
 case class GameState(
     board: Map[Square, Piece],
     activeColor: Color,
-    castlingRights: String, // e.g. "KQkq"
+    castlingRights: String,
     enPassant: Option[Square],
     halfMoveClock: Int,
     fullMoveNumber: Int
