@@ -13,5 +13,12 @@ lazy val root = (project in file("."))
 
       // Testing framework
       "org.scalameta" %% "munit" % "1.3.0" % Test
+    ),
+    scalacOptions ++= Seq(
+      "-Werror",           // Fail the compilation if there are any warnings
+      "-Wunused:all",      // Fail on unused imports, privates, locals, and implicits
+      "-explain",          // Explain type errors in more detail
+      "-feature",          // Emit warning and location for usages of features that should be imported explicitly
+      "-deprecation"       // Emit warning and location for usages of deprecated APIs
     )
   )
