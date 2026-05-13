@@ -19,7 +19,7 @@ export default defineConfig({
 						{ label: 'Domain Modeling', slug: 'architecture/domain-modeling' },
 						{
 							label: 'Move Generation',
-							autogenerate: { directory: 'architecture/move-generation' },
+							items: [{ autogenerate: { directory: 'architecture/move-generation' } }],
 						},
 						{ label: 'Roadmap & Milestones', slug: 'architecture/milestones' },
 					],
