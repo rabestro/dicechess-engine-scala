@@ -22,4 +22,3 @@ assignees: []
 
 ## Additional context
 Any relevant logs, stacktraces or notes
-
