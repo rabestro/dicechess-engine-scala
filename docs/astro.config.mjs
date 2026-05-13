@@ -15,6 +15,7 @@ export default defineConfig({
 					label: 'Architecture & Plan',
 					items: [
 						{ label: 'Domain Modeling', slug: 'architecture/domain-modeling' },
+						{ label: 'Move Generation', slug: 'architecture/move-generation' },
 						{ label: 'Roadmap & Milestones', slug: 'architecture/milestones' },
 					],
 				},
