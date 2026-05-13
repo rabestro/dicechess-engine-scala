@@ -18,6 +18,10 @@ run = "sbt run"
 description = "🧪 Execute MUnit automated tests"
 run = "sbt test"
 
+[tasks.coverage]
+description = "📊 Run tests with scoverage and generate detailed local reports"
+run = "sbt clean coverage test coverageReport"
+
 [tasks.check]
 description = "✅ Run a full validation cycle (formatting check, compilation, and automated tests)"
 run = "sbt scalafmtCheckAll test"
