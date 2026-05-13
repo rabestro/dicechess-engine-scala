@@ -143,6 +143,9 @@ object Bitboard:
   /** Creates a bitboard with a single square occupied. */
   def fromSquare(sq: Square): Bitboard = 1L << Square.index(sq)
 
+  /** Creates a bitboard from a raw 64-bit integer. */
+  inline def apply(value: Long): Bitboard = value
+
   extension (bb: Bitboard)
     /** Bitwise AND (Intersection) */
     inline infix def &(other: Bitboard): Bitboard = bb & other
@@ -155,6 +158,12 @@ object Bitboard:
 
     /** Bitwise NOT (Complement) */
     inline def unary_~ : Bitboard = ~bb
+
+    /** Bitwise Left Shift */
+    inline infix def <<(n: Int): Bitboard = bb << n
+
+    /** Logical Right Shift (Zero Fill) */
+    inline infix def >>>(n: Int): Bitboard = bb >>> n
 
     /** Adds a square to the bitboard. */
     inline def add(sq: Square): Bitboard = bb | (1L << Square.index(sq))
