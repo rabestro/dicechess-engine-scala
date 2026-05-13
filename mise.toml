@@ -3,6 +3,7 @@ java = "temurin-25"  # Eclipse Temurin provides a high-performance OpenJDK distr
 sbt = "1.12.11"      # The launcher; resolves project/build.properties internally
 gh = "latest"
 gemini = "latest"
+node = "25.9.0"      # Drives the Astro Starlight documentation site
 
 [tasks.compile]
 description = "🔨 Incremental compilation of main and test sources"
@@ -35,4 +36,14 @@ run = "sbt scalafmtAll"
 [tasks."format:check"]
 description = "🔍 Verify code formatting without making modifications"
 run = "sbt scalafmtCheckAll"
+
+[tasks."docs:dev"]
+description = "🚀 Run the documentation site dev server"
+run = "npm run dev"
+dir = "docs"
+
+[tasks."docs:build"]
+description = "📦 Build production-ready documentation static site"
+run = "npm run build"
+dir = "docs"
 
