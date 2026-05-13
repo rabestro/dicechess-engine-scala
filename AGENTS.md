@@ -97,6 +97,8 @@ Agent rules (Copilot / automation):
 ## Approved Milestones
 
 Assign tasks to these milestones logically. Each milestone must be fully tested (including performance benchmarks) before moving to the next.
+> [!IMPORTANT]
+> You MUST strictly assign tasks ONLY to the following milestones. Do not create or invent new milestone names.
 
 * **v0.1 - Foundation & Core Types**: Project setup (SBT 1.x / Scala 3), configuration, `mise` setup. Implementation of basic Opaque Types (`Bitboard`, `Square`, `Piece`, `Color`). Basic FEN parsing and serialization.
 * **v0.2 - Move Generation (Classic)**: Bitwise operations, precomputed attack tables (Magic Bitboards). Pawn, knight, king, and sliding piece move generation. Perft (Performance Test) framework integration to verify move correctness.
@@ -108,18 +110,29 @@ Assign tasks to these milestones logically. Each milestone must be fully tested 
 
 ## Approved GitHub Labels
 
-Use ONLY these labels when generating `gh` commands:
+Use ONLY these labels when generating `gh` commands. Do not use any labels outside of this list.
 
-* **Types**: `bug`, `enhancement`, `refactoring`, `documentation`, `testing`, `performance` (Critical for engine optimizations), `architecture`, `ci-cd`
+* **Types**: 
+  * `bug` — Code issues, logical defects, or runtime failures.
+  * `enhancement` — Functional improvements or new features.
+  * `refactoring` — Design restructuring without behavioral changes.
+  * `documentation` — Inline docstrings, guides, or AGENTS.md updates.
+  * `testing` — Adding unit, property-based, or integration tests.
+  * `performance` — Micro-optimizations and engine search speedups.
+  * `architecture` — Global module design or tech stack switches.
+  * `ci-cd` — GitHub Actions, build scripts, or mise configuration.
+
 * **Domains**:
-* `core-types` (Board, Bitboards, FEN)
-* `move-gen` (Move generator, Bitwise ops)
-* `search` (Expectimax, Parallelism, Loom)
-* `evaluation` (Static evaluation, Heuristics)
-* `api` (WebSockets, JSON, Server)
-* `infrastructure` (Docker, GraalVM)
+  * `core-types` — Board, Bitboards, Pieces, and FEN parser.
+  * `move-gen` — Move generator, Bitwise operations, attack tables.
+  * `search` — Expectimax, Loom/Virtual Threads, pruning, Transposition Tables.
+  * `evaluation` — Static board evaluators, Piece-Square tables.
+  * `api` — HTTP, WebSockets, JSON serialization.
+  * `infrastructure` — Docker, cloud hosting, VM configurations.
 
-* **System**: `ai-ready` (Mandatory for well-scoped tasks. It acts as a strict contract indicating the Definition of Done is absolute and ready for an AI agent to pick up).
+* **System**: 
+  * `ai-ready` — Mandatory for well-scoped tasks. Acts as a strict contract that the Definition of Done is absolute and ready for an AI agent to implement.
+
 
 ## Testing Guidelines (Scala Engine)
 
