@@ -27,6 +27,8 @@ jobs:
         run: sbt scalafmtCheckAll
       - name: Run tests with Coverage
         run: sbt clean coverage test coverageReport
+      - name: Fix coverage paths for SonarQube
+        run: sed -i "s|${{ github.workspace }}|/github/workspace|g" target/scala-3.8.3/scoverage-report/scoverage.xml
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@55e44800a8f495208cce6e4e82f5dedb45fcf0ef # v7.2.0
         env:
