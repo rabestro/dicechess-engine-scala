@@ -4,6 +4,7 @@ sbt = "1.12.11"      # The launcher; resolves project/build.properties internall
 gh = "latest"
 gemini = "latest"
 node = "25.9.0"      # Drives the Astro Starlight documentation site
+pre-commit = "4.6.0" # Fast local security and hygiene git hooks
 
 [tasks.compile]
 description = "🔨 Incremental compilation of main and test sources"
@@ -47,3 +48,10 @@ description = "📦 Build production-ready documentation static site"
 run = "npm run build"
 dir = "docs"
 
+[tasks."hook:install"]
+description = "🪝 Install configured pre-commit hooks into local .git config"
+run = "pre-commit install"
+
+[tasks."hook:run"]
+description = "🏃 Run all configured pre-commit hooks manually across the entire codebase"
+run = "pre-commit run --all-files"
