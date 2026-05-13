@@ -13,10 +13,14 @@ opaque type Move = Int
 
 object Move:
 
+  // Shift offsets for bit packing
+  private val FromShift  = 6
+  private val FlagsShift = 12
+
   // Bitmasks for extracting move components
   private val ToMask: Int    = 0x3f
-  private val FromMask: Int  = 0x3f << 6
-  private val FlagsMask: Int = 0x0f << 12
+  private val FromMask: Int  = 0x3f << FromShift
+  private val FlagsMask: Int = 0x0f << FlagsShift
 
   // Standard 4-bit Move Flags
   val QuietMove: Int        = 0
@@ -40,7 +44,7 @@ object Move:
 
   /** Constructs a new encoded Move from origin, destination, and flags. */
   def apply(from: Square, to: Square, flags: Int): Move =
-    (flags << 12) | (Square.index(from) << 6) | Square.index(to)
+    (flags << FlagsShift) | (Square.index(from) << FromShift) | Square.index(to)
 
   /** Constructs a new quiet Move. */
   def apply(from: Square, to: Square): Move =
@@ -51,13 +55,13 @@ object Move:
 
   extension (move: Move)
     /** Returns the starting square of the move. */
-    def fromSquare: Square = Square.fromIndex((move & FromMask) >> 6)
+    def fromSquare: Square = Square.fromIndex((move & FromMask) >> FromShift)
 
     /** Returns the destination square of the move. */
     def toSquare: Square = Square.fromIndex(move & ToMask)
 
     /** Returns the 4-bit flag of the move. */
-    def flags: Int = (move & FlagsMask) >> 12
+    def flags: Int = (move & FlagsMask) >> FlagsShift
 
     /** Returns true if the move is any type of capture. */
     def isCapture: Boolean = (flags & 4) != 0
