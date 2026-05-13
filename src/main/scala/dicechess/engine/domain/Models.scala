@@ -1,9 +1,5 @@
 package dicechess.engine.domain
 
-// ==============================================================================
-// 1. Color Opaque Type
-// ==============================================================================
-
 opaque type Color = Int
 
 /** Represents the player colors: White (0) or Black (1).
@@ -25,10 +21,6 @@ object Color:
     inline def isWhite: Boolean = color == Color.White
     inline def isBlack: Boolean = color == Color.Black
     inline def value: Int       = color
-
-// ==============================================================================
-// 2. PieceType Opaque Type
-// ==============================================================================
 
 opaque type PieceType = Int
 
@@ -59,10 +51,6 @@ object PieceType:
       case PieceType.Queen  => "q"
       case PieceType.King   => "k"
 
-// ==============================================================================
-// 3. Piece Opaque Type (Packed)
-// ==============================================================================
-
 opaque type Piece = Int
 
 /** A packed chess piece combining [[Color]] and [[PieceType]].
@@ -78,10 +66,6 @@ object Piece:
   extension (piece: Piece)
     inline def color: Color         = piece >>> 3
     inline def pieceType: PieceType = piece & 7
-
-// ==============================================================================
-// 4. Square Opaque Type
-// ==============================================================================
 
 opaque type Square = Int
 
@@ -117,10 +101,6 @@ object Square:
     inline def toNotation: String = s"$file$rank"
     inline def index: Int         = sq
 
-// ==============================================================================
-// 5. MicroMove Opaque Type (Packed)
-// ==============================================================================
-
 opaque type MicroMove = Int
 
 /** A high-performance 16-bit packed micro-move.
@@ -146,10 +126,6 @@ object MicroMove:
       import PieceType.asNotation
       val promStr = promotion.map(_.asNotation).getOrElse("")
       s"${Square.toNotation(from)}${Square.toNotation(to)}$promStr"
-
-// ==============================================================================
-// 6. Bitboard Opaque Type
-// ==============================================================================
 
 opaque type Bitboard = Long
 
@@ -197,10 +173,6 @@ object Bitboard:
 
     /** Exposes the underlying Long value. */
     inline def value: Long = bb
-
-// ==============================================================================
-// 7. Composite Structures (Domain aggregates)
-// ==============================================================================
 
 /** A chess turn consisting of a dice outcome and a sequence of micro-moves.
   *
