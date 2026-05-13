@@ -5,6 +5,8 @@ package dicechess.engine.domain
 // ==============================================================================
 
 /** Represents the player colors: White (0) or Black (1).
+  *
+  * Uses bitwise XOR for fast toggling between opponents.
   */
 opaque type Color = Int
 
@@ -28,7 +30,9 @@ object Color:
 // 2. PieceType Opaque Type
 // ==============================================================================
 
-/** Represents chess piece types corresponding to dice values: 1: Pawn, 2: Knight, 3: Bishop, 4: Rook, 5: Queen, 6: King
+/** Represents chess piece types corresponding to dice values.
+  *
+  * Values are 1: Pawn, 2: Knight, 3: Bishop, 4: Rook, 5: Queen, 6: King.
   */
 opaque type PieceType = Int
 
@@ -59,7 +63,11 @@ object PieceType:
 // 3. Piece Opaque Type (Packed)
 // ==============================================================================
 
-/** Packs both Color and PieceType into a single primitive Int. Layout: [Color bit | PieceType bits 0-2]
+/** A packed chess piece combining [[Color]] and [[PieceType]].
+  *
+  * Memory Layout (4 bits total):
+  *   - Bit 3: Color (0 for White, 1 for Black)
+  *   - Bits 0-2: PieceType (1-6)
   */
 opaque type Piece = Int
 
@@ -75,7 +83,9 @@ object Piece:
 // 4. Square Opaque Type
 // ==============================================================================
 
-/** Represents an 8x8 chess board index from 0 (a1) to 63 (h8).
+/** Represents a chess board square index.
+  *
+  * The index ranges from 0 (a1) to 63 (h8), mapped row by row (a1, b1... h8).
   */
 opaque type Square = Int
 
@@ -111,7 +121,12 @@ object Square:
 // 5. MicroMove Opaque Type (Packed)
 // ==============================================================================
 
-/** Packs a micro-move into 16 bits: [Promotion 4 bits | To-Square 6 bits | From-Square 6 bits]
+/** A high-performance 16-bit packed micro-move.
+  *
+  * Memory Layout:
+  *   - Bits 12-15: Promotion PieceType (optional, 0 if none)
+  *   - Bits 6-11: Target [[Square]] (0-63)
+  *   - Bits 0-5: Origin [[Square]] (0-63)
   */
 opaque type MicroMove = Int
 
@@ -136,13 +151,31 @@ object MicroMove:
 // 6. Composite Structures (Domain aggregates)
 // ==============================================================================
 
-/** Represents a full turn: 1 dice roll + up to 3 micro-moves.
+/** A chess turn consisting of a dice outcome and a sequence of micro-moves.
+  *
+  * @param diceRoll
+  *   The result of the dice (1-6).
+  * @param microMoves
+  *   The list of 1 to 3 moves executed within this turn.
   */
 case class Turn(diceRoll: Int, microMoves: List[MicroMove]):
   require(microMoves.nonEmpty, "Turn must contain at least one micro-move")
   require(microMoves.length <= 3, "Turn cannot contain more than 3 micro-moves")
 
-/** Represents total game state meta-information.
+/** The complete snapshot of a Dice Chess game state.
+  *
+  * @param board
+  *   Map of occupied squares to their respective pieces.
+  * @param activeColor
+  *   The color of the player whose turn it is.
+  * @param castlingRights
+  *   FEN-standard castling string (e.g., "KQkq").
+  * @param enPassant
+  *   Potential en passant target square.
+  * @param halfMoveClock
+  *   Clock for the 50-move rule.
+  * @param fullMoveNumber
+  *   The number of the current full move.
   */
 case class GameState(
     board: Map[Square, Piece],

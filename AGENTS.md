@@ -134,6 +134,19 @@ Use ONLY these labels when generating `gh` commands. Do not use any labels outsi
   * `ai-ready` — Mandatory for well-scoped tasks. Acts as a strict contract that the Definition of Done is absolute and ready for an AI agent to implement.
 
 
+
+## Documentation Standards (Scaladoc 3)
+
+All engine code must follow these Scaladoc conventions:
+* **Balanced Approach:** Do not document self-evident code (e.g., `def isWhite`). Document *Why*, not *What*.
+* **Opaque Types:** Always document `opaque type` declarations, specifically describing their bitwise memory layout (e.g., Bit X-Y means Z) and companion objects.
+* **Language:** All comments must be written strictly in **English**.
+* **Formatting:**
+  * Use standard triple-quote Scaladoc: `/** ... */`.
+  * Leverage Markdown instead of HTML for lists and formatting.
+  * Enclose code snippets and examples in `{{{ ... }}}`.
+  * Use double brackets `[[Type]]` to reference other classes/objects.
+
 ## Testing Guidelines (Scala Engine)
 
 * **Unit Testing**: Powered by `MUnit`. This is modern, incredibly fast, and has native-level support for Scala 3 and rich assertion diffs.
