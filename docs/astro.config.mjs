@@ -14,6 +14,7 @@ export default defineConfig({
 				{
 					label: 'Architecture & Plan',
 					items: [
+						{ label: 'Domain Modeling', slug: 'architecture/domain-modeling' },
 						{ label: 'Roadmap & Milestones', slug: 'architecture/milestones' },
 					],
 				},
