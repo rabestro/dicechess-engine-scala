@@ -5,3 +5,17 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 /.bsp/sbt.json
+
+# Scala/SBT
+target/
+project/target/
+project/project/
+.history/
+.scala-build/
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
