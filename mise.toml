@@ -1,6 +1,8 @@
 [tools]
-java = "temurin-25" # Eclipse Temurin provides a high-performance OpenJDK distribution
-sbt = "1.9.7"      # The launcher from conda; resolves project/build.properties 1.9.9 internally
+java = "temurin-25"  # Eclipse Temurin provides a high-performance OpenJDK distribution
+sbt = "1.12.11"      # The launcher; resolves project/build.properties internally
+gh = "latest"
+gemini = "latest"
 
 [tasks.compile]
 description = "🔨 Incremental compilation of main and test sources"
@@ -15,8 +17,8 @@ description = "🧪 Execute MUnit automated tests"
 run = "sbt test"
 
 [tasks.check]
-description = "✅ Run a full validation cycle (includes compilation and automated tests)"
-depends = ["test"]
+description = "✅ Run a full validation cycle (formatting check, compilation, and automated tests)"
+run = "sbt scalafmtCheckAll test"
 
 [tasks.console]
 description = "💻 Launch an interactive Scala REPL preloaded with project dependencies"
@@ -25,3 +27,12 @@ run = "sbt console"
 [tasks.clean]
 description = "🧹 Remove build artifacts and temporary target folders"
 run = "sbt clean"
+
+[tasks.format]
+description = "✨ Reformat codebase using Scalafmt"
+run = "sbt scalafmtAll"
+
+[tasks."format:check"]
+description = "🔍 Verify code formatting without making modifications"
+run = "sbt scalafmtCheckAll"
+
