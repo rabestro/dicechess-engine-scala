@@ -1,5 +1,10 @@
 # Dice Chess Engine (Scala) 🎲♟️
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=rabestro_dicechess-engine-scala&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=rabestro_dicechess-engine-scala)
+[![CI Pipeline](https://github.com/rabestro/dicechess-engine-scala/actions/workflows/ci.yml/badge.svg)](https://github.com/rabestro/dicechess-engine-scala/actions/workflows/ci.yml)
+[![Architecture Docs](https://img.shields.io/badge/Docs-Architecture-orange)](https://jc.id.lv/dicechess-engine-scala/)
+[![Scaladoc API](https://img.shields.io/badge/Scaladoc-API-blue)](https://jc.id.lv/dicechess-engine-scala/api/)
+
 An open-source, high-performance game engine and probability calculator for **Dice Chess**, built with **Scala 3**.
 
 This engine is designed to calculate win probabilities, evaluate board positions, and suggest the best sequences of micro-moves based on stochastic search algorithms (Expectiminimax or Monte Carlo Tree Search).
@@ -101,18 +106,28 @@ Dice Chess is a stochastic variant of chess where players must roll a 6-sided di
 
 ---
 
+## 📚 Documentation & API Reference
+
+* **[Architecture & Developer Guide](https://jc.id.lv/dicechess-engine-scala/)**: Read about our Zero-Cost Abstractions, Hybrid Mailbox, and Milestone roadmap.
+* **[Scaladoc API Reference](https://jc.id.lv/dicechess-engine-scala/api/)**: Comprehensive technical API documentation automatically generated from our codebase.
+
+---
+
 ## 🚀 Getting Started
 
-Ensure you have [sbt](https://www.scala-sbt.org/) installed.
+Ensure you have [mise](https://mise.jdx.dev/) installed for orchestrating the developer environment.
 
 ```bash
 # Clone the repository
 git clone https://github.com/rabestro/dicechess-engine-scala.git
 cd dicechess-engine-scala
 
-# Run the application
-sbt run
+# Installs all required tooling (JDK, Scala CLI, SBT, Formatting tools)
+mise install
 
-# Run tests
-sbt test
+# Run the test suite and formatter checks
+mise run check
+
+# Open the interactive Scala 3 REPL loaded with the project
+mise run console
 ```
