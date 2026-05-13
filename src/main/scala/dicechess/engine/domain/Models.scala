@@ -4,12 +4,12 @@ package dicechess.engine.domain
 // 1. Color Opaque Type
 // ==============================================================================
 
+opaque type Color = Int
+
 /** Represents the player colors: White (0) or Black (1).
   *
   * Uses bitwise XOR for fast toggling between opponents.
   */
-opaque type Color = Int
-
 object Color:
   val White: Color = 0
   val Black: Color = 1
@@ -30,12 +30,12 @@ object Color:
 // 2. PieceType Opaque Type
 // ==============================================================================
 
+opaque type PieceType = Int
+
 /** Represents chess piece types corresponding to dice values.
   *
   * Values are 1: Pawn, 2: Knight, 3: Bishop, 4: Rook, 5: Queen, 6: King.
   */
-opaque type PieceType = Int
-
 object PieceType:
   val Pawn: PieceType   = 1
   val Knight: PieceType = 2
@@ -63,14 +63,14 @@ object PieceType:
 // 3. Piece Opaque Type (Packed)
 // ==============================================================================
 
+opaque type Piece = Int
+
 /** A packed chess piece combining [[Color]] and [[PieceType]].
   *
   * Memory Layout (4 bits total):
   *   - Bit 3: Color (0 for White, 1 for Black)
   *   - Bits 0-2: PieceType (1-6)
   */
-opaque type Piece = Int
-
 object Piece:
   def apply(color: Color, pieceType: PieceType): Piece =
     (color << 3) | pieceType
@@ -83,12 +83,12 @@ object Piece:
 // 4. Square Opaque Type
 // ==============================================================================
 
+opaque type Square = Int
+
 /** Represents a chess board square index.
   *
   * The index ranges from 0 (a1) to 63 (h8), mapped row by row (a1, b1... h8).
   */
-opaque type Square = Int
-
 object Square:
   /** Builds a square from coordinate syntax.
     */
@@ -121,6 +121,8 @@ object Square:
 // 5. MicroMove Opaque Type (Packed)
 // ==============================================================================
 
+opaque type MicroMove = Int
+
 /** A high-performance 16-bit packed micro-move.
   *
   * Memory Layout:
@@ -128,8 +130,6 @@ object Square:
   *   - Bits 6-11: Target [[Square]] (0-63)
   *   - Bits 0-5: Origin [[Square]] (0-63)
   */
-opaque type MicroMove = Int
-
 object MicroMove:
   def apply(from: Square, to: Square, promotion: Option[PieceType] = None): MicroMove =
     val promValue = promotion.getOrElse(0) // 0 indicates no promotion
@@ -148,7 +148,58 @@ object MicroMove:
       s"${Square.toNotation(from)}${Square.toNotation(to)}$promStr"
 
 // ==============================================================================
-// 6. Composite Structures (Domain aggregates)
+// 6. Bitboard Opaque Type
+// ==============================================================================
+
+opaque type Bitboard = Long
+
+/** A 64-bit integer representing a set of squares on the chess board.
+  *
+  * Uses Little-Endian Rank-File (LERF) mapping, where bit 0 is a1 and bit 63 is h8.
+  */
+object Bitboard:
+  /** An empty bitboard (no squares occupied). */
+  val empty: Bitboard = 0L
+
+  /** A full bitboard (all squares occupied). */
+  val full: Bitboard = -1L
+
+  /** Creates a bitboard with a single square occupied. */
+  def fromSquare(sq: Square): Bitboard = 1L << Square.index(sq)
+
+  extension (bb: Bitboard)
+    /** Bitwise AND (Intersection) */
+    inline infix def &(other: Bitboard): Bitboard = bb & other
+
+    /** Bitwise OR (Union) */
+    inline infix def |(other: Bitboard): Bitboard = bb | other
+
+    /** Bitwise XOR (Symmetric Difference) */
+    inline infix def ^(other: Bitboard): Bitboard = bb ^ other
+
+    /** Bitwise NOT (Complement) */
+    inline def unary_~ : Bitboard = ~bb
+
+    /** Adds a square to the bitboard. */
+    inline def add(sq: Square): Bitboard = bb | (1L << Square.index(sq))
+
+    /** Removes a square from the bitboard. */
+    inline def remove(sq: Square): Bitboard = bb & ~(1L << Square.index(sq))
+
+    /** Checks if a square is occupied on this bitboard. */
+    inline def contains(sq: Square): Boolean = (bb & (1L << Square.index(sq))) != 0L
+
+    /** Returns the number of occupied squares (using JVM POPCNT intrinsic). */
+    inline def count: Int = java.lang.Long.bitCount(bb)
+
+    /** Returns true if the bitboard has no occupied squares. */
+    inline def isEmpty: Boolean = bb == 0L
+
+    /** Exposes the underlying Long value. */
+    inline def value: Long = bb
+
+// ==============================================================================
+// 7. Composite Structures (Domain aggregates)
 // ==============================================================================
 
 /** A chess turn consisting of a dice outcome and a sequence of micro-moves.
