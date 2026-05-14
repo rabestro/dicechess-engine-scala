@@ -112,14 +112,14 @@ private object Position:
     *   the position from which initial bitboard values are copied
     */
   class BitboardMutator(state: GameState):
-    var white: Bitboard = state.whitePieces
-    var black: Bitboard = state.blackPieces
-    var pawns: Bitboard = state.pawns
-    var knights: Bitboard = state.knights
-    var bishops: Bitboard = state.bishops
-    var rooks: Bitboard = state.rooks
-    var queens: Bitboard = state.queens
-    var kings: Bitboard = state.kings
+    var white: Bitboard             = state.whitePieces
+    var black: Bitboard             = state.blackPieces
+    var pawns: Bitboard             = state.pawns
+    var knights: Bitboard           = state.knights
+    var bishops: Bitboard           = state.bishops
+    var rooks: Bitboard             = state.rooks
+    var queens: Bitboard            = state.queens
+    var kings: Bitboard             = state.kings
     var mailbox: Map[Square, Piece] = state.mailbox
 
     /** Clears the bit for `sqBB` from the type-specific bitboard of `pt`. */
