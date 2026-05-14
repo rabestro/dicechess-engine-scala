@@ -2,12 +2,36 @@ package dicechess.engine.domain
 
 import scala.collection.mutable
 
-/** Parser for Forsyth-Edwards Notation (FEN) tailored for Dice Chess.
+/** Parser and serialiser for Forsyth-Edwards Notation (FEN).
+  *
+  * FEN encodes a complete chess position in a single ASCII string consisting of six space-separated fields:
+  *
+  * ```
+  * <piece placement> <active color> <castling rights> <en-passant square> <half-move clock> <full-move number>
+  * ```
+  *
+  * Example (starting position):
+  * ```
+  * rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+  * ```
+  *
+  * Both [[parse]] and [[serialize]] are inverses of each other for any valid FEN string.
   */
 object FenParser {
 
+  /** FEN string for the standard chess starting position. */
   val InitialPosition: String = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
+  /** Parses a FEN string into a [[GameState]].
+    *
+    * Validates the number of fields, the board layout (exactly 8 ranks, 8 files each), and each piece character. The
+    * half-move clock and full-move number default to `0` and `1` respectively when absent (short FEN).
+    *
+    * @param fen
+    *   a FEN string with at least 4 space-separated fields
+    * @return
+    *   `Right(state)` on success, or `Left(errorMessage)` describing the first parse failure
+    */
   def parse(fen: String): Either[String, GameState] = {
     try {
       val parts = fen.split(" ")
@@ -104,6 +128,16 @@ object FenParser {
     }
   }
 
+  /** Serialises a [[GameState]] back to a FEN string.
+    *
+    * Produces all six FEN fields. Piece placement is written rank-8-first (as required by the standard). This method is
+    * the inverse of [[parse]]: `parse(serialize(s))` always yields `Right(s)` for a valid state.
+    *
+    * @param state
+    *   the game state to encode
+    * @return
+    *   a valid FEN string representing `state`
+    */
   def serialize(state: GameState): String = {
     val res = new StringBuilder()
     var r   = 7
