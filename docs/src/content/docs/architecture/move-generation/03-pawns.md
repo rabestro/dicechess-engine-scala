@@ -45,3 +45,25 @@ val eastCaptures = ((whitePawns & NotHFile) << 9) & enemyPieces
 // Capturing West (Left)
 val westCaptures = ((whitePawns & NotAFile) << 7) & enemyPieces
 ```
+
+## Pawn Promotion
+
+In Dice Chess, when a pawn reaches the back rank (Rank 8 for White, Rank 1 for Black), it must be promoted.
+
+Our generator handles this by splitting the candidate target bitboards (from pushes or captures) into two sets using rank masks:
+
+```scala
+// Mask for White promotion (Rank 8)
+val push1Prom = push1 & Rank8Mask
+val push1Std  = push1 & ~Rank8Mask
+```
+
+### Multiple Move Generation
+For every square in the `promotionSquares` bitboard, the engine emits **four distinct moves**, one for each possible promotion piece:
+- Queen Promotion
+- Rook Promotion
+- Bishop Promotion
+- Knight Promotion
+
+This ensures the move search algorithm can evaluate the trade-offs of different promotion choices. Since these are separate `MicroMove` objects, they are treated as unique options in the game tree.
+
