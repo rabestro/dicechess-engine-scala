@@ -22,6 +22,7 @@ export default defineConfig({
 				{
 					label: 'Core Architecture',
 					items: [
+						{ label: 'Glossary', slug: 'architecture/glossary' },
 						{ label: 'Domain Modeling', slug: 'architecture/domain-modeling' },
 						{
 							label: 'Move Generation',
