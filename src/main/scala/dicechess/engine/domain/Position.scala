@@ -2,6 +2,46 @@ package dicechess.engine.domain
 
 import scala.annotation.targetName
 
+private object Position:
+  def promotionPieceType(flags: Int): PieceType = flags match {
+    case Move.KnightPromotion | Move.KnightPromoCapture => PieceType.Knight
+    case Move.BishopPromotion | Move.BishopPromoCapture => PieceType.Bishop
+    case Move.RookPromotion | Move.RookPromoCapture     => PieceType.Rook
+    case _                                              => PieceType.Queen
+  }
+
+  def updatedCastlingRights(
+      rights: String,
+      movingPiece: Piece,
+      from: Square,
+      targetPiece: Option[Piece],
+      to: Square,
+      isWhite: Boolean
+  ): String = {
+    var r = rights
+    if (movingPiece.pieceType == PieceType.King) {
+      if (isWhite) r = r.filterNot(c => c == 'K' || c == 'Q')
+      else r = r.filterNot(c => c == 'k' || c == 'q')
+    } else if (movingPiece.pieceType == PieceType.Rook) {
+      if (isWhite) {
+        if (from == Square('a', 1)) r = r.filterNot(_ == 'Q')
+        else if (from == Square('h', 1)) r = r.filterNot(_ == 'K')
+      } else {
+        if (from == Square('a', 8)) r = r.filterNot(_ == 'q')
+        else if (from == Square('h', 8)) r = r.filterNot(_ == 'k')
+      }
+    }
+    targetPiece.foreach { p =>
+      if (p.pieceType == PieceType.Rook) {
+        if (to == Square('a', 8)) r = r.filterNot(_ == 'q')
+        else if (to == Square('h', 8)) r = r.filterNot(_ == 'k')
+        else if (to == Square('a', 1)) r = r.filterNot(_ == 'Q')
+        else if (to == Square('h', 1)) r = r.filterNot(_ == 'K')
+      }
+    }
+    if (r.isEmpty) "-" else r
+  }
+
 extension (state: GameState)
   /** Applies a micro-move (Turn-based) to the current game state.
     *
@@ -97,151 +137,113 @@ extension (state: GameState)
   def makeMove(mv: Move): GameState = {
     val from        = mv.fromSquare
     val to          = mv.toSquare
-    val flags       = mv.flags
     val movingPiece = state.mailbox(from)
     val color       = movingPiece.color
     val isWhite     = color.isWhite
 
-    // 1. Basic bitboard updates
     val fromBB   = Bitboard.fromSquare(from)
     val toBB     = Bitboard.fromSquare(to)
     val fromToBB = fromBB | toBB
 
-    var newWhite = state.whitePieces
-    var newBlack = state.blackPieces
+    var newWhite   = state.whitePieces
+    var newBlack   = state.blackPieces
+    var newPawns   = state.pawns
+    var newKnights = state.knights
+    var newBishops = state.bishops
+    var newRooks   = state.rooks
+    var newQueens  = state.queens
+    var newKings   = state.kings
+    var newMailbox = state.mailbox - from
+
     if (isWhite) newWhite ^= fromToBB else newBlack ^= fromToBB
 
-    // 2. Specialized Bitboard & Mailbox Updates
-    var newPawns                     = state.pawns
-    var newKnights                   = state.knights
-    var newBishops                   = state.bishops
-    var newRooks                     = state.rooks
-    var newQueens                    = state.queens
-    var newKings                     = state.kings
-    var newMailbox                   = state.mailbox - from
-    var newEnPassant: Option[Square] = None
-    var newCastlingRights            = state.castlingRights
+    def clr(bb: Bitboard, sqBB: Bitboard): Bitboard = bb & ~sqBB
 
-    // Helper to clear square from all bitboards
-    def clearSquare(bb: Bitboard, sqBB: Bitboard): Bitboard = bb & ~sqBB
-
-    // Clear 'from' and 'to' (if capture)
-    val targetPiece = if (mv.isCapture && flags != Move.EnPassantCapture) state.mailbox.get(to) else None
-
-    // Always clear from
-    movingPiece.pieceType match {
-      case PieceType.Pawn   => newPawns = clearSquare(newPawns, fromBB)
-      case PieceType.Knight => newKnights = clearSquare(newKnights, fromBB)
-      case PieceType.Bishop => newBishops = clearSquare(newBishops, fromBB)
-      case PieceType.Rook   => newRooks = clearSquare(newRooks, fromBB)
-      case PieceType.Queen  => newQueens = clearSquare(newQueens, fromBB)
-      case PieceType.King   => newKings = clearSquare(newKings, fromBB)
+    def clearPiece(pt: PieceType, sqBB: Bitboard): Unit = pt match {
+      case PieceType.Pawn   => newPawns = clr(newPawns, sqBB)
+      case PieceType.Knight => newKnights = clr(newKnights, sqBB)
+      case PieceType.Bishop => newBishops = clr(newBishops, sqBB)
+      case PieceType.Rook   => newRooks = clr(newRooks, sqBB)
+      case PieceType.Queen  => newQueens = clr(newQueens, sqBB)
+      case PieceType.King   => newKings = clr(newKings, sqBB)
       case _                => ()
     }
 
-    // Clear captured piece
-    targetPiece.foreach { p =>
-      if (isWhite) newBlack = clearSquare(newBlack, toBB) else newWhite = clearSquare(newWhite, toBB)
-      p.pieceType match {
-        case PieceType.Pawn   => newPawns = clearSquare(newPawns, toBB)
-        case PieceType.Knight => newKnights = clearSquare(newKnights, toBB)
-        case PieceType.Bishop => newBishops = clearSquare(newBishops, toBB)
-        case PieceType.Rook   => newRooks = clearSquare(newRooks, toBB)
-        case PieceType.Queen  => newQueens = clearSquare(newQueens, toBB)
-        case PieceType.King   => newKings = clearSquare(newKings, toBB)
-        case _                => ()
-      }
+    def setPiece(pt: PieceType, sqBB: Bitboard): Unit = pt match {
+      case PieceType.Pawn   => newPawns |= sqBB
+      case PieceType.Knight => newKnights |= sqBB
+      case PieceType.Bishop => newBishops |= sqBB
+      case PieceType.Rook   => newRooks |= sqBB
+      case PieceType.Queen  => newQueens |= sqBB
+      case PieceType.King   => newKings |= sqBB
+      case _                => ()
     }
 
-    // Handle special cases
-    flags match {
+    clearPiece(movingPiece.pieceType, fromBB)
+
+    val targetPiece = if (mv.isCapture && mv.flags != Move.EnPassantCapture) state.mailbox.get(to) else None
+    targetPiece.foreach { p =>
+      if (isWhite) newBlack = clr(newBlack, toBB) else newWhite = clr(newWhite, toBB)
+      clearPiece(p.pieceType, toBB)
+    }
+
+    def moveCastlingRook(rookFrom: Square, rookTo: Square, color: Color, isWhite: Boolean): Unit = {
+      val rookBB = Bitboard.fromSquare(rookFrom) | Bitboard.fromSquare(rookTo)
+      if (isWhite) newWhite ^= rookBB else newBlack ^= rookBB
+      newRooks ^= rookBB
+      newMailbox -= rookFrom
+      newMailbox += (rookTo -> Piece(color, PieceType.Rook))
+    }
+
+    var newEnPassant: Option[Square] = None
+    val rankOffset                   = 8 // squares per rank
+
+    mv.flags match {
       case Move.DoublePawnPush =>
         newPawns |= toBB
         newMailbox += (to -> Piece(color, PieceType.Pawn))
-        newEnPassant = Some(if (isWhite) Square.fromIndex(to.index - 8) else Square.fromIndex(to.index + 8))
+        val epIdx = if (isWhite) to.index - rankOffset else to.index + rankOffset
+        newEnPassant = Some(Square.fromIndex(epIdx))
 
       case Move.EnPassantCapture =>
-        val victimSq = if (isWhite) Square.fromIndex(to.index - 8) else Square.fromIndex(to.index + 8)
-        val victimBB = Bitboard.fromSquare(victimSq)
-        if (isWhite) newBlack = clearSquare(newBlack, victimBB) else newWhite = clearSquare(newWhite, victimBB)
-        newPawns = clearSquare(newPawns, victimBB)
+        val victimIdx = if (isWhite) to.index - rankOffset else to.index + rankOffset
+        val victimBB  = Bitboard.fromSquare(Square.fromIndex(victimIdx))
+        if (isWhite) newBlack = clr(newBlack, victimBB) else newWhite = clr(newWhite, victimBB)
+        newPawns = clr(newPawns, victimBB)
         newPawns |= toBB
-        newMailbox -= victimSq
+        newMailbox -= Square.fromIndex(victimIdx)
         newMailbox += (to -> Piece(color, PieceType.Pawn))
 
       case Move.KingCastle =>
         newKings |= toBB
         newMailbox += (to -> Piece(color, PieceType.King))
         val (rookFrom, rookTo) = if (isWhite) (Square('h', 1), Square('f', 1)) else (Square('h', 8), Square('f', 8))
-        val rookBB             = Bitboard.fromSquare(rookFrom) | Bitboard.fromSquare(rookTo)
-        if (isWhite) newWhite ^= rookBB else newBlack ^= rookBB
-        newRooks ^= rookBB
-        newMailbox -= rookFrom
-        newMailbox += (rookTo -> Piece(color, PieceType.Rook))
+        moveCastlingRook(rookFrom, rookTo, color, isWhite)
 
       case Move.QueenCastle =>
         newKings |= toBB
         newMailbox += (to -> Piece(color, PieceType.King))
         val (rookFrom, rookTo) = if (isWhite) (Square('a', 1), Square('d', 1)) else (Square('a', 8), Square('d', 8))
-        val rookBB             = Bitboard.fromSquare(rookFrom) | Bitboard.fromSquare(rookTo)
-        if (isWhite) newWhite ^= rookBB else newBlack ^= rookBB
-        newRooks ^= rookBB
-        newMailbox -= rookFrom
-        newMailbox += (rookTo -> Piece(color, PieceType.Rook))
+        moveCastlingRook(rookFrom, rookTo, color, isWhite)
 
-      case f if (f & 8) != 0 => // Promotions
-        val promType = f match {
-          case Move.KnightPromotion | Move.KnightPromoCapture => PieceType.Knight
-          case Move.BishopPromotion | Move.BishopPromoCapture => PieceType.Bishop
-          case Move.RookPromotion | Move.RookPromoCapture     => PieceType.Rook
-          case Move.QueenPromotion | Move.QueenPromoCapture   => PieceType.Queen
-          case _                                              => PieceType.Queen
-        }
-        promType match {
-          case PieceType.Knight => newKnights |= toBB
-          case PieceType.Bishop => newBishops |= toBB
-          case PieceType.Rook   => newRooks |= toBB
-          case PieceType.Queen  => newQueens |= toBB
-          case _                => ()
-        }
+      case _ if mv.isPromotion =>
+        val promType = Position.promotionPieceType(mv.flags)
+        setPiece(promType, toBB)
         newMailbox += (to -> Piece(color, promType))
 
-      case _ => // Standard Quiet or Capture
-        movingPiece.pieceType match {
-          case PieceType.Knight => newKnights |= toBB
-          case PieceType.Bishop => newBishops |= toBB
-          case PieceType.Rook   => newRooks |= toBB
-          case PieceType.Queen  => newQueens |= toBB
-          case PieceType.King   => newKings |= toBB
-          case PieceType.Pawn   => newPawns |= toBB
-          case _                => ()
-        }
+      case _ =>
+        setPiece(movingPiece.pieceType, toBB)
         newMailbox += (to -> Piece(color, movingPiece.pieceType))
     }
 
-    // Update castling rights
-    if (movingPiece.pieceType == PieceType.King) {
-      if (isWhite) newCastlingRights = newCastlingRights.filterNot(c => c == 'K' || c == 'Q')
-      else newCastlingRights = newCastlingRights.filterNot(c => c == 'k' || c == 'q')
-    } else if (movingPiece.pieceType == PieceType.Rook) {
-      if (isWhite) {
-        if (from == Square('a', 1)) newCastlingRights = newCastlingRights.filterNot(_ == 'Q')
-        else if (from == Square('h', 1)) newCastlingRights = newCastlingRights.filterNot(_ == 'K')
-      } else {
-        if (from == Square('a', 8)) newCastlingRights = newCastlingRights.filterNot(_ == 'q')
-        else if (from == Square('h', 8)) newCastlingRights = newCastlingRights.filterNot(_ == 'k')
-      }
-    }
-    // Also if we capture a rook!
-    targetPiece.foreach { p =>
-      if (p.pieceType == PieceType.Rook) {
-        if (to == Square('a', 8)) newCastlingRights = newCastlingRights.filterNot(_ == 'q')
-        else if (to == Square('h', 8)) newCastlingRights = newCastlingRights.filterNot(_ == 'k')
-        else if (to == Square('a', 1)) newCastlingRights = newCastlingRights.filterNot(_ == 'Q')
-        else if (to == Square('h', 1)) newCastlingRights = newCastlingRights.filterNot(_ == 'K')
-      }
-    }
-    if (newCastlingRights.isEmpty) newCastlingRights = "-"
+    val newCastlingRights = Position.updatedCastlingRights(
+      state.castlingRights,
+      movingPiece,
+      from,
+      targetPiece,
+      to,
+      isWhite
+    )
 
     state.copy(
       whitePieces = newWhite,

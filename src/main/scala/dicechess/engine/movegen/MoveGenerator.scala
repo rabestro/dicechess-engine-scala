@@ -160,60 +160,46 @@ object MoveGenerator {
   }
 
   private def generateCastlingMoves(state: GameState, color: Color, moves: mutable.Builder[Move, List[Move]]): Unit = {
-    val rights    = state.castlingRights
     val allPieces = state.whitePieces | state.blackPieces
     val enemy     = color.opponent
+    val rank      = if (color.isWhite) 1 else 8
 
-    if (color.isWhite) {
-      // King Side
-      if (rights.contains('K')) {
-        val pathEmpty = !allPieces.contains(Square('f', 1)) && !allPieces.contains(Square('g', 1))
-        if (pathEmpty) {
-          val safe = isSquareAttacked(state, Square('e', 1), enemy).isEmpty &&
-            isSquareAttacked(state, Square('f', 1), enemy).isEmpty &&
-            isSquareAttacked(state, Square('g', 1), enemy).isEmpty
-          if (safe) moves += Move(Square('e', 1), Square('g', 1), Move.KingCastle)
-        }
-      }
-      // Queen Side
-      if (rights.contains('Q')) {
-        val pathEmpty =
-          !allPieces.contains(Square('b', 1)) && !allPieces.contains(Square('c', 1)) && !allPieces.contains(
-            Square('d', 1)
-          )
-        if (pathEmpty) {
-          val safe = isSquareAttacked(state, Square('e', 1), enemy).isEmpty &&
-            isSquareAttacked(state, Square('d', 1), enemy).isEmpty &&
-            isSquareAttacked(state, Square('c', 1), enemy).isEmpty
-          if (safe) moves += Move(Square('e', 1), Square('c', 1), Move.QueenCastle)
-        }
-      }
-    } else {
-      // King Side
-      if (rights.contains('k')) {
-        val pathEmpty = !allPieces.contains(Square('f', 8)) && !allPieces.contains(Square('g', 8))
-        if (pathEmpty) {
-          val safe = isSquareAttacked(state, Square('e', 8), enemy).isEmpty &&
-            isSquareAttacked(state, Square('f', 8), enemy).isEmpty &&
-            isSquareAttacked(state, Square('g', 8), enemy).isEmpty
-          if (safe) moves += Move(Square('e', 8), Square('g', 8), Move.KingCastle)
-        }
-      }
-      // Queen Side
-      if (rights.contains('q')) {
-        val pathEmpty =
-          !allPieces.contains(Square('b', 8)) && !allPieces.contains(Square('c', 8)) && !allPieces.contains(
-            Square('d', 8)
-          )
-        if (pathEmpty) {
-          val safe = isSquareAttacked(state, Square('e', 8), enemy).isEmpty &&
-            isSquareAttacked(state, Square('d', 8), enemy).isEmpty &&
-            isSquareAttacked(state, Square('c', 8), enemy).isEmpty
-          if (safe) moves += Move(Square('e', 8), Square('c', 8), Move.QueenCastle)
-        }
-      }
-    }
+    tryCastle(state, allPieces, enemy, moves)(
+      right = if (color.isWhite) 'K' else 'k',
+      path = List(Square('f', rank), Square('g', rank)),
+      safe = List(Square('e', rank), Square('f', rank), Square('g', rank)),
+      kingFrom = Square('e', rank),
+      kingTo = Square('g', rank),
+      flag = Move.KingCastle
+    )
+    tryCastle(state, allPieces, enemy, moves)(
+      right = if (color.isWhite) 'Q' else 'q',
+      path = List(Square('b', rank), Square('c', rank), Square('d', rank)),
+      safe = List(Square('e', rank), Square('d', rank), Square('c', rank)),
+      kingFrom = Square('e', rank),
+      kingTo = Square('c', rank),
+      flag = Move.QueenCastle
+    )
   }
+
+  private def tryCastle(
+      state: GameState,
+      allPieces: Bitboard,
+      enemy: Color,
+      moves: mutable.Builder[Move, List[Move]]
+  )(
+      right: Char,
+      path: List[Square],
+      safe: List[Square],
+      kingFrom: Square,
+      kingTo: Square,
+      flag: Int
+  ): Unit =
+    if (state.castlingRights.contains(right)) {
+      val pathClear = path.forall(!allPieces.contains(_))
+      if (pathClear && safe.forall(sq => isSquareAttacked(state, sq, enemy).isEmpty))
+        moves += Move(kingFrom, kingTo, flag)
+    }
 
   private def generateSlidingMoves(
       state: GameState,
