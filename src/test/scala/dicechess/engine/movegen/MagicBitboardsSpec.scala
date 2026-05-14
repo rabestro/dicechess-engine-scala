@@ -23,6 +23,21 @@ class MagicBitboardsSpec extends FunSuite:
     assertEquals(attacks, expected)
   }
 
+  test("Bishop attacks with blockers - explicit expected squares") {
+    val sq = "e4".sq
+
+    // B - Bishop on e4
+    // P - Blockers on d3 (SW) and f5 (NE)
+    val occupancy = TestBoard("d3", "f5")
+    val attacks   = MagicBitboards.bishopAttacks(sq, occupancy)
+
+    // NE: blocked at f5 (included), SW: blocked at d3 (included)
+    // NW: d5, c6, b7, a8 (open), SE: f3, g2, h1 (open)
+    val expected = TestBoard("f5", "d3", "d5", "c6", "b7", "a8", "f3", "g2", "h1")
+
+    assertEquals(attacks, expected)
+  }
+
   test("Rook attacks on empty board") {
     val sq        = Square.fromIndex(28) // e4
     val occupancy = Bitboard.empty
