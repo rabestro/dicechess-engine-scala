@@ -33,6 +33,10 @@ object MoveGenerator {
     }
   }
 
+  /** Promotion piece types emitted for every pawn that reaches the back rank. */
+  private val PromotionPieces: List[PieceType] =
+    List(PieceType.Queen, PieceType.Rook, PieceType.Bishop, PieceType.Knight)
+
   private def generatePawnMoves(
       state: GameState,
       color: Color,
@@ -50,29 +54,51 @@ object MoveGenerator {
       val from    = Square.fromIndex(fromIdx)
       val fromBB  = Bitboard.fromSquare(from)
 
-      // Single Push
-      val push1 = PawnGeneration.singlePushes(fromBB, emptySquares, color)
-      if (!push1.isEmpty) {
-        val to1 = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(push1.value))
+      // --- Single Push: split into promotions and standard moves ---
+      val push1     = PawnGeneration.singlePushes(fromBB, emptySquares, color)
+      val push1Prom = PawnGeneration.promotionSquares(push1, color)
+      val push1Std  = PawnGeneration.nonPromotionSquares(push1, color)
+
+      // Emit 4 promotion moves for each promotion target
+      if (!push1Prom.isEmpty) {
+        val to = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(push1Prom.value))
+        PromotionPieces.foreach(pt => moves += MicroMove(from, to, Some(pt)))
+      }
+
+      // Emit a standard quiet move (and potential double push)
+      if (!push1Std.isEmpty) {
+        val to1 = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(push1Std.value))
         moves += MicroMove(from, to1)
 
-        // Double Push
-        val push2 = PawnGeneration.doublePushes(push1, emptySquares, color)
+        // Double Push (only possible from starting rank, never a promotion rank)
+        val push2 = PawnGeneration.doublePushes(push1Std, emptySquares, color)
         if (!push2.isEmpty) {
           val to2 = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(push2.value))
           moves += MicroMove(from, to2)
         }
       }
 
-      // Captures
+      // --- Captures: split into promotions and standard captures ---
       val captures = PawnGeneration.eastCaptures(fromBB, enemies, color) |
         PawnGeneration.westCaptures(fromBB, enemies, color)
+      val capturesProm = PawnGeneration.promotionSquares(captures, color)
+      val capturesStd  = PawnGeneration.nonPromotionSquares(captures, color)
 
-      var c = captures.value
-      while (c != 0) {
-        val toIdx = java.lang.Long.numberOfTrailingZeros(c)
+      // Emit 4 promotion-capture moves for each promotion capture target
+      var cp = capturesProm.value
+      while (cp != 0) {
+        val toIdx = java.lang.Long.numberOfTrailingZeros(cp)
+        val to    = Square.fromIndex(toIdx)
+        PromotionPieces.foreach(pt => moves += MicroMove(from, to, Some(pt)))
+        cp &= cp - 1
+      }
+
+      // Emit standard captures
+      var cs = capturesStd.value
+      while (cs != 0) {
+        val toIdx = java.lang.Long.numberOfTrailingZeros(cs)
         moves += MicroMove(from, Square.fromIndex(toIdx))
-        c &= c - 1
+        cs &= cs - 1
       }
 
       p &= p - 1
