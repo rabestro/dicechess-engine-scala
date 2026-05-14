@@ -131,3 +131,9 @@ mise run check
 # Open the interactive Scala 3 REPL loaded with the project
 mise run console
 ```
+
+---
+
+## ⚖️ License
+
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. 
