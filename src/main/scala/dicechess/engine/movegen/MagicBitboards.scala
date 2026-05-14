@@ -43,10 +43,6 @@ object MagicBitboards:
     0x1101000250880005L, 0x0281000804000201L, 0x0681000401a20001L, 0x0800040040810022L
   )
 
-  // Note: These magics are placeholders. I will need to replace them with
-  // verified ones or implement a magic generator.
-  // For now, I'll focus on the architecture.
-
   /** Generates the occupancy mask for a bishop on a given square. Excludes the edges of the board.
     */
   def bishopMask(sq: Square): Bitboard =
