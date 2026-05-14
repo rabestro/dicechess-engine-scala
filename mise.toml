@@ -5,6 +5,7 @@ gh = "latest"
 gemini = "latest"
 node = "25.9.0"      # Drives the Astro Starlight documentation site
 pre-commit = "4.6.0" # Fast local security and hygiene git hooks
+scala-cli = "latest"
 
 [tasks.compile]
 description = "🔨 Incremental compilation of main and test sources"
