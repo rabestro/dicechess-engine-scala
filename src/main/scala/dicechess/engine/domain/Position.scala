@@ -2,8 +2,23 @@ package dicechess.engine.domain
 
 import scala.annotation.targetName
 
+/** Internal helpers for applying moves to a [[GameState]].
+  *
+  * Encapsulates castling-rights bookkeeping and the mutable bitboard scratch-pad used during move application.
+  * Intentionally `private` — all external callers go through the `makeMove` extension methods on [[GameState]].
+  */
 private object Position:
 
+  /** Maps a promotion [[Move]] flag to the target [[PieceType]].
+    *
+    * Defaults to `Queen` for any flag not explicitly listed (quiet move, double push, etc. will never reach this path
+    * in practice).
+    *
+    * @param flags
+    *   the 4-bit flag field from a [[Move]]
+    * @return
+    *   the piece type the pawn should be promoted to
+    */
   def promotionPieceType(flags: Int): PieceType = flags match {
     case Move.KnightPromotion | Move.KnightPromoCapture => PieceType.Knight
     case Move.BishopPromotion | Move.BishopPromoCapture => PieceType.Bishop
@@ -11,6 +26,31 @@ private object Position:
     case _                                              => PieceType.Queen
   }
 
+  /** Computes the new castling-rights string after a move.
+    *
+    * Applies two independent revocations in sequence:
+    *
+    *   1. **Captured rook** — if a rook is taken on its home corner, the corresponding right is removed.
+    *   2. **Moving piece** — a king move removes both rights for its color; a rook move from its home square removes
+    *      only the matching right.
+    *
+    * Returns `"-"` when no rights remain (FEN convention).
+    *
+    * @param rights
+    *   current FEN castling-rights string (e.g. `"KQkq"`)
+    * @param movingPiece
+    *   the piece that is moving
+    * @param from
+    *   origin square of the move
+    * @param targetPiece
+    *   the captured piece, if any
+    * @param to
+    *   destination square of the move
+    * @param isWhite
+    *   `true` if the moving side is White
+    * @return
+    *   updated castling-rights string, or `"-"` if none remain
+    */
   def updatedCastlingRights(
       rights: String,
       movingPiece: Piece,
@@ -22,6 +62,11 @@ private object Position:
     val r = removeMoverRights(removeCapturedRookRights(rights, targetPiece, to), movingPiece.pieceType, from, isWhite)
     if r.isEmpty then "-" else r
 
+  /** Removes castling rights caused by the moving piece.
+    *
+    * A king move revokes both rights for its color. A rook move from a home corner revokes only the right for that
+    * corner; any other piece leaves rights unchanged.
+    */
   private def removeMoverRights(rights: String, pieceType: PieceType, from: Square, isWhite: Boolean): String =
     pieceType match
       case PieceType.King =>
@@ -30,6 +75,10 @@ private object Position:
       case PieceType.Rook => removeRookMoverRights(rights, from, isWhite)
       case _              => rights
 
+  /** Removes the castling right associated with a rook that has moved off its home square.
+    *
+    * Only corner squares (a1, h1 for White; a8, h8 for Black) trigger a revocation; all other origins are no-ops.
+    */
   private def removeRookMoverRights(rights: String, from: Square, isWhite: Boolean): String =
     if isWhite then
       if from == Square('a', 1) then rights.filterNot(_ == 'Q')
@@ -39,6 +88,10 @@ private object Position:
     else if from == Square('h', 8) then rights.filterNot(_ == 'k')
     else rights
 
+  /** Removes castling rights caused by a rook being captured on its home corner.
+    *
+    * Only applies when the captured piece is a `Rook` and the destination square is one of the four corner squares.
+    */
   private def removeCapturedRookRights(rights: String, targetPiece: Option[Piece], to: Square): String =
     targetPiece match
       case Some(p) if p.pieceType == PieceType.Rook =>
@@ -49,18 +102,27 @@ private object Position:
         else rights
       case _ => rights
 
-  /** Mutable working copy of board bitboards for use inside makeMove. */
+  /** Mutable scratch-pad that mirrors a [[GameState]]'s bitboards during move application.
+    *
+    * Created at the start of each `makeMove` call and discarded once the new [[GameState]] is constructed via
+    * `state.copy(...)`. Using an explicit class rather than local `def` closures keeps cognitive complexity low and
+    * groups all board-mutation operations in one place.
+    *
+    * @param state
+    *   the position from which initial bitboard values are copied
+    */
   class BitboardMutator(state: GameState):
-    var white   = state.whitePieces
-    var black   = state.blackPieces
-    var pawns   = state.pawns
-    var knights = state.knights
-    var bishops = state.bishops
-    var rooks   = state.rooks
-    var queens  = state.queens
-    var kings   = state.kings
-    var mailbox = state.mailbox
+    var white: Bitboard             = state.whitePieces
+    var black: Bitboard             = state.blackPieces
+    var pawns: Bitboard             = state.pawns
+    var knights: Bitboard           = state.knights
+    var bishops: Bitboard           = state.bishops
+    var rooks: Bitboard             = state.rooks
+    var queens: Bitboard            = state.queens
+    var kings: Bitboard             = state.kings
+    var mailbox: Map[Square, Piece] = state.mailbox
 
+    /** Clears the bit for `sqBB` from the type-specific bitboard of `pt`. */
     def clearPiece(pt: PieceType, sqBB: Bitboard): Unit = pt match
       case PieceType.Pawn   => pawns = pawns & ~sqBB
       case PieceType.Knight => knights = knights & ~sqBB
@@ -70,6 +132,7 @@ private object Position:
       case PieceType.King   => kings = kings & ~sqBB
       case _                => ()
 
+    /** Sets the bit for `sqBB` in the type-specific bitboard of `pt`. */
     def setPiece(pt: PieceType, sqBB: Bitboard): Unit = pt match
       case PieceType.Pawn   => pawns |= sqBB
       case PieceType.Knight => knights |= sqBB
@@ -79,12 +142,25 @@ private object Position:
       case PieceType.King   => kings |= sqBB
       case _                => ()
 
+    /** Toggles `fromToBB` in the appropriate color bitboard (XOR clears origin, sets destination). */
     def moveColor(isWhite: Boolean, fromToBB: Bitboard): Unit =
       if isWhite then white ^= fromToBB else black ^= fromToBB
 
+    /** Removes `sqBB` from the opponent's color bitboard (used when a piece is captured). */
     def removeCaptured(isWhite: Boolean, sqBB: Bitboard): Unit =
       if isWhite then black = black & ~sqBB else white = white & ~sqBB
 
+    /** Moves the castling rook: updates the color bitboard, the rooks bitboard, and the mailbox atomically.
+      *
+      * @param isWhite
+      *   `true` if the rook belongs to White
+      * @param rookFrom
+      *   home square of the rook (e.g. h1 for White king-side)
+      * @param rookTo
+      *   destination square of the rook (e.g. f1 for White king-side)
+      * @param color
+      *   color of the rook (used to populate the mailbox entry)
+      */
     def moveRook(isWhite: Boolean, rookFrom: Square, rookTo: Square, color: Color): Unit =
       val rookBB = Bitboard.fromSquare(rookFrom) | Bitboard.fromSquare(rookTo)
       if isWhite then white ^= rookBB else black ^= rookBB
@@ -92,10 +168,17 @@ private object Position:
       mailbox = mailbox - rookFrom + (rookTo -> Piece(color, PieceType.Rook))
 
 extension (state: GameState)
-  /** Applies a micro-move (Turn-based) to the current game state.
+  /** Applies a [[MicroMove]] (turn-based) to the current game state.
     *
-    * This handles piece movement, captures, and basic bitboard updates. Note: This is a "raw" move application.
-    * Higher-level logic (like switching turns after 3 micro-moves) should be handled by the Turn manager.
+    * Handles piece movement, captures, and basic bitboard updates. This is a _raw_ move application — higher-level
+    * logic such as switching turns after three micro-moves is the responsibility of the Turn manager.
+    *
+    * The half-move clock is reset to 0 on pawn moves and captures; otherwise it is increased by 1.
+    *
+    * @param mv
+    *   the micro-move to apply
+    * @return
+    *   a new [[GameState]] reflecting the position after the move
     */
   def makeMove(mv: MicroMove): GameState =
     val from        = mv.from
@@ -130,9 +213,23 @@ extension (state: GameState)
         if movingPiece.pieceType == PieceType.Pawn || targetPiece.isDefined then 0 else state.halfMoveClock + 1
     )
 
-  /** Applies a Move (search-optimized) to the current game state.
+  /** Applies a [[Move]] (search-optimized) to the current game state.
     *
-    * This handles all special chess rules like castling, en passant, and double pawn pushes using the move's flags.
+    * Handles all standard chess rules encoded in the move's 4-bit flag field:
+    *
+    *   - **Double pawn push** — sets the en-passant square on the passed square.
+    *   - **En-passant capture** — removes the captured pawn from the rank behind the destination.
+    *   - **King-side / queen-side castling** — moves both king and rook atomically.
+    *   - **Promotions** — replaces the pawn with the promoted piece type.
+    *   - **Quiet / capture** — standard piece relocation.
+    *
+    * Side effects on the returned state: active color is flipped, en-passant is cleared (unless a double push just
+    * occurred), castling rights are updated, and the half-move / full-move clocks are maintained.
+    *
+    * @param mv
+    *   the move to apply (must be pseudo-legal; legality is enforced by the search layer)
+    * @return
+    *   a new [[GameState]] reflecting the position after the move
     */
   @targetName("makeMove_Move")
   def makeMove(mv: Move): GameState = {

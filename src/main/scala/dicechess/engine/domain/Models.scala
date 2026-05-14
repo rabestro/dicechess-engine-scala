@@ -17,10 +17,17 @@ object Color:
     value
 
   extension (color: Color)
-    inline def opponent: Color  = color ^ 1
+    /** Returns the opposing color. Implemented as XOR for branch-free toggling. */
+    inline def opponent: Color = color ^ 1
+
+    /** Returns `true` when this color is White. */
     inline def isWhite: Boolean = color == Color.White
+
+    /** Returns `true` when this color is Black. */
     inline def isBlack: Boolean = color == Color.Black
-    inline def value: Int       = color
+
+    /** Exposes the underlying `Int` value (`0` = White, `1` = Black). */
+    inline def value: Int = color
 
 opaque type PieceType = Int
 
@@ -36,14 +43,25 @@ object PieceType:
   val Queen: PieceType  = 5
   val King: PieceType   = 6
 
+  /** All six piece types in dice-value order (Pawn → King). Useful for full-move generation. */
   val all: List[PieceType] = List(Pawn, Knight, Bishop, Rook, Queen, King)
 
+  /** Converts a dice roll to the corresponding [[PieceType]].
+    *
+    * @param value
+    *   dice roll in `[1, 6]`
+    * @return
+    *   `Some(pieceType)` for valid rolls, `None` otherwise
+    */
   def fromDice(value: Int): Option[PieceType] =
     if value >= 1 && value <= 6 then Some(value) else None
 
   extension (pt: PieceType)
+    /** The dice roll value that selects this piece type (`1` = Pawn … `6` = King). */
     inline def diceValue: Int = pt
-    def asNotation: String    = pt match
+
+    /** Returns the lowercase FEN character for this piece type (e.g. `"n"` for Knight). */
+    def asNotation: String = pt match
       case PieceType.Pawn   => "p"
       case PieceType.Knight => "n"
       case PieceType.Bishop => "b"
@@ -87,6 +105,13 @@ object Square:
     require(idx >= 0 && idx < 64, s"Invalid square index: $idx")
     idx
 
+  /** Parses an algebraic square notation string (e.g. `"e4"`) into a [[Square]].
+    *
+    * @param notation
+    *   two-character string: file letter `a`–`h` followed by rank digit `1`–`8`
+    * @return
+    *   `Some(square)` if the notation is valid, `None` otherwise
+    */
   def fromNotation(notation: String): Option[Square] =
     if notation.length == 2 then
       val file     = notation.charAt(0)
@@ -96,10 +121,17 @@ object Square:
     else None
 
   extension (sq: Square)
-    inline def file: Char         = ((sq % 8) + 'a').toChar
-    inline def rank: Int          = (sq / 8) + 1
+    /** File letter (`'a'`–`'h'`) derived from the square index. */
+    inline def file: Char = ((sq % 8) + 'a').toChar
+
+    /** Rank number (`1`–`8`) derived from the square index. */
+    inline def rank: Int = (sq / 8) + 1
+
+    /** Algebraic notation string, e.g. `"e4"`. */
     inline def toNotation: String = s"$file$rank"
-    inline def index: Int         = sq
+
+    /** Raw LERF index in `[0, 63]` (`0` = a1, `63` = h8). */
+    inline def index: Int = sq
 
 opaque type MicroMove = Int
 
@@ -116,12 +148,18 @@ object MicroMove:
     (promValue << 12) | (to << 6) | from
 
   extension (mv: MicroMove)
-    inline def from: Square          = mv & 0x3f
-    inline def to: Square            = (mv >>> 6) & 0x3f
+    /** Origin square (bits 0–5). */
+    inline def from: Square = mv & 0x3f
+
+    /** Destination square (bits 6–11). */
+    inline def to: Square = (mv >>> 6) & 0x3f
+
+    /** Promotion piece type (bits 12–15), or `None` if this is not a promotion move. */
     def promotion: Option[PieceType] =
       val prom = (mv >>> 12) & 0x0f
       if prom == 0 then None else Some(prom)
 
+    /** Long algebraic notation string, e.g. `"e2e4"` or `"e7e8q"` for a queen promotion. */
     def toNotation: String =
       import PieceType.asNotation
       val promStr = promotion.map(_.asNotation).getOrElse("")

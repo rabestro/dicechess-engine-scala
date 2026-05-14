@@ -8,18 +8,39 @@ import scala.collection.mutable
   */
 object MoveGenerator {
 
-  /** Generates all pseudo-legal moves for the active color and a given dice roll. */
+  /** Generates all pseudo-legal moves for the active color and a given dice roll.
+    *
+    * Maps the dice roll to a [[PieceType]] via [[PieceType.fromDice]] and delegates to [[generatePieceMoves]]. Returns
+    * `Nil` immediately for invalid rolls (0 or 7+).
+    *
+    * @param state
+    *   current game state
+    * @param diceRoll
+    *   value in `[1, 6]`; values outside this range yield an empty list
+    * @return
+    *   pseudo-legal moves for the piece type indicated by the dice roll
+    */
   def generateMoves(state: GameState, diceRoll: Int): List[Move] = {
     val optPieceType = PieceType.fromDice(diceRoll)
     if (optPieceType.isEmpty) return Nil
     generatePieceMoves(state, optPieceType.get)
   }
 
-  /** Generates all pseudo-legal moves for all pieces of the active color (standard chess). */
+  /** Generates all pseudo-legal moves for all pieces of the active color (standard chess).
+    *
+    * Iterates over every [[PieceType]] and concatenates the results of [[generatePieceMoves]]. Useful for perft testing
+    * and for positions where a dice roll is not applicable.
+    *
+    * @param state
+    *   current game state
+    * @return
+    *   combined pseudo-legal move list for all piece types
+    */
   def generateAllMoves(state: GameState): List[Move] = {
     PieceType.all.flatMap(pt => generatePieceMoves(state, pt))
   }
 
+  /** Dispatches move generation to the correct subsystem for `pieceType`. */
   private def generatePieceMoves(state: GameState, pieceType: PieceType): List[Move] = {
     val color        = state.activeColor
     val isWhite      = color.isWhite
@@ -38,6 +59,17 @@ object MoveGenerator {
     }
   }
 
+  /** Generates pseudo-legal pawn moves for the active side.
+    *
+    * Produces (per pawn):
+    *
+    *   - **Single push** — quiet move, or four promotion moves on the back rank.
+    *   - **Double push** — only from the starting rank, sets the en-passant square flag.
+    *   - **Diagonal captures** (east and west) — standard or promotion captures.
+    *   - **En-passant capture** — when [[GameState.enPassant]] is set and the pawn can reach it.
+    *
+    * Returns early with `Nil` when the active side has no pawns.
+    */
   private def generatePawnMoves(
       state: GameState,
       color: Color,
@@ -102,6 +134,11 @@ object MoveGenerator {
     moves.result()
   }
 
+  /** Generates pseudo-legal moves for a leaper piece (Knight or King).
+    *
+    * Looks up precomputed attack masks from [[LeaperAttacks]], masks out friendly pieces, and emits quiet or capture
+    * moves. When `pt` is `King`, also calls [[generateCastlingMoves]] after the normal attack enumeration.
+    */
   private def generateLeaperMoves(state: GameState, pt: PieceType, color: Color, enemies: Bitboard): List[Move] = {
     val myPieces     = if (color.isWhite) state.whitePieces else state.blackPieces
     val typeBB       = if (pt == PieceType.Knight) state.knights else state.kings
@@ -136,6 +173,10 @@ object MoveGenerator {
     moves.result()
   }
 
+  /** Appends castling moves (king-side and queen-side) for `color` to `moves`.
+    *
+    * Delegates each side to [[tryCastle]], which checks castling rights, path clearance, and king-safety.
+    */
   private def generateCastlingMoves(state: GameState, color: Color, moves: mutable.Builder[Move, List[Move]]): Unit = {
     val allPieces        = state.whitePieces | state.blackPieces
     val enemy            = color.opponent
@@ -145,6 +186,19 @@ object MoveGenerator {
     tryCastle(state, allPieces, enemy, moves, qRight, rank, kingSide = false)
   }
 
+  /** Appends a castling move if all three preconditions are satisfied:
+    *
+    *   1. The castling right character (`K`, `Q`, `k`, or `q`) is present in [[GameState.castlingRights]].
+    *   2. Every square on the rook's path between king and rook is empty.
+    *   3. None of the king's transit squares (origin, pass-through, destination) are attacked by `enemy`.
+    *
+    * @param right
+    *   castling-right character to check (e.g. `'K'` for White king-side)
+    * @param rank
+    *   back rank of the castling side (1 for White, 8 for Black)
+    * @param kingSide
+    *   `true` for king-side (O-O), `false` for queen-side (O-O-O)
+    */
   private def tryCastle(
       state: GameState,
       allPieces: Bitboard,
@@ -173,6 +227,11 @@ object MoveGenerator {
       if path.forall(!allPieces.contains(_)) && safe.forall(sq => isSquareAttacked(state, sq, enemy).isEmpty) then
         moves += Move(Square('e', rank), kingTo, flag)
 
+  /** Generates pseudo-legal moves for a sliding piece (Bishop, Rook, or Queen).
+    *
+    * Uses [[MagicBitboards]] for O(1) attack-set lookup, then masks out friendly pieces and emits quiet or capture
+    * moves.
+    */
   private def generateSlidingMoves(
       state: GameState,
       pt: PieceType,
@@ -216,6 +275,18 @@ object MoveGenerator {
     moves.result()
   }
 
+  /** Appends pawn capture moves from `from` to every set bit in `targets`.
+    *
+    * Promotion-rank captures expand to four moves each (Queen, Rook, Bishop, Knight). All other captures emit a single
+    * `Capture` move.
+    *
+    * @param from
+    *   square the capturing pawn is on
+    * @param targets
+    *   bitboard of reachable enemy squares
+    * @param color
+    *   color of the capturing pawn (used to identify the promotion rank)
+    */
   private def addPawnCaptures(
       from: Square,
       targets: Bitboard,
@@ -241,9 +312,21 @@ object MoveGenerator {
     }
   }
 
-  /** Returns true if the given square is attacked by any piece of the opponent.
+  /** Returns the set of `attackerColor` pieces that attack `sq`, or an empty bitboard if none do.
     *
-    * Used for castling legality checks and king safety.
+    * Checks attack patterns in priority order: pawns → knights → diagonal sliders (bishop/queen) → orthogonal sliders
+    * (rook/queen) → king. Returns the first non-empty attacker set found, which is sufficient for legality checks.
+    *
+    * Used for castling path safety and king-in-check detection.
+    *
+    * @param state
+    *   current game state
+    * @param sq
+    *   the square to test
+    * @param attackerColor
+    *   the color whose pieces may be attacking `sq`
+    * @return
+    *   bitboard of attacking pieces, or [[Bitboard.empty]] if the square is safe
     */
   def isSquareAttacked(state: GameState, sq: Square, attackerColor: Color): Bitboard = {
     val allPieces       = state.whitePieces | state.blackPieces
