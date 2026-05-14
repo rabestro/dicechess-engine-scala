@@ -83,31 +83,8 @@ object MoveGenerator {
       // --- Captures ---
       val east = PawnGeneration.eastCaptures(fromBB, enemies, color)
       val west = PawnGeneration.westCaptures(fromBB, enemies, color)
-
-      def addCaptures(targets: Bitboard): Unit = {
-        val prom = PawnGeneration.promotionSquares(targets, color)
-        val std  = PawnGeneration.nonPromotionSquares(targets, color)
-
-        var cp = prom.value
-        while (cp != 0) {
-          val to = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(cp))
-          moves += Move(from, to, Move.QueenPromoCapture)
-          moves += Move(from, to, Move.RookPromoCapture)
-          moves += Move(from, to, Move.BishopPromoCapture)
-          moves += Move(from, to, Move.KnightPromoCapture)
-          cp &= cp - 1
-        }
-
-        var cs = std.value
-        while (cs != 0) {
-          val to = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(cs))
-          moves += Move(from, to, Move.Capture)
-          cs &= cs - 1
-        }
-      }
-
-      addCaptures(east)
-      addCaptures(west)
+      addPawnCaptures(from, east, color, moves)
+      addPawnCaptures(from, west, color, moves)
 
       // --- En Passant ---
       state.enPassant.foreach { epSquare =>
@@ -160,46 +137,41 @@ object MoveGenerator {
   }
 
   private def generateCastlingMoves(state: GameState, color: Color, moves: mutable.Builder[Move, List[Move]]): Unit = {
-    val allPieces = state.whitePieces | state.blackPieces
-    val enemy     = color.opponent
-    val rank      = if (color.isWhite) 1 else 8
-
-    tryCastle(state, allPieces, enemy, moves)(
-      right = if (color.isWhite) 'K' else 'k',
-      path = List(Square('f', rank), Square('g', rank)),
-      safe = List(Square('e', rank), Square('f', rank), Square('g', rank)),
-      kingFrom = Square('e', rank),
-      kingTo = Square('g', rank),
-      flag = Move.KingCastle
-    )
-    tryCastle(state, allPieces, enemy, moves)(
-      right = if (color.isWhite) 'Q' else 'q',
-      path = List(Square('b', rank), Square('c', rank), Square('d', rank)),
-      safe = List(Square('e', rank), Square('d', rank), Square('c', rank)),
-      kingFrom = Square('e', rank),
-      kingTo = Square('c', rank),
-      flag = Move.QueenCastle
-    )
+    val allPieces        = state.whitePieces | state.blackPieces
+    val enemy            = color.opponent
+    val rank             = if color.isWhite then 1 else 8
+    val (kRight, qRight) = if color.isWhite then ('K', 'Q') else ('k', 'q')
+    tryCastle(state, allPieces, enemy, moves, kRight, rank, kingSide = true)
+    tryCastle(state, allPieces, enemy, moves, qRight, rank, kingSide = false)
   }
 
   private def tryCastle(
       state: GameState,
       allPieces: Bitboard,
       enemy: Color,
-      moves: mutable.Builder[Move, List[Move]]
-  )(
+      moves: mutable.Builder[Move, List[Move]],
       right: Char,
-      path: List[Square],
-      safe: List[Square],
-      kingFrom: Square,
-      kingTo: Square,
-      flag: Int
+      rank: Int,
+      kingSide: Boolean
   ): Unit =
-    if (state.castlingRights.contains(right)) {
-      val pathClear = path.forall(!allPieces.contains(_))
-      if (pathClear && safe.forall(sq => isSquareAttacked(state, sq, enemy).isEmpty))
-        moves += Move(kingFrom, kingTo, flag)
-    }
+    if state.castlingRights.contains(right) then
+      val (path, safe, kingTo, flag) =
+        if kingSide then
+          (
+            List(Square('f', rank), Square('g', rank)),
+            List(Square('e', rank), Square('f', rank), Square('g', rank)),
+            Square('g', rank),
+            Move.KingCastle
+          )
+        else
+          (
+            List(Square('b', rank), Square('c', rank), Square('d', rank)),
+            List(Square('e', rank), Square('d', rank), Square('c', rank)),
+            Square('c', rank),
+            Move.QueenCastle
+          )
+      if path.forall(!allPieces.contains(_)) && safe.forall(sq => isSquareAttacked(state, sq, enemy).isEmpty) then
+        moves += Move(Square('e', rank), kingTo, flag)
 
   private def generateSlidingMoves(
       state: GameState,
@@ -242,6 +214,31 @@ object MoveGenerator {
       p &= p - 1
     }
     moves.result()
+  }
+
+  private def addPawnCaptures(
+      from: Square,
+      targets: Bitboard,
+      color: Color,
+      moves: mutable.Builder[Move, List[Move]]
+  ): Unit = {
+    val prom = PawnGeneration.promotionSquares(targets, color)
+    val std  = PawnGeneration.nonPromotionSquares(targets, color)
+    var cp   = prom.value
+    while (cp != 0) {
+      val to = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(cp))
+      moves += Move(from, to, Move.QueenPromoCapture)
+      moves += Move(from, to, Move.RookPromoCapture)
+      moves += Move(from, to, Move.BishopPromoCapture)
+      moves += Move(from, to, Move.KnightPromoCapture)
+      cp &= cp - 1
+    }
+    var cs = std.value
+    while (cs != 0) {
+      val to = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(cs))
+      moves += Move(from, to, Move.Capture)
+      cs &= cs - 1
+    }
   }
 
   /** Returns true if the given square is attacked by any piece of the opponent.
