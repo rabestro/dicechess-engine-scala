@@ -14,27 +14,38 @@ export default defineConfig({
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/rabestro/dicechess-engine-scala' }],
 			sidebar: [
 				{
-					label: 'Architecture & Plan',
+					label: 'Getting Started',
+					items: [
+						{ label: 'Roadmap & Milestones', slug: 'architecture/milestones' },
+					],
+				},
+				{
+					label: 'Core Architecture',
 					items: [
 						{ label: 'Domain Modeling', slug: 'architecture/domain-modeling' },
 						{
 							label: 'Move Generation',
+							collapsed: true,
 							items: [{ autogenerate: { directory: 'architecture/move-generation' } }],
 						},
-						{ label: 'Roadmap & Milestones', slug: 'architecture/milestones' },
+					],
+				},
+				{
+					label: 'Engineering Quality',
+					items: [
 						{ label: 'Testing Strategy & DSL', slug: 'architecture/testing' },
 					],
 				},
 				{
-					label: 'Infrastructure',
+					label: 'Infrastructure & Ops',
 					items: [
 						{ label: 'Oracle Cloud Hosting', slug: 'infrastructure/oracle-cloud' },
 					],
 				},
 				{
-					label: 'Developer Rules',
+					label: 'Developer Experience',
 					items: [
-						{ label: 'Agent Workflows', slug: 'guidelines/agent-workflows' },
+						{ label: 'AI Agent Workflows', slug: 'guidelines/agent-workflows' },
 					],
 				},
 			],
