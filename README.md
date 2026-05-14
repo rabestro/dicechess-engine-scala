@@ -131,3 +131,17 @@ mise run check
 # Open the interactive Scala 3 REPL loaded with the project
 mise run console
 ```
+
+---
+
+## ⚖️ License & Commercial Use
+
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. 
+
+### Why AGPL-3.0?
+The AGPL-3.0 is a strong copyleft license specifically designed for network-based software. It ensures that if you modify the engine and offer it as a service over a network, you must share your modifications with the community.
+
+### 💼 Commercial Licensing
+If you wish to use the Dice Chess Engine in a proprietary product or service without the obligations of the AGPL-3.0 (e.g., without sharing your source code), **commercial licenses are available**. 
+
+Please contact [Jegors Čemisovs](mailto:jegors.cemisovs@gmail.com) to discuss commercial licensing options.
