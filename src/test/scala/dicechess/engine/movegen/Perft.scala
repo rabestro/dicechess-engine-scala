@@ -25,7 +25,7 @@ object Perft:
   def divide(state: GameState, diceRoll: Int, depth: Int): Map[String, Long] =
     val moves = MoveGenerator.generateMoves(state, diceRoll)
     moves.map { mv =>
-      val notation  = mv.toNotation
+      val notation  = s"${mv.fromSquare}${mv.toSquare}" // Simple notation for now
       val nextState = state.makeMove(mv)
       val count     = if depth > 1 then countNodes(nextState, diceRoll, depth - 1) else 1L
       notation -> count
