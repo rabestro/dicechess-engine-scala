@@ -22,6 +22,7 @@ export default defineConfig({
 							items: [{ autogenerate: { directory: 'architecture/move-generation' } }],
 						},
 						{ label: 'Roadmap & Milestones', slug: 'architecture/milestones' },
+						{ label: 'Testing Strategy & DSL', slug: 'architecture/testing' },
 					],
 				},
 				{
