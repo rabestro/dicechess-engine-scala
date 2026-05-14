@@ -17,6 +17,10 @@ object PawnGeneration:
   private val Rank3: Bitboard = Bitboard(0x0000000000ff0000L)
   private val Rank6: Bitboard = Bitboard(0x0000ff0000000000L)
 
+  // Promotion target ranks: white promotes on rank 8 (bits 56-63), black on rank 1 (bits 0-7)
+  private[movegen] val Rank1: Bitboard = Bitboard(0x00000000000000ffL)
+  private[movegen] val Rank8: Bitboard = Bitboard(0xff00000000000000L)
+
   /** Computes the single forward push for all pawns.
     *
     * @param pawns
@@ -72,3 +76,29 @@ object PawnGeneration:
     val east = if color.isWhite then (pawns & NotHFile) << 9 else (pawns & NotHFile) >>> 7
     val west = if color.isWhite then (pawns & NotAFile) << 7 else (pawns & NotAFile) >>> 9
     east | west
+
+  /** Filters a target bitboard, returning only the squares on the promotion rank for the given color.
+    *
+    * White promotes on Rank 8; Black promotes on Rank 1.
+    *
+    * @param targets
+    *   Bitboard of candidate target squares (e.g. result of `singlePushes` or `eastCaptures`).
+    * @param color
+    *   The color of the moving pawns.
+    * @return
+    *   Bitboard of targets that land on the promotion rank.
+    */
+  inline def promotionSquares(targets: Bitboard, color: Color): Bitboard =
+    if color.isWhite then targets & Rank8 else targets & Rank1
+
+  /** Filters a target bitboard, returning only the squares that are **not** on the promotion rank for the given color.
+    *
+    * @param targets
+    *   Bitboard of candidate target squares.
+    * @param color
+    *   The color of the moving pawns.
+    * @return
+    *   Bitboard of targets that do **not** land on the promotion rank.
+    */
+  inline def nonPromotionSquares(targets: Bitboard, color: Color): Bitboard =
+    if color.isWhite then targets & ~Rank8 else targets & ~Rank1
