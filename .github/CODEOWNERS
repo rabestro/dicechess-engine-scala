@@ -1,0 +1,4 @@
+# Require review from engine team for core code
+/src/main/scala/dicechess/engine/ @evolution/engine-team
+/src/test/scala/ @evolution/engine-team
+

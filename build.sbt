@@ -47,7 +47,7 @@ lazy val root = (project in file("."))
       "-project-footer",  "Dice Chess Engine",
       "-project-logo",    "docs/public/favicon.svg",
       "-source-links:src/main/scala=https://github.com/rabestro/dicechess-engine-scala/blob/main/src/main/scala€{FILE_PATH}.scala#L€{LINE}",
-      "-social-links:github://https://github.com/rabestro/dicechess-engine-scala",
+      "-social-links:github:https://github.com/rabestro/dicechess-engine-scala",
       "-doc-root-content", (baseDirectory.value / "README.md").getAbsolutePath,
       "-groups",
       "-author",
