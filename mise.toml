@@ -8,40 +8,44 @@ pre-commit = "4.6.0" # Fast local security and hygiene git hooks
 scala-cli = "latest"
 
 [tasks.compile]
-description = "🔨 Incremental compilation of main and test sources"
-run = "sbt compile"
+description = "🔨 Incremental compilation of main and test sources (JVM)"
+run = "sbt rootJVM/compile"
 
 [tasks.run]
-description = "▶️ Start the engine application (HTTP API / CLI)"
-run = "sbt run"
+description = "▶️ Start the engine application (JVM CLI)"
+run = "sbt rootJVM/run"
 
 [tasks.test]
-description = "🧪 Execute MUnit automated tests"
+description = "🧪 Execute MUnit automated tests (JVM + JS)"
 run = "sbt test"
 
 [tasks.coverage]
 description = "📊 Run tests with scoverage and generate detailed local reports"
-run = "sbt clean coverage test coverageReport"
+run = "sbt clean coverage rootJVM/test coverageReport"
 
 [tasks.check]
-description = "✅ Run a full validation cycle (formatting check, compilation, and automated tests)"
+description = "✅ Run a full validation cycle"
 run = "sbt scalafmtCheckAll test"
 
 [tasks.console]
-description = "💻 Launch an interactive Scala REPL preloaded with project dependencies"
-run = "sbt console"
+description = "💻 Launch an interactive Scala REPL"
+run = "sbt rootJVM/console"
 
 [tasks.clean]
-description = "🧹 Remove build artifacts and temporary target folders"
+description = "🧹 Remove build artifacts"
 run = "sbt clean"
 
 [tasks.format]
-description = "✨ Reformat codebase using Scalafmt"
+description = "✨ Reformat codebase"
 run = "sbt scalafmtAll"
 
 [tasks."format:check"]
-description = "🔍 Verify code formatting without making modifications"
+description = "🔍 Verify code formatting"
 run = "sbt scalafmtCheckAll"
+
+[tasks."build:js"]
+description = "📦 Build optimized JavaScript bundle"
+run = "sbt rootJS/fullOptJS"
 
 [tasks."docs:dev"]
 description = "🚀 Run the documentation site dev server"

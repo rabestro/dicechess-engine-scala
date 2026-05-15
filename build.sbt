@@ -22,17 +22,18 @@ ThisBuild / developers := List(
   )
 )
 
-lazy val root = (project in file("."))
+lazy val root = crossProject(JSPlatform, JVMPlatform)
+  .in(file("."))
   .settings(
     name := "dicechess-engine-scala",
     libraryDependencies ++= Seq(
-      // JSON library (Circe)
-      "io.circe" %% "circe-core" % "0.14.15",
-      "io.circe" %% "circe-generic" % "0.14.15",
-      "io.circe" %% "circe-parser" % "0.14.15",
+      // JSON library (Circe) - using %%% for cross-platform support
+      "io.circe" %%% "circe-core" % "0.14.15",
+      "io.circe" %%% "circe-generic" % "0.14.15",
+      "io.circe" %%% "circe-parser" % "0.14.15",
 
       // Testing framework
-      "org.scalameta" %% "munit" % "1.3.0" % Test
+      "org.scalameta" %%% "munit" % "1.3.0" % Test
     ),
     scalacOptions ++= Seq(
       "-Werror",           // Fail the compilation if there are any warnings
@@ -40,7 +41,10 @@ lazy val root = (project in file("."))
       "-explain",          // Explain type errors in more detail
       "-feature",          // Emit warning and location for usages of features that should be imported explicitly
       "-deprecation"       // Emit warning and location for usages of deprecated APIs
-    ),
+    )
+  )
+  .jvmSettings(
+    // JVM-specific settings
     Compile / doc / scalacOptions ++= Seq(
       "-project",         name.value,
       "-project-version", version.value,
@@ -54,3 +58,12 @@ lazy val root = (project in file("."))
       "-snippet-compiler:compile"
     )
   )
+  .jsSettings(
+    // Scala.js-specific settings
+    coverageEnabled                 := false, // Disable coverage for JS to avoid linking errors
+    scalaJSUseMainModuleInitializer := false, // We'll expose functions via @JSExportTopLevel
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) }
+  )
+
+lazy val rootJVM = root.jvm
+lazy val rootJS  = root.js
