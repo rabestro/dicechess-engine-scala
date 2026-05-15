@@ -60,6 +60,7 @@ lazy val root = crossProject(JSPlatform, JVMPlatform)
   )
   .jsSettings(
     // Scala.js-specific settings
+    coverageEnabled                 := false, // Disable coverage for JS to avoid linking errors
     scalaJSUseMainModuleInitializer := false, // We'll expose functions via @JSExportTopLevel
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) }
   )
