@@ -14,7 +14,7 @@ import scala.scalajs.js.JSConverters.*
 @JSExportTopLevel("DiceChess")
 object JsApi:
 
-  /** Returns all legal moves for a given position and dice roll.
+  /** Returns all legal moves for a given position and a set of available dice rolls.
     *
     * The output is a JavaScript object where keys are origin squares (e.g., "e2") and values are arrays of destination
     * squares (e.g., ["e3", "e4"]). This format is directly compatible with the `dests` property of Chessground.
@@ -22,44 +22,48 @@ object JsApi:
     * @param fen
     *   The position in Forsyth-Edwards Notation.
     * @param dice
-    *   The dice roll result (1-6).
+    *   An array of available dice roll results (1-6).
     * @return
     *   A dictionary of legal destination squares grouped by origin.
     */
   @JSExport
-  def getLegalMoves(fen: String, dice: Int): js.Dictionary[js.Array[String]] =
+  def getLegalMoves(fen: String, dice: js.Array[Int]): js.Dictionary[js.Array[String]] =
     FenParser.parse(fen) match
       case Left(_)      => js.Dictionary.empty
       case Right(state) =>
-        val moves = MoveGenerator.generateMoves(state, dice)
+        // Generate moves for each dice and flatten the results
+        val allMoves = dice.flatMap(d => MoveGenerator.generateMoves(state, d))
+
         // Group moves by origin square and convert to notation strings
-        moves
+        allMoves
           .groupBy(_.fromSquare)
           .map { (from, mvs) =>
             from.toNotation -> mvs.map(_.toSquare.toNotation).distinct.toJSArray
           }
           .toJSDictionary
 
-  /** Validates if a move is legal for the given position and dice roll.
+  /** Validates if a move is legal for the given position and any of the available dice rolls.
     *
     * @param fen
     *   The position in Forsyth-Edwards Notation.
     * @param dice
-    *   The dice roll result (1-6).
+    *   An array of available dice roll results (1-6).
     * @param from
     *   The origin square notation (e.g., "e2").
     * @param to
     *   The destination square notation (e.g., "e4").
     * @return
-    *   `true` if the move is legal, `false` otherwise.
+    *   `true` if the move is legal for at least one of the dice, `false` otherwise.
     */
   @JSExport
-  def isValidMove(fen: String, dice: Int, from: String, to: String): Boolean =
+  def isValidMove(fen: String, dice: js.Array[Int], from: String, to: String): Boolean =
     FenParser.parse(fen) match
       case Left(_)      => false
       case Right(state) =>
-        val moves = MoveGenerator.generateMoves(state, dice)
-        moves.exists(m => m.fromSquare.toNotation == from && m.toSquare.toNotation == to)
+        dice.exists { d =>
+          val moves = MoveGenerator.generateMoves(state, d)
+          moves.exists(m => m.fromSquare.toNotation == from && m.toSquare.toNotation == to)
+        }
 
   /** Returns the piece type associated with a dice roll.
     *
