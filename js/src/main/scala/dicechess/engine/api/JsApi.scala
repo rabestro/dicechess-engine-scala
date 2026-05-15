@@ -29,7 +29,7 @@ object JsApi:
   @JSExport
   def getLegalMoves(fen: String, dice: Int): js.Dictionary[js.Array[String]] =
     FenParser.parse(fen) match
-      case Left(_) => js.Dictionary.empty
+      case Left(_)      => js.Dictionary.empty
       case Right(state) =>
         val moves = MoveGenerator.generateMoves(state, dice)
         // Group moves by origin square and convert to notation strings
@@ -56,7 +56,7 @@ object JsApi:
   @JSExport
   def isValidMove(fen: String, dice: Int, from: String, to: String): Boolean =
     FenParser.parse(fen) match
-      case Left(_) => false
+      case Left(_)      => false
       case Right(state) =>
         val moves = MoveGenerator.generateMoves(state, dice)
         moves.exists(m => m.fromSquare.toNotation == from && m.toSquare.toNotation == to)
