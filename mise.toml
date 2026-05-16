@@ -7,7 +7,7 @@ node = "26"                    # Required for Astro/Starlight documentation
 gh = "latest"                  # GitHub CLI for PRs, issues and workflow management
 ripgrep = "latest"             # High-performance code search (grep replacement)
 fd = "latest"                  # User-friendly and fast file finder
-tldr = "latest"                # Practical examples for CLI commands (simplified man)
+"aqua:tealdeer-rs/tealdeer" = "latest" # Simplified man pages (tldr)
 
 # --- AI & Automation (Agentic Tools) ---
 gemini = "latest"              # AI Agent integration and automation
