@@ -8,10 +8,12 @@ python = "3.14"
 uv = "latest"
 
 [tasks."setup:tools"]
-description = "🛠️ Install SBT via Winget (Windows ARM64 workaround)"
-run = """
+description = "🛠️ Install SBT (Platform-aware)"
+run.windows = """
 winget install --id sbt.sbt --version 1.12.11 --exact --accept-package-agreements --accept-source-agreements
 """
+run.macos = "brew install sbt"
+run.linux = "echo 'Please install sbt via your package manager (apt, yum, or sdkman)'"
 
 [tasks.compile]
 description = "🔨 Incremental compilation of main and test sources (JVM)"
