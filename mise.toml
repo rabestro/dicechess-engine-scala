@@ -6,7 +6,7 @@ gemini = "latest"
 node = "25.9.0"      # Drives the Astro Starlight documentation site
 "pipx:pre-commit" = "4.6.0" # Fast local security and hygiene git hooks
 scala-cli = "latest"
-python = "3.13"
+python = "3.14"
 uv = "latest"
 
 [tasks.compile]
