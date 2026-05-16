@@ -1,10 +1,15 @@
 [tools]
-java = "temurin-21"         # Eclipse Temurin provides a high-performance OpenJDK distribution
+java = "temurin-25"            # Align with CI (Java 25)
 gh = "latest"
-node = "26"                 # Drives the Astro Starlight documentation site
+node = "26"
 ripgrep = "latest"
+jq = "latest"                  # JSON processor
+yq = "latest"                  # YAML processor
+"aqua:SonarSource/sonarqube-cli" = "latest" # SonarQube CLI
+fd = "latest"                  # Better find
+tldr = "latest"                # Simplified man pages
 gemini = "latest"
-"pipx:pre-commit" = "4.6.0" # Fast local security and hygiene git hooks
+"pipx:pre-commit" = "4.6.0"
 
 [tasks."setup:tools"]
 description = "🛠️ Install SBT (Platform-aware)"
