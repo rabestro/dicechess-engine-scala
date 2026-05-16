@@ -1,0 +1,26 @@
+{
+  "name": "@rabestro/dicechess-engine",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "High-performance Dice Chess engine in Scala.js",
+  "main": "dist/dicechess-engine.js",
+  "types": "dist/dicechess-engine.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rabestro/dicechess-engine-scala.git"
+  },
+  "keywords": [
+    "chess",
+    "dice-chess",
+    "engine",
+    "scala-js"
+  ],
+  "author": "Jegors Čemisovs",
+  "license": "AGPL-3.0"
+}

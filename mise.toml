@@ -49,6 +49,23 @@ run = "sbt scalafmtCheckAll"
 description = "📦 Build optimized JavaScript bundle"
 run = "sbt rootJS/fullOptJS"
 
+[tasks."package:prepare"]
+description = "📦 Prepare the distribution folder for the npm package"
+depends = ["build:js"]
+run = """
+mkdir -p dist
+VERSION=$(sbt --error 'print version' | tail -n 1)
+# Remove -SNAPSHOT if present for npm compatibility or handle it
+CLEAN_VERSION=$(echo $VERSION | sed 's/-SNAPSHOT//')
+sed -i.bak "s/\\\"version\\\": \\\"[^\\\"]*\\\"/\\\"version\\\": \\\"$CLEAN_VERSION\\\"/" package.json && rm package.json.bak
+cp js/target/scala-3.8.3/dicechess-engine-scala-opt/main.js dist/dicechess-engine.js
+cp js/dicechess-engine.d.ts dist/
+"""
+
+[tasks."package:clean"]
+description = "🧹 Remove the distribution folder"
+run = "rm -rf dist"
+
 [tasks."docs:dev"]
 description = "🚀 Run the documentation site dev server"
 run = "npm run dev"

@@ -1,0 +1,36 @@
+name: Publish Engine Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: 'sbt'
+          
+      - name: Setup Mise
+        uses: jdx/mise-action@v2
+        
+      - name: Build JS
+        run: mise run build:js
+        
+      - name: Prepare Package
+        run: mise run package:prepare
+        
+      - name: Publish to GitHub Packages
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > .npmrc
+          npm publish
