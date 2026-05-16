@@ -18,3 +18,4 @@ project/project/
 *.iml
 .vscode/
 .DS_Store
+dist/
