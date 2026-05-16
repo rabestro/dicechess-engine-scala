@@ -3,10 +3,12 @@ package dicechess.engine
 import dicechess.engine.domain.*
 
 object Main:
+  private val Separator = "=" * 50
+
   def main(args: Array[String]): Unit =
-    println("==================================================")
+    println(Separator)
     println("🎲♟️ Dice Chess Engine (Scala 3) successfully initialized!")
-    println("==================================================")
+    println(Separator)
 
     // Demonstrate basic domain model creation
     val startSquare = Square('e', 2)
@@ -15,4 +17,4 @@ object Main:
 
     println(s"Created a micro-move representation: ${pawnMove.toNotation}")
     println("Ready for the Hackathon! 🚀")
-    println("==================================================")
+    println(Separator)
