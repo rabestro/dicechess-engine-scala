@@ -1,13 +1,18 @@
 [tools]
-java = "temurin-25"  # Eclipse Temurin provides a high-performance OpenJDK distribution
-sbt = "1.12.11"      # The launcher; resolves project/build.properties internally
+java = "temurin-21"  # Eclipse Temurin provides a high-performance OpenJDK distribution
 gh = "latest"
 gemini = "latest"
 node = "25.9.0"      # Drives the Astro Starlight documentation site
 "pipx:pre-commit" = "4.6.0" # Fast local security and hygiene git hooks
-scala-cli = "latest"
 python = "3.14"
 uv = "latest"
+
+[tasks."setup:tools"]
+description = "🛠️ Install SBT and Scala CLI via Winget (Windows ARM64 workaround)"
+run = """
+winget install --id sbt.sbt --version 1.10.7 --exact --accept-package-agreements --accept-source-agreements
+winget install --id VirtusLab.ScalaCLI --accept-package-agreements --accept-source-agreements
+"""
 
 [tasks.compile]
 description = "🔨 Incremental compilation of main and test sources (JVM)"
