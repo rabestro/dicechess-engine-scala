@@ -10,7 +10,7 @@ uv = "latest"
 [tasks."setup:tools"]
 description = "🛠️ Install SBT and Scala CLI via Winget (Windows ARM64 workaround)"
 run = """
-winget install --id sbt.sbt --version 1.10.7 --exact --accept-package-agreements --accept-source-agreements
+winget install --id sbt.sbt --version 1.12.11 --exact --accept-package-agreements --accept-source-agreements
 winget install --id VirtusLab.ScalaCLI --accept-package-agreements --accept-source-agreements
 """
 
