@@ -33,6 +33,7 @@ Dice Chess is a stochastic variant of chess where players must roll a 6-sided di
    * You can move **different pieces** or the **same piece** multiple times during your turn, as long as each piece's type matches the rolled die.
    * If you roll a `3` (Bishop), you can make up to 3 separate bishop moves.
    * **Victory Condition**: The game is won by **capturing the opponent's king** directly (there is no traditional check/mate, as the king can be captured on the next micro-move).
+   * **Maximum Micro-moves**: Players must play moves that maximize the total number of micro-moves played in their turn. See our detailed [Maximum Micro-moves Rule Algorithm](docs/src/content/docs/architecture/move-generation/05-maximum-micromoves.md) guide for the mathematical formulation and pseudocode.
 
 ---
 
