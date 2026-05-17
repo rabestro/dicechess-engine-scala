@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import mermaid from 'astro-mermaid';
+import { starlightKatex } from 'starlight-katex';
 
 // https://astro.build/config
 export default defineConfig({
@@ -11,6 +12,7 @@ export default defineConfig({
 		mermaid(),
 		starlight({
 			title: 'Dice Chess Engine',
+			plugins: [starlightKatex()],
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/rabestro/dicechess-engine-scala' }],
 			sidebar: [
 				{
