@@ -95,13 +95,13 @@ The following Mermaid diagram visualizes the two scenarios:
 
 ```mermaid
 graph TD
-    subgraph Example A: No other Knight on board, roll [1, 1, 2]
+    subgraph Example B: No other Knight on board: roll Pawn Pawn Knight
     A1[Pawn e7-e8] --> B1{Promote to Knight?}
     B1 -- Yes: e7-e8=N --> C1[Knight on board] --> D1[Can play Knight move using '2' die] --> E1[Sequence length = 3 - LEGAL]
     B1 -- No: e7-e8=Q --> F1[No Knight on board] --> G1[Cannot play Knight move using '2' die] --> H1[Sequence length = 2 - ILLEGAL]
     end
 
-    subgraph Example B: Existing Knight on board, roll [1, 1, 2]
+    subgraph Example A: Existing Knight on board: roll Pawn Pawn Knight
     A2[Pawn e7-e8] --> B2{Promote to Queen?}
     B2 -- Yes: e7-e8=Q --> C2[Existing Knight on board] --> D2[Can play Knight move using '2' die] --> E2[Sequence length = 3 - LEGAL]
     B2 -- No: e7-e8=N --> F2[Two Knights on board] --> G2[Can play Knight move using '2' die] --> H2[Sequence length = 3 - LEGAL]
