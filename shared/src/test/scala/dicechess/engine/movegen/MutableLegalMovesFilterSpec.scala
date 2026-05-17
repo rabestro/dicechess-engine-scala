@@ -112,7 +112,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
      * Expected: Queen moves generated is empty. Pawn and Knight moves that achieve length 2 are legal.
      * Reasoning: Max sequence length is 2 (since Queen is trapped). Paths of length 2 are legal.
      */
-    val fen   = "4k3/8/8/8/8/nn6/PP2P3/QB2K2N w - - 0 1" // Trapped white Queen at a1
+    val fen   = "RRR4k/PPP5/PPP5/PPP5/PPP5/PPP5/KPP2P2/QB5N w - - 0 1" // Cage blocks columns a, b, c completely
     val state = parse(fen)
     val dice  = List(Pawn, Knight, Queen)
     val legal = filterMoves(state, dice)
