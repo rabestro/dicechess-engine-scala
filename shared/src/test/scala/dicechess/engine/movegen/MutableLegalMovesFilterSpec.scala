@@ -60,20 +60,24 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assertEquals(legal.size, allPawnAndKnight.size)
   }
 
-  test("A3: Starting position, Pawn + Knight + Rook -> restricts pawns".ignore) {
+  test("A3: Starting position, Pawn + Knight + Bishop -> restricts pawns".ignore) {
     /*
-     * Input: Initial position, dice = [Pawn, Knight, Rook]
-     * Expected: Only pawns on 'a' and 'h' files (which open rooks) and Knight moves are legal.
-     * Reasoning: Max sequence length is 3 (Pawn -> Rook -> Knight). Moving pawns on 'b'-'g'
-     * leaves rooks blocked, yielding max length 2. Thus, quiet pawn moves on 'b'-'g' are illegal.
+     * Input: Initial position, dice = [Pawn, Knight, Bishop]
+     * Expected: Quiet pawn moves that do not open bishops (like a2-a3 or h2-h3) are illegal.
+     * Reasoning: Max sequence length is 3 (Pawn -> Bishop -> Knight). Quiet pawn moves on 'a' and 'h'
+     * files leave bishops blocked, yielding max length 2. Thus, a2-a3 is illegal.
      */
     val state = parse(FenParser.InitialPosition)
-    val dice  = List(Pawn, Knight, Rook)
+    val dice  = List(Pawn, Knight, Bishop)
     val legal = filterMoves(state, dice)
 
-    // Rooks must be freed. Quiet e2-e3 or d2-d4 are illegal since they don't free rooks.
+    // Pawn a2-a3 is illegal since it doesn't open any bishop, making a 3-move sequence impossible.
+    val isA2A3Legal = legal.exists(m => m.fromSquare == Square('a', 2) && m.toSquare == Square('a', 3))
+    assert(!isA2A3Legal, "Pawn a2-a3 must be filtered out as illegal under [Pawn, Knight, Bishop]")
+
+    // Pawn e2-e3 is legal since it opens the f1 bishop, enabling Pawn -> Bishop -> Knight sequence.
     val isE2E3Legal = legal.exists(m => m.fromSquare == Square('e', 2) && m.toSquare == Square('e', 3))
-    assert(!isE2E3Legal, "Pawn e2-e3 must be filtered out as illegal under [1, 2, 4]")
+    assert(isE2E3Legal, "Pawn e2-e3 must be legal since it opens the bishop")
   }
 
   test("A4: Blocked starting pieces (Knight, Bishop, King) -> Knight only".ignore) {
