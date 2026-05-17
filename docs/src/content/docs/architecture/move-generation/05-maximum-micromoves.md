@@ -11,6 +11,25 @@ A player is legally required to maximize their turn's activity by executing the 
 
 ---
 
+## High-Level Execution Flow
+
+The following flowchart illustrates how the engine evaluates and filters moves under the maximum micro-moves rule:
+
+```mermaid
+graph TD
+    A[Start Turn: Roll 3 Dice] --> B[Generate all pseudo-legal Moves for rolled dice]
+    B --> C{For each Move: Is it Pawn Promotion?}
+    C -- Yes --> D[Generate 4 distinct promotion moves: Q, R, B, N]
+    C -- No --> E[Normal moves]
+    D --> F[Simulate state after each move]
+    E --> F
+    F --> G[Recursively calculate max sequence length for remaining dice]
+    G --> H[Determine global maximum sequence length L*]
+    H --> I[Filter moves: Only keep moves that achieve L* or capture the King]
+```
+
+---
+
 ## The Core Rule
 
 When three dice are rolled, a player **must** play a sequence of micro-moves that uses as many of the rolled dice as possible. 
@@ -69,8 +88,25 @@ If a move $m$ captures the opponent's king, it is instantly legal. The game term
 ### 2. Multi-Move Piece Relocation
 A single physical piece can be moved multiple times in the same turn if the player has multiple appropriate dice. E.g., if a player rolls `[1, 1, 1]` (Pawn, Pawn, Pawn), they can move the same Pawn three times or three different Pawns.
 
-### 3. Pawn Promotions
-If a pawn promotes to a Queen on the first micro-move (using a Pawn die `1`), and the remaining dice contain a Queen die `5`, the newly promoted Queen is present on the board and can be moved on the subsequent micro-move.
+### 3. Pawn Promotion Optimization Constraint
+When a pawn reaches the 8th rank, it generates 4 separate promotion moves: Queen, Rook, Bishop, Knight. Under the maximum micro-moves rule, the choice of which piece to promote to is strictly governed by whether the promoted piece enables subsequent moves using the remaining dice.
+
+The following Mermaid diagram visualizes the two scenarios:
+
+```mermaid
+graph TD
+    subgraph Example A: No other Knight on board, roll [1, 1, 2]
+    A1[Pawn e7-e8] --> B1{Promote to Knight?}
+    B1 -- Yes: e7-e8=N --> C1[Knight on board] --> D1[Can play Knight move using '2' die] --> E1[Sequence length = 3 - LEGAL]
+    B1 -- No: e7-e8=Q --> F1[No Knight on board] --> G1[Cannot play Knight move using '2' die] --> H1[Sequence length = 2 - ILLEGAL]
+    end
+
+    subgraph Example B: Existing Knight on board, roll [1, 1, 2]
+    A2[Pawn e7-e8] --> B2{Promote to Queen?}
+    B2 -- Yes: e7-e8=Q --> C2[Existing Knight on board] --> D2[Can play Knight move using '2' die] --> E2[Sequence length = 3 - LEGAL]
+    B2 -- No: e7-e8=N --> F2[Two Knights on board] --> G2[Can play Knight move using '2' die] --> H2[Sequence length = 3 - LEGAL]
+    end
+```
 
 ### 4. Castling Requires & Consumes Both King and Rook Dice
 To perform castling, two standard conditions must be met regarding the dice:
