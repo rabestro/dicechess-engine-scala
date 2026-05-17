@@ -16,7 +16,7 @@ updates:
     directory: "/docs"
     schedule:
       interval: "weekly"
-      day: "monday"
+      day: "tuesday"
       time: "08:00"
     open-pull-requests-limit: 3
     labels:
@@ -24,7 +24,7 @@ updates:
     commit-message:
       prefix: "chore"
 
-  - package-ecosystem: "sbt"
+  - package-ecosystem: "pre-commit"
     directory: "/"
     schedule:
       interval: "weekly"
