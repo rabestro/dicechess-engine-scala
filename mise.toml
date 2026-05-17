@@ -3,22 +3,20 @@
 java = "temurin-25"            # Primary runtime, aligned with CI (Java 25)
 node = "26"                    # Required for Astro/Starlight documentation
 
-# --- CLI Utilities ---
-gh = "latest"                  # GitHub CLI for PRs, issues and workflow management
-ripgrep = "latest"             # High-performance code search (grep replacement)
-fd = "latest"                  # User-friendly and fast file finder
-"aqua:tealdeer-rs/tealdeer" = "latest" # Simplified man pages (tldr)
-
-# --- AI & Automation (Agentic Tools) ---
-gemini = "latest"              # AI Agent integration and automation
-jq = "latest"                  # JSON processor for parsing API responses
-yq = "latest"                  # YAML processor for GitHub Actions management
-ast-grep = "latest"            # Structural AST code search and rewrite utility
-tokei = "latest"               # Code statistics engine (LOC, complexity analysis)
-"aqua:SonarSource/sonarqube-cli" = "latest" # SonarQube CLI for static analysis
-
 # --- Security & Hygiene ---
 "pipx:pre-commit" = "4.6.0"    # Local git hooks for security and linting
+
+# --- AI & Automation (Agentic Tools) ---
+gh = "latest"                  # GitHub CLI for PRs, issues and workflow management
+fd = "latest"                  # User-friendly and fast file finder
+jq = "latest"                  # JSON processor for parsing API responses
+yq = "latest"                  # YAML processor for GitHub Actions management
+gemini = "latest"              # AI Agent integration and automation
+ripgrep = "latest"             # High-performance code search (grep replacement)
+ast-grep = "latest"            # Structural AST code search and rewrite utility
+tokei = "latest"               # Code statistics engine (LOC, complexity analysis)
+"aqua:tealdeer-rs/tealdeer" = "latest"      # Simplified man pages (tldr)
+"aqua:SonarSource/sonarqube-cli" = "latest" # SonarQube CLI for static analysis
 
 [tasks."setup:tools"]
 description = "🛠️ Install system and build dependencies (SBT, universal-ctags, tree)"
