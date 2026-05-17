@@ -22,7 +22,7 @@ jobs:
           cache: 'sbt'
           
       - name: Setup Mise
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@v4
         
       - name: Build JS
         run: mise run build:js
