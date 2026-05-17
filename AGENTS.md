@@ -24,7 +24,7 @@ Agent rules (Copilot / automation):
 - **Local CI validation**: `mise run check` automatically runs formatting checks, compiles everything, and executes the tests.
 - **Interactive Shell**: `mise run console` spins up a Scala 3 REPL pre-configured with your project context.
 - **Static Analysis (SonarQube)**: Use the `sonar` CLI for detecting code quality and security issues.
-  - `sonar list issues --project <project_key>`: List all current issues.
+  - `sonar list issues --project rabestro_dicechess-engine-scala`: List all current issues.
   - `sonar verify --file <path>`: Run a server-side analysis on a specific file.
   - `sonar help`: Show all available commands.
 
