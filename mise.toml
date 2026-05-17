@@ -14,16 +14,20 @@ gemini = "latest"              # AI Agent integration and automation
 jq = "latest"                  # JSON processor for parsing API responses
 yq = "latest"                  # YAML processor for GitHub Actions management
 "aqua:SonarSource/sonarqube-cli" = "latest" # SonarQube CLI for static analysis
+ast-grep = "latest"            # Structural AST code search and rewrite utility
+tokei = "latest"               # Code statistics engine (LOC, complexity analysis)
 
 # --- Security & Hygiene ---
 "pipx:pre-commit" = "4.6.0"    # Local git hooks for security and linting
 
 [tasks."setup:tools"]
-description = "🛠️ Install SBT (Platform-aware)"
+description = "🛠️ Install system and build dependencies (SBT, universal-ctags, tree)"
 run_windows = """
 winget install --id sbt.sbt --version 1.12.11 --exact --accept-package-agreements --accept-source-agreements
+winget install --id UniversalCtags.UniversalCtags --accept-package-agreements --accept-source-agreements
+winget install --id GnuWin32.Tree --accept-package-agreements --accept-source-agreements
 """
-run = "brew install sbt"
+run = "brew install sbt universal-ctags tree"
 
 [tasks.compile]
 description = "🔨 Incremental compilation of main and test sources (JVM)"
