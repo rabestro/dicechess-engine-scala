@@ -33,7 +33,8 @@ lazy val root = crossProject(JSPlatform, JVMPlatform)
       "io.circe" %%% "circe-parser" % "0.14.15",
 
       // Testing framework
-      "org.scalameta" %%% "munit" % "1.3.0" % Test
+      "org.scalameta" %%% "munit"            % "1.3.0" % Test,
+      "org.scalameta" %%% "munit-scalacheck" % "1.3.0" % Test
     ),
     scalacOptions ++= Seq(
       "-Werror",           // Fail the compilation if there are any warnings
