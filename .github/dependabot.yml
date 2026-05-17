@@ -4,9 +4,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "monday"
+      day: "tuesday"
       time: "08:00"
     open-pull-requests-limit: 5
+    assignees:
+      - "rabestro"
+    reviewers:
+      - "rabestro"
     labels:
       - "ci-cd"
     commit-message:
@@ -16,9 +20,13 @@ updates:
     directory: "/docs"
     schedule:
       interval: "weekly"
-      day: "tuesday"
+      day: "wednesday"
       time: "08:00"
     open-pull-requests-limit: 5
+    assignees:
+      - "rabestro"
+    reviewers:
+      - "rabestro"
     labels:
       - "ci-cd"
     commit-message:
@@ -31,6 +39,10 @@ updates:
       day: "thursday"
       time: "08:00"
     open-pull-requests-limit: 5
+    assignees:
+      - "rabestro"
+    reviewers:
+      - "rabestro"
     labels:
       - "ci-cd"
     commit-message:
