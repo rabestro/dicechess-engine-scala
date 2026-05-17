@@ -112,12 +112,13 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
      * Expected: Queen moves generated is empty. Pawn and Knight moves that achieve length 2 are legal.
      * Reasoning: Max sequence length is 2 (since Queen is trapped). Paths of length 2 are legal.
      */
-    val fen   = "kb6/pp6/8/8/8/8/PP6/KB6 w - - 0 1" // Trapped pieces
+    val fen   = "4k3/8/8/8/8/nn6/PP2P3/QB2K2N w - - 0 1" // Trapped white Queen at a1
     val state = parse(fen)
     val dice  = List(Pawn, Knight, Queen)
     val legal = filterMoves(state, dice)
-    // No Queen moves are legal, but pawns/knights can achieve length 2
+    // No Queen moves can be legal since she is trapped. Only Pawn and Knight moves are legal.
     assert(legal.nonEmpty)
+    assert(!legal.exists(_.fromSquare == Square('a', 1)), "Trapped Queen at a1 must have no legal moves")
   }
 
   test("A7: No legal pieces on board for rolled dice".ignore) {
