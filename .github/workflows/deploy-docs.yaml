@@ -6,6 +6,7 @@ on:
     paths:
       - 'docs/**'
       - 'src/main/scala/**'
+      - 'shared/src/test/resources/movegen/**'
       - '.github/workflows/deploy-docs.yml'
 
   # Allows manual execution from Actions tab
@@ -52,6 +53,9 @@ jobs:
       - name: Install Node Dependencies
         run: npm ci
         working-directory: ${{ env.BUILD_PATH }}
+
+      - name: Generate Visual Test Cases Catalog
+        run: sbt "project rootJVM" "Test / runMain dicechess.engine.movegen.DocGenerator"
 
       - name: Build with Astro
         run: npm run build
