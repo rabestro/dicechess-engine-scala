@@ -17,6 +17,7 @@ case class MoveGenTestCase(
     fen: String,
     dice: List[Int],
     expectedMoves: List[String],
+    title: Option[String] = None,
     description: Option[String] = None
 )
 
@@ -68,6 +69,11 @@ object ChessDsl:
       FenWithDice(fen, diceList)
 
   case class FenWithDice(fen: String, dice: List[Int]):
+    /** Assigns a title to this test case.
+      */
+    def titled(title: String): FenWithDiceAndTitle =
+      FenWithDiceAndTitle(fen, dice, title)
+
     /** Assigns a description to this test case.
       */
     def describedAs(desc: String): FenWithDiceAndDesc =
@@ -76,10 +82,27 @@ object ChessDsl:
     /** Specifies the expected legal moves that the generator should produce.
       */
     def shouldYield(moves: String*): MoveGenTestCase =
-      MoveGenTestCase(fen, dice, moves.toList, None)
+      MoveGenTestCase(fen, dice, moves.toList, None, None)
+
+  case class FenWithDiceAndTitle(fen: String, dice: List[Int], title: String):
+    /** Assigns a description to this test case.
+      */
+    def describedAs(desc: String): FenWithDiceAndTitleAndDesc =
+      FenWithDiceAndTitleAndDesc(fen, dice, title, desc)
+
+    /** Specifies the expected legal moves that the generator should produce.
+      */
+    def shouldYield(moves: String*): MoveGenTestCase =
+      MoveGenTestCase(fen, dice, moves.toList, Some(title), None)
 
   case class FenWithDiceAndDesc(fen: String, dice: List[Int], desc: String):
     /** Specifies the expected legal moves that the generator should produce.
       */
     def shouldYield(moves: String*): MoveGenTestCase =
-      MoveGenTestCase(fen, dice, moves.toList, Some(desc))
+      MoveGenTestCase(fen, dice, moves.toList, None, Some(desc))
+
+  case class FenWithDiceAndTitleAndDesc(fen: String, dice: List[Int], title: String, desc: String):
+    /** Specifies the expected legal moves that the generator should produce.
+      */
+    def shouldYield(moves: String*): MoveGenTestCase =
+      MoveGenTestCase(fen, dice, moves.toList, Some(title), Some(desc))

@@ -27,6 +27,7 @@
       "g1f3",
       "g1h3"
     ],
-    "description": "Initial position: pawn + knight moves (2 dice)"
+    "title": "Initial position: pawn and knight moves",
+    "description": "Starting position with two dice rolled: Pawn (1) and Knight (2). Since no micro-move can block another in the initial turn, the legal moves are the sum of all individual legal pawn moves and all individual legal knight moves."
   }
 ]
