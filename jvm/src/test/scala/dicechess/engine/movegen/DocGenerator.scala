@@ -89,11 +89,55 @@ object DocGenerator:
             if tc.expectedMoves.isEmpty then "<em>None (no legal moves)</em>"
             else tc.expectedMoves.map(m => s"<code>$m</code>").mkString(", ")
 
+          // Parse FEN metadata dynamically
+          val fenParts                                      = tc.fen.split(" ")
+          val (activeColor, boardColor, castlingStr, epStr) = if (fenParts.length >= 4) {
+            val color = fenParts(1) match
+              case "w"   => "White"
+              case "b"   => "Black"
+              case other => other
+
+            val isWhite  = fenParts(1) == "w"
+            val boardCol = if (isWhite) "white" else "black"
+
+            val castlingRaw = fenParts(2)
+            val castling    = if (isWhite) {
+              val canKingside  = castlingRaw.contains('K')
+              val canQueenside = castlingRaw.contains('Q')
+              (canKingside, canQueenside)
+            } else {
+              val canKingside  = castlingRaw.contains('k')
+              val canQueenside = castlingRaw.contains('q')
+              (canKingside, canQueenside)
+            }
+            val castlingText = castling match
+              case (true, true)   => Some("Kingside & Queenside")
+              case (true, false)  => Some("Kingside only")
+              case (false, true)  => Some("Queenside only")
+              case (false, false) => None
+
+            val epRaw  = fenParts(3)
+            val epText = if (epRaw != "-") Some(epRaw) else None
+
+            (color, boardCol, castlingText, epText)
+          } else {
+            ("White", "white", None, None)
+          }
+
+          val castlingLi = castlingStr
+            .map(c => s"""\n      <li style="margin-bottom: 8px;"><strong>Castling Rights:</strong> $c</li>""")
+            .getOrElse("")
+          val epLi = epStr
+            .map(e =>
+              s"""\n      <li style="margin-bottom: 8px;"><strong>En Passant Target:</strong> <code>$e</code></li>"""
+            )
+            .getOrElse("")
+
           // Generate Lichess FEN image URL using standard export format
           val cleanFen   = tc.fen.replace(' ', '_')
           val encodedFen = URLEncoder.encode(cleanFen, "UTF-8")
           val imgUrl     =
-            s"https://lichess1.org/export/fen.gif?fen=$encodedFen&color=white&theme=brown&piece=cburnett"
+            s"https://lichess1.org/export/fen.gif?fen=$encodedFen&color=$boardColor&theme=brown&piece=cburnett"
 
           sb.append(s"### $caseNum. $caseTitle\n\n")
           sb.append(
@@ -101,9 +145,10 @@ object DocGenerator:
   <div style="flex: 1; min-width: 300px;">
     <p style="margin-top: 0; margin-bottom: 16px;">$description</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
-      <li style="margin-bottom: 8px;"><strong>FEN:</strong> <code>${tc.fen}</code></li>
+      <li style="margin-bottom: 8px;"><strong>Active Color:</strong> $activeColor</li>$castlingLi$epLi
       <li style="margin-bottom: 8px;"><strong>Dice Rolled:</strong> $diceStr</li>
-      <li style="margin-bottom: 0;"><strong>Expected Legal Moves:</strong> $movesStr</li>
+      <li style="margin-bottom: 8px;"><strong>Expected Legal Moves:</strong> $movesStr</li>
+      <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>${tc.fen}</code></li>
     </ul>
   </div>
   <div style="flex: 0 0 280px; width: 280px; min-width: 280px; margin: 0 auto;">

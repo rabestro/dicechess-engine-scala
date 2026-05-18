@@ -21,9 +21,11 @@ Move generator tests with a single die rolled. These represent the fundamental b
   <div style="flex: 1; min-width: 300px;">
     <p style="margin-top: 0; margin-bottom: 16px;">Standard starting position. With a Pawn (1) rolled, any white pawn can advance one or two squares forward.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
-      <li style="margin-bottom: 8px;"><strong>FEN:</strong> <code>rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1</code></li>
+      <li style="margin-bottom: 8px;"><strong>Active Color:</strong> White</li>
+      <li style="margin-bottom: 8px;"><strong>Castling Rights:</strong> Kingside & Queenside</li>
       <li style="margin-bottom: 8px;"><strong>Dice Rolled:</strong> ⚀ Pawn (1)</li>
-      <li style="margin-bottom: 0;"><strong>Expected Legal Moves:</strong> <code>a2a3</code>, <code>a2a4</code>, <code>b2b3</code>, <code>b2b4</code>, <code>c2c3</code>, <code>c2c4</code>, <code>d2d3</code>, <code>d2d4</code>, <code>e2e3</code>, <code>e2e4</code>, <code>f2f3</code>, <code>f2f4</code>, <code>g2g3</code>, <code>g2g4</code>, <code>h2h3</code>, <code>h2h4</code></li>
+      <li style="margin-bottom: 8px;"><strong>Expected Legal Moves:</strong> <code>a2a3</code>, <code>a2a4</code>, <code>b2b3</code>, <code>b2b4</code>, <code>c2c3</code>, <code>c2c4</code>, <code>d2d3</code>, <code>d2d4</code>, <code>e2e3</code>, <code>e2e4</code>, <code>f2f3</code>, <code>f2f4</code>, <code>g2g3</code>, <code>g2g4</code>, <code>h2h3</code>, <code>h2h4</code></li>
+      <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1</code></li>
     </ul>
   </div>
   <div style="flex: 0 0 280px; width: 280px; min-width: 280px; margin: 0 auto;">
@@ -39,9 +41,10 @@ Move generator tests with a single die rolled. These represent the fundamental b
   <div style="flex: 1; min-width: 300px;">
     <p style="margin-top: 0; margin-bottom: 16px;">The active player only has a King on the board. With a Rook (4) rolled, there are no rooks to move, and the King cannot act as a Rook. No legal moves are generated.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
-      <li style="margin-bottom: 8px;"><strong>FEN:</strong> <code>4k3/8/8/8/8/8/8/4K3 w - - 0 1</code></li>
+      <li style="margin-bottom: 8px;"><strong>Active Color:</strong> White</li>
       <li style="margin-bottom: 8px;"><strong>Dice Rolled:</strong> ⚃ Rook (4)</li>
-      <li style="margin-bottom: 0;"><strong>Expected Legal Moves:</strong> <em>None (no legal moves)</em></li>
+      <li style="margin-bottom: 8px;"><strong>Expected Legal Moves:</strong> <em>None (no legal moves)</em></li>
+      <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>4k3/8/8/8/8/8/8/4K3 w - - 0 1</code></li>
     </ul>
   </div>
   <div style="flex: 0 0 280px; width: 280px; min-width: 280px; margin: 0 auto;">
@@ -57,9 +60,10 @@ Move generator tests with a single die rolled. These represent the fundamental b
   <div style="flex: 1; min-width: 300px;">
     <p style="margin-top: 0; margin-bottom: 16px;">The King is located on e1 with no other pieces on the board. Under a King (6) roll, all standard adjacent moves are legal.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
-      <li style="margin-bottom: 8px;"><strong>FEN:</strong> <code>4k3/8/8/8/8/8/8/4K3 w - - 0 1</code></li>
+      <li style="margin-bottom: 8px;"><strong>Active Color:</strong> White</li>
       <li style="margin-bottom: 8px;"><strong>Dice Rolled:</strong> ⚅ King (6)</li>
-      <li style="margin-bottom: 0;"><strong>Expected Legal Moves:</strong> <code>e1d1</code>, <code>e1d2</code>, <code>e1e2</code>, <code>e1f2</code>, <code>e1f1</code></li>
+      <li style="margin-bottom: 8px;"><strong>Expected Legal Moves:</strong> <code>e1d1</code>, <code>e1d2</code>, <code>e1e2</code>, <code>e1f2</code>, <code>e1f1</code></li>
+      <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>4k3/8/8/8/8/8/8/4K3 w - - 0 1</code></li>
     </ul>
   </div>
   <div style="flex: 0 0 280px; width: 280px; min-width: 280px; margin: 0 auto;">
@@ -75,9 +79,11 @@ Move generator tests with a single die rolled. These represent the fundamental b
   <div style="flex: 1; min-width: 300px;">
     <p style="margin-top: 0; margin-bottom: 16px;">The Queen is on f3 in a semi-open board. Under a Queen (5) roll, it can move along any unobstructed diagonal, rank, or file.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
-      <li style="margin-bottom: 8px;"><strong>FEN:</strong> <code>rnbqkbnr/pppppppp/8/8/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 0 1</code></li>
+      <li style="margin-bottom: 8px;"><strong>Active Color:</strong> White</li>
+      <li style="margin-bottom: 8px;"><strong>Castling Rights:</strong> Kingside & Queenside</li>
       <li style="margin-bottom: 8px;"><strong>Dice Rolled:</strong> ⚄ Queen (5)</li>
-      <li style="margin-bottom: 0;"><strong>Expected Legal Moves:</strong> <code>f3d1</code>, <code>f3e2</code>, <code>f3g4</code>, <code>f3h5</code>, <code>f3a3</code>, <code>f3b3</code>, <code>f3c3</code>, <code>f3d3</code>, <code>f3e3</code>, <code>f3g3</code>, <code>f3h3</code>, <code>f3f4</code>, <code>f3f5</code>, <code>f3f6</code>, <code>f3f7</code></li>
+      <li style="margin-bottom: 8px;"><strong>Expected Legal Moves:</strong> <code>f3d1</code>, <code>f3e2</code>, <code>f3g4</code>, <code>f3h5</code>, <code>f3a3</code>, <code>f3b3</code>, <code>f3c3</code>, <code>f3d3</code>, <code>f3e3</code>, <code>f3g3</code>, <code>f3h3</code>, <code>f3f4</code>, <code>f3f5</code>, <code>f3f6</code>, <code>f3f7</code></li>
+      <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnbqkbnr/pppppppp/8/8/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 0 1</code></li>
     </ul>
   </div>
   <div style="flex: 0 0 280px; width: 280px; min-width: 280px; margin: 0 auto;">
@@ -93,9 +99,12 @@ Move generator tests with a single die rolled. These represent the fundamental b
   <div style="flex: 1; min-width: 300px;">
     <p style="margin-top: 0; margin-bottom: 16px;">A complex pawn scenario: the pawn on e5 can capture the black d5 pawn en passant (exd6). The c2 pawn's two-square advance is blocked by the bishop on c4, so only c2-c3 is legal. The f2 pawn is completely blocked by the queen on f3.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
-      <li style="margin-bottom: 8px;"><strong>FEN:</strong> <code>rnbqkbnr/ppp1pppp/8/3pP3/2B5/5Q2/PPPP1PPP/RNB1K1NR w KQkq d6 0 1</code></li>
+      <li style="margin-bottom: 8px;"><strong>Active Color:</strong> White</li>
+      <li style="margin-bottom: 8px;"><strong>Castling Rights:</strong> Kingside & Queenside</li>
+      <li style="margin-bottom: 8px;"><strong>En Passant Target:</strong> <code>d6</code></li>
       <li style="margin-bottom: 8px;"><strong>Dice Rolled:</strong> ⚀ Pawn (1)</li>
-      <li style="margin-bottom: 0;"><strong>Expected Legal Moves:</strong> <code>a2a3</code>, <code>a2a4</code>, <code>b2b3</code>, <code>b2b4</code>, <code>c2c3</code>, <code>d2d3</code>, <code>d2d4</code>, <code>e5e6</code>, <code>e5d6</code>, <code>g2g3</code>, <code>g2g4</code>, <code>h2h3</code>, <code>h2h4</code></li>
+      <li style="margin-bottom: 8px;"><strong>Expected Legal Moves:</strong> <code>a2a3</code>, <code>a2a4</code>, <code>b2b3</code>, <code>b2b4</code>, <code>c2c3</code>, <code>d2d3</code>, <code>d2d4</code>, <code>e5e6</code>, <code>e5d6</code>, <code>g2g3</code>, <code>g2g4</code>, <code>h2h3</code>, <code>h2h4</code></li>
+      <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnbqkbnr/ppp1pppp/8/3pP3/2B5/5Q2/PPPP1PPP/RNB1K1NR w KQkq d6 0 1</code></li>
     </ul>
   </div>
   <div style="flex: 0 0 280px; width: 280px; min-width: 280px; margin: 0 auto;">
@@ -115,9 +124,11 @@ Move generator tests with two dice rolled. These evaluate intermediate micro-mov
   <div style="flex: 1; min-width: 300px;">
     <p style="margin-top: 0; margin-bottom: 16px;">Starting position with two dice rolled: Pawn (1) and Knight (2). Since no micro-move can block another in the initial turn, the legal moves are the sum of all individual legal pawn moves and all individual legal knight moves.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
-      <li style="margin-bottom: 8px;"><strong>FEN:</strong> <code>rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1</code></li>
+      <li style="margin-bottom: 8px;"><strong>Active Color:</strong> White</li>
+      <li style="margin-bottom: 8px;"><strong>Castling Rights:</strong> Kingside & Queenside</li>
       <li style="margin-bottom: 8px;"><strong>Dice Rolled:</strong> ⚀ Pawn (1), ⚁ Knight (2)</li>
-      <li style="margin-bottom: 0;"><strong>Expected Legal Moves:</strong> <code>a2a3</code>, <code>a2a4</code>, <code>b2b3</code>, <code>b2b4</code>, <code>c2c3</code>, <code>c2c4</code>, <code>d2d3</code>, <code>d2d4</code>, <code>e2e3</code>, <code>e2e4</code>, <code>f2f3</code>, <code>f2f4</code>, <code>g2g3</code>, <code>g2g4</code>, <code>h2h3</code>, <code>h2h4</code>, <code>b1a3</code>, <code>b1c3</code>, <code>g1f3</code>, <code>g1h3</code></li>
+      <li style="margin-bottom: 8px;"><strong>Expected Legal Moves:</strong> <code>a2a3</code>, <code>a2a4</code>, <code>b2b3</code>, <code>b2b4</code>, <code>c2c3</code>, <code>c2c4</code>, <code>d2d3</code>, <code>d2d4</code>, <code>e2e3</code>, <code>e2e4</code>, <code>f2f3</code>, <code>f2f4</code>, <code>g2g3</code>, <code>g2g4</code>, <code>h2h3</code>, <code>h2h4</code>, <code>b1a3</code>, <code>b1c3</code>, <code>g1f3</code>, <code>g1h3</code></li>
+      <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1</code></li>
     </ul>
   </div>
   <div style="flex: 0 0 280px; width: 280px; min-width: 280px; margin: 0 auto;">
@@ -137,9 +148,11 @@ Move generator tests with all three dice rolled. These verify full turn executio
   <div style="flex: 1; min-width: 300px;">
     <p style="margin-top: 0; margin-bottom: 16px;">Starting position with all three dice rolled: Pawn (1), Knight (2), and Bishop (3). According to the Dice Chess maximum micro-moves rules, quiet a/c/f/h pawn moves are completely filtered out because they do not form or enable a valid 3-move sequence (e.g. Pawn -> Bishop -> Knight).</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
-      <li style="margin-bottom: 8px;"><strong>FEN:</strong> <code>rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1</code></li>
+      <li style="margin-bottom: 8px;"><strong>Active Color:</strong> White</li>
+      <li style="margin-bottom: 8px;"><strong>Castling Rights:</strong> Kingside & Queenside</li>
       <li style="margin-bottom: 8px;"><strong>Dice Rolled:</strong> ⚀ Pawn (1), ⚁ Knight (2), ⚂ Bishop (3)</li>
-      <li style="margin-bottom: 0;"><strong>Expected Legal Moves:</strong> <code>b2b3</code>, <code>b2b4</code>, <code>d2d3</code>, <code>d2d4</code>, <code>e2e3</code>, <code>e2e4</code>, <code>g2g3</code>, <code>g2g4</code>, <code>b1a3</code>, <code>b1c3</code>, <code>g1f3</code>, <code>g1h3</code></li>
+      <li style="margin-bottom: 8px;"><strong>Expected Legal Moves:</strong> <code>b2b3</code>, <code>b2b4</code>, <code>d2d3</code>, <code>d2d4</code>, <code>e2e3</code>, <code>e2e4</code>, <code>g2g3</code>, <code>g2g4</code>, <code>b1a3</code>, <code>b1c3</code>, <code>g1f3</code>, <code>g1h3</code></li>
+      <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1</code></li>
     </ul>
   </div>
   <div style="flex: 0 0 280px; width: 280px; min-width: 280px; margin: 0 auto;">
