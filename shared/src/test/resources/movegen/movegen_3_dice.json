@@ -1,0 +1,25 @@
+[
+  {
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "dice": [
+      1,
+      2,
+      3
+    ],
+    "expectedMoves": [
+      "b2b3",
+      "b2b4",
+      "d2d3",
+      "d2d4",
+      "e2e3",
+      "e2e4",
+      "g2g3",
+      "g2g4",
+      "b1a3",
+      "b1c3",
+      "g1f3",
+      "g1h3"
+    ],
+    "description": "Initial position: pawn + knight + bishop moves. Quiet a/h/c/f pawn moves are filtered out because they do not enable any 3-move path (Pawn -> Bishop -> Knight)."
+  }
+]
