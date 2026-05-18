@@ -20,6 +20,7 @@
       "g1f3",
       "g1h3"
     ],
-    "description": "Initial position: pawn + knight + bishop moves. Quiet a/h/c/f pawn moves are filtered out because they do not enable any 3-move path (Pawn -> Bishop -> Knight)."
+    "title": "Initial position: path optimization filter",
+    "description": "Starting position with all three dice rolled: Pawn (1), Knight (2), and Bishop (3). According to the Dice Chess maximum micro-moves rules, quiet a/c/f/h pawn moves are completely filtered out because they do not form or enable a valid 3-move sequence (e.g. Pawn -> Bishop -> Knight)."
   }
 ]

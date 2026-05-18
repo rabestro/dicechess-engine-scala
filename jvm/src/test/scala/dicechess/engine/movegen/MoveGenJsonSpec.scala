@@ -42,10 +42,14 @@ class MoveGenJsonSpec extends FunSuite:
 
     for tc <- cases do
       val diceStr = tc.dice.mkString(", ")
-      val desc    = tc.description.map(d => s" ($d)").getOrElse("")
+      val tcName  = (tc.title, tc.description) match
+        case (Some(t), Some(d)) => s"$t ($d)"
+        case (Some(t), None)    => t
+        case (None, Some(d))    => d
+        case (None, None)       => "Unnamed Scenario"
 
       // Kept ignored (.ignore) to avoid failing CI before implementation of the algorithm
-      test(s"$suiteName: FEN: ${tc.fen.take(20)}... | Dice: [$diceStr]$desc".ignore) {
+      test(s"$suiteName: $tcName | Dice: [$diceStr]".ignore) {
         val state = FenParser.parse(tc.fen) match
           case Right(s)  => s
           case Left(err) => fail(s"Failed to parse FEN '${tc.fen}': $err")

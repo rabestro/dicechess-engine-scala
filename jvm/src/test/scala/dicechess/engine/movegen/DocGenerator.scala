@@ -80,18 +80,14 @@ object DocGenerator:
       if cases.isEmpty then sb.append("*No test cases loaded.*\n\n")
       else
         for (tc, index) <- cases.zipWithIndex do
-          val caseNum   = index + 1
-          val caseTitle = tc.description.getOrElse(s"Scenario $caseNum")
-          val diceStr   = tc.dice.map(diceToSymbol).mkString(", ")
-
-          sb.append(s"### $caseNum. $caseTitle\n\n")
-          sb.append(s"* **FEN:** `${tc.fen}`\n")
-          sb.append(s"* **Dice Rolled:** $diceStr\n")
+          val caseNum     = index + 1
+          val caseTitle   = tc.title.getOrElse(s"Scenario $caseNum")
+          val diceStr     = tc.dice.map(diceToSymbol).mkString(", ")
+          val description = tc.description.getOrElse("")
 
           val movesStr =
-            if tc.expectedMoves.isEmpty then "*None (no legal moves)*"
-            else tc.expectedMoves.map(m => s"`$m`").mkString(", ")
-          sb.append(s"* **Expected Legal Moves:** $movesStr\n\n")
+            if tc.expectedMoves.isEmpty then "<em>None (no legal moves)</em>"
+            else tc.expectedMoves.map(m => s"<code>$m</code>").mkString(", ")
 
           // Generate Lichess FEN image URL using standard export format
           val cleanFen   = tc.fen.replace(' ', '_')
@@ -99,8 +95,26 @@ object DocGenerator:
           val imgUrl     =
             s"https://lichess1.org/export/fen.gif?fen=$encodedFen&color=white&theme=brown&piece=cburnett"
 
-          sb.append(s"![Board Position]($imgUrl)\n\n")
-          sb.append("---\n\n")
+          sb.append(s"### $caseNum. $caseTitle\n\n")
+          sb.append(
+            s"""<div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
+  <div style="flex: 1; min-width: 300px;">
+    <p style="margin-top: 0; margin-bottom: 16px;">$description</p>
+    <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
+      <li style="margin-bottom: 8px;"><strong>FEN:</strong> <code>${tc.fen}</code></li>
+      <li style="margin-bottom: 8px;"><strong>Dice Rolled:</strong> $diceStr</li>
+      <li style="margin-bottom: 0;"><strong>Expected Legal Moves:</strong> $movesStr</li>
+    </ul>
+  </div>
+  <div style="flex: 0 0 280px; width: 280px; min-width: 280px; margin: 0 auto;">
+    <img src="$imgUrl" alt="Board Position" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.08);" />
+  </div>
+</div>
+
+---
+
+"""
+          )
 
     // Write to Astro docs content folder
     val outputFile = new File("docs/src/content/docs/architecture/move-generation/06-test-cases.md")
