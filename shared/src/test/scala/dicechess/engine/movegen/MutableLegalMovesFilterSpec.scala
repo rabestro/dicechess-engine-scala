@@ -310,16 +310,21 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(legal.exists(m => m.fromSquare == Square('e', 2) && m.toSquare == Square('e', 4)))
   }
 
-  test("B10: Promotion to Rook and immediate Rook move".ignore) {
+  test("B10: Pawn blocked by enemy king, no diagonal capture, no Rooks available") {
     /*
-     * Input: Pawn on a7, King on e1. Dice = [Pawn, Rook, Rook]
-     * Expected: Pawn promotes to Rook, allowing two subsequent Rook moves.
+     * Input: White pawn on a7, Black King on a8, White King on e1. Dice = [Pawn, Rook, Rook].
+     * Expected: Legal move list is empty (Nil).
+     * Reasoning:
+     *   - The pawn on a7 cannot advance to a8 because Black King occupies that square.
+     *   - The pawn's only diagonal capture target would be b8, but it is empty — no capture possible.
+     *   - White has no Rooks on the board, so the two Rook dice are useless.
+     *   - maxLen = 0 → player must pass.
      */
     val fen   = "k7/P7/8/8/8/8/8/4K3 w - - 0 1"
     val state = parse(fen)
     val dice  = List(Pawn, Rook, Rook)
     val legal = filterMoves(state, dice)
-    assert(legal.nonEmpty)
+    assertEquals(legal, Nil)
   }
 
   // ── AREA C: KING CAPTURE EXEMPTION ────────────────────────────────────────
