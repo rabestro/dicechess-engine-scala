@@ -9,6 +9,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write # Required to publish check runs with test reports
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -27,6 +30,14 @@ jobs:
         run: sbt scalafmtCheckAll
       - name: Run tests with Coverage
         run: sbt clean coverage test coverageReport
+
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v5
+        if: always() # Always run even if tests fail!
+        with:
+          report_paths: '**/target/test-reports/*.xml'
+          detailed_summary: true
+          include_passed: true
       - name: SonarQube Scan
         if: github.actor != 'dependabot[bot]'
         uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0

@@ -19,6 +19,7 @@ jobs:
     permissions:
       contents: write # To push commits, tags, and create releases
       packages: write # To publish packages
+      checks: write # To publish check runs with test reports
 
     steps:
       - name: Checkout repository
@@ -47,6 +48,14 @@ jobs:
 
       - name: Run validation checks
         run: mise run check
+
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v5
+        if: always() # Always run even if tests fail!
+        with:
+          report_paths: '**/target/test-reports/*.xml'
+          detailed_summary: true
+          include_passed: true
 
       - name: Get latest tag
         id: get_tag
