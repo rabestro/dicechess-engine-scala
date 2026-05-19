@@ -58,7 +58,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assertEquals(legal.size, allPawnAndKnight.size)
   }
 
-  test("A3: Starting position, Pawn + Knight + Bishop -> restricts pawns".ignore) {
+  test("A3: Starting position, Pawn + Knight + Bishop -> restricts pawns") {
     /*
      * Input: Initial position, dice = [Pawn, Knight, Bishop]
      * Expected: Quiet pawn moves that do not open bishops (like a2-a3 or h2-h3) are illegal.
@@ -91,7 +91,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assertEquals(legal.size, allKnights.size)
   }
 
-  test("A5: Mid-game, all three dice playable".ignore) {
+  test("A5: Mid-game, all three dice playable") {
     /*
      * Input: Custom FEN with active pieces, dice = [Bishop, Rook, Queen]
      * Expected: All moves for Bishop, Rook, Queen that belong to a 3-move path are legal.
@@ -104,7 +104,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(legal.nonEmpty)
   }
 
-  test("A6: Trapped Queen, only 2 of 3 dice usable".ignore) {
+  test("A6: Trapped Queen, only 2 of 3 dice usable") {
     /*
      * Input: Custom FEN where Queen is completely trapped, dice = [Pawn, Knight, Queen]
      * Expected: Queen moves generated is empty. Pawn and Knight moves that achieve length 2 are legal.
@@ -119,7 +119,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(!legal.exists(_.fromSquare == Square('a', 1)), "Trapped Queen at a1 must have no legal moves")
   }
 
-  test("A7: No legal pieces on board for rolled dice".ignore) {
+  test("A7: No legal pieces on board for rolled dice") {
     /*
      * Input: King and Pawns only, dice = [Queen, Queen, Queen]
      * Expected: Empty legal move list (Nil).
@@ -132,7 +132,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assertEquals(legal, Nil)
   }
 
-  test("A8: Identical dice, single piece moves twice".ignore) {
+  test("A8: Identical dice, single piece moves twice") {
     /*
      * Input: King and single Rook, dice = [Rook, Rook, Rook]
      * Expected: Rook can move up to 3 times sequentially.
@@ -158,7 +158,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assertEquals(legal, Nil)
   }
 
-  test("A10: King restricted by corner".ignore) {
+  test("A10: King restricted by corner") {
     /*
      * Input: King on corner h1, dice = [King, King, King]
      * Expected: King moves generated are limited to g1, g2, h2.
@@ -173,7 +173,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
 
   // ── AREA B: SPECIAL MOVES ─────────────────────────────────────────────────
 
-  test("B1: Pawn promotion optimization (Knight required)".ignore) {
+  test("B1: Pawn promotion optimization (Knight required)") {
     /*
      * Input: Pawn on e7, King on e1. Dice = [Pawn, Pawn, Knight]
      * Expected: Only pawn promotion to Knight (e7-e8=N) is legal.
@@ -210,7 +210,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(legal.exists(m => m.fromSquare == Square('e', 7) && m.toSquare == Square('e', 8)))
   }
 
-  test("B3: Castling requires and consumes King + Rook dice".ignore) {
+  test("B3: Castling requires and consumes King + Rook dice") {
     /*
      * Input: Castling clear, dice = [King, Rook, Pawn]
      * Expected: Castling is legal since both 6 and 4 are rolled.
@@ -225,7 +225,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(legal.exists(_.flags == Move.QueenCastle), "Queen-side castling should be legal")
   }
 
-  test("B4: Castling illegal if Rook die missing".ignore) {
+  test("B4: Castling illegal if Rook die missing") {
     /*
      * Input: Castling clear, dice = [King, Queen, Pawn]
      * Expected: Castling is illegal since Rook die (4) is missing.
@@ -238,7 +238,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(!legal.exists(_.flags == Move.KingCastle), "Castling should be blocked without Rook die")
   }
 
-  test("B5: Castling with Rook blocked after castle".ignore) {
+  test("B5: Castling with Rook blocked after castle") {
     /*
      * Input: Castling clear, but Rook's landing square has no moves afterwards. Dice = [King, Rook, Rook]
      * Expected: Evaluates whether Rook can move after castle.
@@ -251,7 +251,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(legal.nonEmpty)
   }
 
-  test("B6: En Passant capture verification".ignore) {
+  test("B6: En Passant capture verification") {
     /*
      * Input: White pawn on e5, Black pawn on d5 (just pushed). Dice = [Pawn, Knight, Bishop]
      * Expected: En Passant capture (exd6) is legal.
@@ -264,7 +264,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(legal.exists(_.isEnPassant), "En Passant capture should be legal")
   }
 
-  test("B7: Double Pawn Push opening friendly paths".ignore) {
+  test("B7: Double Pawn Push opening friendly paths") {
     /*
      * Input: Pawn e2, Bishop f1 blocked. Dice = [Pawn, Bishop, Bishop]
      * Expected: Only Pawn e2-e4 (or e2-e3) are legal because they open the Bishop.
@@ -315,7 +315,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
 
   // ── AREA C: KING CAPTURE EXEMPTION ────────────────────────────────────────
 
-  test("C1: King Capture instantly legal (No follow-up)".ignore) {
+  test("C1: King Capture instantly legal (No follow-up)") {
     /*
      * Input: Knight can capture King. Dice = [Knight, Bishop, Bishop]. Bishop is trapped.
      * Expected: Knight capture is legal.
@@ -330,7 +330,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(capturesKing || true) // Structuring check
   }
 
-  test("C2: King Capture instantly legal (Multiple options)".ignore) {
+  test("C2: King Capture instantly legal (Multiple options)") {
     /*
      * Input: Both Knight and Bishop can capture King. Dice = [Knight, Bishop, Queen]
      * Expected: Both captures are instantly legal.
@@ -341,7 +341,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(legal.nonEmpty)
   }
 
-  test("C3: King Capture inside sequence".ignore) {
+  test("C3: King Capture inside sequence") {
     /*
      * Input: Pawn moves, freeing Knight to capture King. Dice = [Pawn, Knight, Rook]
      * Expected: Pawn move is legal since it leads to a King capture.
@@ -352,7 +352,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(legal.nonEmpty)
   }
 
-  test("C4: King Capture blocks opponent next turn".ignore) {
+  test("C4: King Capture blocks opponent next turn") {
     /*
      * Input: Instant win condition verification.
      */
@@ -362,7 +362,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(legal.nonEmpty)
   }
 
-  test("C5: Long path vs. short King capture".ignore) {
+  test("C5: Long path vs. short King capture") {
     /*
      * Input: 3-move quiet sequence vs. 1-move King capture.
      * Expected: 1-move King capture is legal.
@@ -392,7 +392,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
   val diceGen: Gen[List[Int]] =
     Gen.listOfN(3, Gen.choose(1, 6))
 
-  property("D1: All filtered moves belong to a valid dice roll".ignore) {
+  property("D1: All filtered moves belong to a valid dice roll") {
     forAll(gameStateGen, diceGen) { (state, dice) =>
       val legalMoves = filterMoves(state, dice)
       legalMoves.forall { m =>
@@ -405,7 +405,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     }
   }
 
-  property("D2: Maximum sequence length condition is satisfied".ignore) {
+  property("D2: Maximum sequence length condition is satisfied") {
     forAll(gameStateGen, diceGen) { (state, dice) =>
       val legalMoves = filterMoves(state, dice)
       // Any returned move must achieve the global maximum sequence length (or capture the king)
@@ -414,7 +414,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     }
   }
 
-  property("D3: Returned move list is a subset of all pseudo-legal moves".ignore) {
+  property("D3: Returned move list is a subset of all pseudo-legal moves") {
     forAll(gameStateGen, diceGen) { (state, dice) =>
       val legal     = filterMoves(state, dice)
       val allPseudo = dice.distinct.flatMap(d => MoveGenerator.generateMoves(state, d))
@@ -424,7 +424,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
 
   // ── AREA E: REGRESSION TESTS (PERFT INTEGRATION) ──────────────────────────
 
-  test("E1: Perft at depth 1 with filtered moves remains consistent".ignore) {
+  test("E1: Perft at depth 1 with filtered moves remains consistent") {
     /*
      * Input: Initial position, dice = [Pawn, Knight, Bishop]
      * Expected: Count of legal moves matches the filtered list size.
@@ -435,7 +435,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(legal.size >= 0)
   }
 
-  test("E2: Perft at depth 2 with filtered moves".ignore) {
+  test("E2: Perft at depth 2 with filtered moves") {
     /*
      * Input: Custom FEN, dice = [Rook, Rook, Rook]
      * Expected: Count remains consistent.
