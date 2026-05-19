@@ -103,9 +103,49 @@
       1
     ],
     "expectedMoves": [
-      "a2a3", "a2a4", "c4c5", "c4d5", "d2d3", "d2d4", "e5d6", "e5f6", "g2g3", "g2g4"
+      "a2a3",
+      "a2a4",
+      "c4c5",
+      "c4d5",
+      "d2d3",
+      "d2d4",
+      "e5d6",
+      "e5f6",
+      "g2g3",
+      "g2g4"
     ],
     "title": "En Passant, Pawn Choices, and Forward Blockage",
     "description": "The C pawn can either capture or move forward one square. The D pawn can move one or two squares forward, exposing the white king to check. The E pawn can capture en passant or take the knight, but cannot move forward."
+  },
+  {
+    "fen": "5k2/3P4/2K5/8/8/8/8/8 w - - 0 1",
+    "dice": [
+      1
+    ],
+    "expectedMoves": [
+      "d7d8b",
+      "d7d8n",
+      "d7d8q",
+      "d7d8r"
+    ],
+    "title": "Pawn promotion",
+    "description": "A pawn on the seventh rank can advance to the eighth rank and promote to any piece (usually a queen). In this case, with a roll of 1, the only legal move is d7d8, which results in a pawn promotion."
+  },
+  {
+    "fen": "5k2/3P4/2K5/8/8/8/8/8 w - - 0 1",
+    "dice": [
+      6
+    ],
+    "expectedMoves": [
+      "c6b5",
+      "c6b6",
+      "c6b7",
+      "c6c5",
+      "c6c7",
+      "c6d5",
+      "c6d6"
+    ],
+    "title": "King and pawn, king move",
+    "description": "A pawn on the seventh rank can advance to the eighth rank and promote to any piece (usually a queen). In this case, with a roll of 6, the king moves."
   }
 ]
