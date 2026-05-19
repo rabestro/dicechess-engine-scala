@@ -1,4 +1,4 @@
-name: Enforce PR policy
+name: "CI: PR Policy"
 
 on:
   pull_request:
