@@ -37,6 +37,7 @@ export default defineConfig({
 					label: 'Engineering Quality',
 					items: [
 						{ label: 'Testing Strategy & DSL', slug: 'architecture/testing' },
+						{ label: 'CI/CD & Releases', slug: 'architecture/releases' },
 					],
 				},
 				{
