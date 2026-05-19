@@ -202,18 +202,45 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(!isPromQueenLegal, "Pawn promotion to Queen should be illegal under [1, 1, 2] without other Knights")
   }
 
-  test("B2: Pawn promotion choice (Queen already exists)".ignore) {
+  test("B2: Pawn promotion choice (Queen already exists)") {
     /*
-     * Input: Pawn on e7, Queen on a1, King on e1. Dice = [Pawn, Pawn, Queen]
-     * Expected: All promotion choices (Q, R, B, N) are legal.
-     * Reasoning: Since a Queen already exists on a1, any promotion choice still allows
-     * moving the existing Queen on the 3rd micro-move, achieving length 3.
+     * Input: Pawn on e7, Queen on a1, Black King on h8, White King on e1.
+     * Dice = [Pawn, Pawn, Queen].
+     * Expected: All 4 promotion choices (Q, R, B, N) are legal as first moves.
+     * Reasoning: After any promotion, the Queen on a1 can still be moved with
+     *   the Queen die, achieving length 2. maxLen = 2, so all promotions qualify.
+     * Note: The Queen on a1 can also capture the Black King on h8 (open rank),
+     *   so the queen-first move is also legal (Type 1: King-capture path).
      */
-    val fen   = "k7/4P3/8/8/8/8/8/Q3K3 w - - 0 1"
+    val fen   = "7k/4P3/8/8/8/8/8/Q3K3 w - - 0 1"
     val state = parse(fen)
     val dice  = List(Pawn, Pawn, Queen)
     val legal = filterMoves(state, dice)
-    assert(legal.exists(m => m.fromSquare == Square('e', 7) && m.toSquare == Square('e', 8)))
+    // All 4 promotion types (Q, R, B, N) must be legal first moves
+    assert(
+      legal.exists(m =>
+        m.fromSquare == Square('e', 7) && m.toSquare == Square('e', 8) && m.flags == Move.QueenPromotion
+      ),
+      "Promotion to Queen must be legal"
+    )
+    assert(
+      legal.exists(m =>
+        m.fromSquare == Square('e', 7) && m.toSquare == Square('e', 8) && m.flags == Move.RookPromotion
+      ),
+      "Promotion to Rook must be legal"
+    )
+    assert(
+      legal.exists(m =>
+        m.fromSquare == Square('e', 7) && m.toSquare == Square('e', 8) && m.flags == Move.BishopPromotion
+      ),
+      "Promotion to Bishop must be legal"
+    )
+    assert(
+      legal.exists(m =>
+        m.fromSquare == Square('e', 7) && m.toSquare == Square('e', 8) && m.flags == Move.KnightPromotion
+      ),
+      "Promotion to Knight must be legal"
+    )
   }
 
   test("B3: Castling requires and consumes King + Rook dice") {
