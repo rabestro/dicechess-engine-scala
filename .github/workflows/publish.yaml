@@ -23,6 +23,9 @@ jobs:
           java-version: "25"
           cache: "sbt"
 
+      - name: Setup sbt
+        uses: sbt/setup-sbt@v1
+
       - name: Install mise
         uses: jdx/mise-action@v4
 
