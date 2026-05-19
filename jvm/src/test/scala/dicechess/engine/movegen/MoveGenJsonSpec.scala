@@ -8,10 +8,8 @@ import scala.io.Source
 
 class MoveGenJsonSpec extends FunSuite:
 
-  // Dummy mock implementation of the filter to satisfy compiler references before implementation begins.
-  // In the future, this will delegate to the actual filtering engine.
   private def filterMoves(state: GameState, dice: List[Int]): List[Move] =
-    Nil
+    LegalMovesFilter.filterMaximalMoves(state, dice)
 
   private def loadTestCases(resourceName: String): List[MoveGenTestCase] =
     val source = Option(getClass.getClassLoader.getResourceAsStream(resourceName))
@@ -48,8 +46,10 @@ class MoveGenJsonSpec extends FunSuite:
         case (None, Some(d))    => d
         case (None, None)       => "Unnamed Scenario"
 
-      // Kept ignored (.ignore) to avoid failing CI before implementation of the algorithm
-      test(s"$suiteName: $tcName | Dice: [$diceStr]".ignore) {
+      val testName                   = s"$suiteName: $tcName | Dice: [$diceStr]"
+      val options: munit.TestOptions = if (suiteName == "1-Die Scenarios") testName else testName.ignore
+
+      test(options) {
         val state = FenParser.parse(tc.fen) match
           case Right(s)  => s
           case Left(err) => fail(s"Failed to parse FEN '${tc.fen}': $err")
