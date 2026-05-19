@@ -31,6 +31,19 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: 'sbt'
+
+      - name: Setup Mise
+        uses: jdx/mise-action@v4
+
+      - name: Run validation checks
+        run: mise run check
+
       - name: Get latest tag
         id: get_tag
         run: |
