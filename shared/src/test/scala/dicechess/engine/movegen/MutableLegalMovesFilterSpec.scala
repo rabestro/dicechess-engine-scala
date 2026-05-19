@@ -145,17 +145,23 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(legal.nonEmpty)
   }
 
-  test("A9: Locked position, opponent pawns block all moves".ignore) {
+  test("A9: Pawn can advance two steps before being blocked") {
     /*
-     * Input: Locked pawns e4 vs e5, dice = [Pawn, Pawn, Pawn]
-     * Expected: Legal move list is empty.
-     * Reasoning: Max sequence length is 0.
+     * Input: White pawn on e4, Black pawn on e7. Dice = [Pawn, Pawn, Pawn].
+     * Expected: First move e4-e5 is legal. Max sequence length is 2:
+     *   e4-e5 -> e5-e6 (blocked by Black pawn on e7, 3rd move impossible).
+     * Reasoning: Max sequence length = 2, so only moves leading to a 2-move
+     *   chain are legal. e4-e5 is the sole legal first move.
      */
     val fen   = "4k3/4p3/8/8/4P3/8/8/4K3 w - - 0 1"
     val state = parse(fen)
     val dice  = List(Pawn, Pawn, Pawn)
     val legal = filterMoves(state, dice)
-    assertEquals(legal, Nil)
+    assert(legal.nonEmpty, "There must be at least one legal move")
+    assert(
+      legal.exists(m => m.fromSquare == Square('e', 4) && m.toSquare == Square('e', 5)),
+      "e4-e5 must be legal as it leads to the 2-move chain e4-e5, e5-e6"
+    )
   }
 
   test("A10: King restricted by corner") {
