@@ -4,22 +4,132 @@ import dicechess.engine.domain.*
 
 /** Legal moves filter for Dice Chess.
   *
-  * This object implements the filtering logic required to enforce the Maximum Micro-moves Rule, which dictates that
-  * players must choose moves that maximize the number of micro-moves they can play in a single turn.
+  * Implements the **Maximum Micro-moves Rule**: a player must choose a first move that is part of the longest possible
+  * sequence of micro-moves achievable with the rolled dice.
+  *
+  * ## Two types of legal first moves
+  *   1. **King-Capture** — any sequence of micro-moves that *ends* with capturing the opponent's King is always legal,
+  *      regardless of whether it is 1, 2, or 3 moves long.
+  *   2. **Non-King-Capture** — any sequence of micro-moves that does *not* end with a King capture must achieve the
+  *      globally optimal length `L*(state, dice)`.
+  *
+  * ## Rules encoded here
+  *   - **Normal move** — consumes exactly one die of the matching piece type.
+  *   - **Castling** — requires *and* consumes *both* the King die (`6`) and the Rook die (`4`) simultaneously.
+  *   - **King-Capture** — terminates the game; a King capture contributes its depth to `maxLen` but is not recursed
+  *     into (the game is over). All branches continue to be searched so that `maxLen` is computed correctly.
+  *   - **Active-color invariance** — the active color is kept fixed for every intermediate state produced during a
+  *     turn; it is *not* toggled between micro-moves.
   */
 object LegalMovesFilter:
 
-  /** Filters and returns the legal moves for a given position and rolled dice.
+  // ── Private helpers ──────────────────────────────────────────────────────────
+
+  /** Returns `true` when `move` captures the opponent's King (win condition). */
+  private def isKingCapture(state: GameState, move: Move): Boolean =
+    state.mailbox
+      .get(move.toSquare)
+      .exists(p => p.pieceType == PieceType.King && p.color != state.activeColor)
+
+  /** Recursively computes the maximum achievable micro-move sequence length from `state` with `remainingDice`.
     *
-    * Currently implements a naive placeholder that returns all pseudo-legal moves for the rolled dice, matching the
-    * initial JavaScript API behavior prior to full recursive path validation.
+    * The search is bounded by the depth of `remainingDice` (at most 3), so it always terminates. The active color is
+    * intentionally kept fixed — `makeMove` normally toggles it, so we restore it with `.copy` after each step.
+    *
+    * A King-Capture move terminates its branch at depth 1 (the game ends). However, the search continues exploring all
+    * other branches — King captures do **not** short-circuit the entire computation. This ensures that `maxLen`
+    * reflects the true global maximum, including paths of length 2 or 3 that exist alongside a 1-move King capture.
     *
     * @param state
-    *   The current game state.
-    * @param dice
-    *   The list of available dice rolls (1-6).
+    *   the board position to evaluate (active color unchanged throughout the turn)
+    * @param remainingDice
+    *   the dice still available to spend in this turn (multiset)
     * @return
-    *   A list of legal moves under the Maximum Micro-moves Rule.
+    *   the maximum number of micro-moves reachable from `state` using `remainingDice`
+    */
+  private def maxSequenceLength(state: GameState, remainingDice: List[Int]): Int =
+    if remainingDice.isEmpty then 0
+    else
+      val activeColor = state.activeColor
+      var best        = 0
+
+      for d <- remainingDice.distinct do
+        for move <- MoveGenerator.generateMoves(state, d) do
+          if isKingCapture(state, move) then
+            // King capture ends the game: contributes depth 1 to this branch.
+            // Do NOT recurse further, but continue exploring other branches.
+            if best < 1 then best = 1
+          else if move.isCastling then
+            // Castling requires BOTH King (6) and Rook (4) dice to be present
+            if remainingDice.contains(PieceType.King.diceValue) &&
+              remainingDice.contains(PieceType.Rook.diceValue)
+            then
+              val afterCastle = remainingDice.diff(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
+              val next        = state.makeMove(move).copy(activeColor = activeColor)
+              val depth       = 2 + maxSequenceLength(next, afterCastle)
+              if depth > best then best = depth
+          else
+            val afterMove = remainingDice.diff(List(d))
+            val next      = state.makeMove(move).copy(activeColor = activeColor)
+            val depth     = 1 + maxSequenceLength(next, afterMove)
+            if depth > best then best = depth
+
+      best
+
+  // ── Public API ────────────────────────────────────────────────────────────────
+
+  /** Filters and returns the legal first moves for a given position and rolled dice.
+    *
+    * A first move is legal if and only if one of the following holds:
+    *   1. **King-Capture path** — there exists a continuation from this move (including the move itself) that captures
+    *      the opponent's King, making it a win-condition sequence. Legal at any length (1, 2, or 3 micro-moves).
+    *   2. **Maximum-length condition** — the move is part of a non-King-capture path whose total length equals
+    *      `L*(state, dice)`, the globally optimal sequence length.
+    *
+    * When no moves are achievable at all (all rolled dice correspond to piece types absent from the board), an empty
+    * list is returned and the player must pass their turn.
+    *
+    * @param state
+    *   the current game state (active color indicates whose turn it is)
+    * @param dice
+    *   the list of dice rolls for this turn (multiset, values in `[1, 6]`)
+    * @return
+    *   the list of legal first micro-moves under the Maximum Micro-moves Rule
     */
   def filterMaximalMoves(state: GameState, dice: List[Int]): List[Move] =
-    dice.flatMap(d => MoveGenerator.generateMoves(state, d))
+    if dice.isEmpty then Nil
+    else
+      val activeColor = state.activeColor
+
+      // Pass 1: determine the globally optimal sequence length from this position.
+      // This considers ALL branches including King-capture paths.
+      val maxLen = maxSequenceLength(state, dice)
+
+      // If no sequence is achievable (all dice unplayable), the player passes
+      if maxLen == 0 then Nil
+      else
+        // Pass 2: collect legal first moves under both criteria:
+        //   (a) king-capture paths — always legal
+        //   (b) non-king-capture paths that achieve maxLen
+        val result = List.newBuilder[Move]
+
+        for d <- dice.distinct do
+          for move <- MoveGenerator.generateMoves(state, d) do
+            if isKingCapture(state, move) then
+              // Type 1: King-capture first move — always legal
+              result += move
+            else if move.isCastling then
+              if dice.contains(PieceType.King.diceValue) &&
+                dice.contains(PieceType.Rook.diceValue)
+              then
+                val afterCastle = dice.diff(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
+                val next        = state.makeMove(move).copy(activeColor = activeColor)
+                val reachable   = 2 + maxSequenceLength(next, afterCastle)
+                if reachable == maxLen then result += move
+            else
+              val afterMove = dice.diff(List(d))
+              val next      = state.makeMove(move).copy(activeColor = activeColor)
+              val reachable = 1 + maxSequenceLength(next, afterMove)
+              if reachable == maxLen then result += move
+
+        result.result()
