@@ -26,10 +26,8 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
   private def parse(fen: String): GameState =
     FenParser.parse(fen).getOrElse(sys.error(s"Failed to parse FEN: $fen"))
 
-  // Dummy mock implementation of the filter to satisfy compiler references before implementation begins
   private def filterMoves(state: GameState, dice: List[Int]): List[Move] =
-    // In actual implementation, this will call the filtering algorithm
-    Nil
+    LegalMovesFilter.filterMaximalMoves(state, dice)
 
   // ── AREA A: BASIC SCENARIOS (SINGLE & MULTIPLE DICE) ──────────────────────
 
