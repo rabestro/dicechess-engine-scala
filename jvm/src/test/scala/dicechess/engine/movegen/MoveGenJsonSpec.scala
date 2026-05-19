@@ -47,7 +47,7 @@ class MoveGenJsonSpec extends FunSuite:
         case (None, None)       => "Unnamed Scenario"
 
       val testName                   = s"$suiteName: $tcName | Dice: [$diceStr]"
-      val options: munit.TestOptions = if (suiteName == "1-Die Scenarios") testName else testName.ignore
+      val options: munit.TestOptions = testName
 
       test(options) {
         val state = FenParser.parse(tc.fen) match
