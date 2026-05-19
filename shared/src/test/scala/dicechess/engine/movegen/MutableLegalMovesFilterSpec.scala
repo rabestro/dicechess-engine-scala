@@ -310,30 +310,6 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(legal.exists(m => m.fromSquare == Square('e', 2) && m.toSquare == Square('e', 4)))
   }
 
-  test("B8: Capture blocking friendly pieces".ignore) {
-    /*
-     * Input: Rook capture blocks friendly Bishop. Dice = [Rook, Bishop, Bishop]
-     * Expected: Capture is illegal if a quiet Rook move allows longer Bishop path.
-     */
-    val fen   = "k7/8/8/8/8/1r6/1P6/B3K3 w - - 0 1"
-    val state = parse(fen)
-    val dice  = List(Rook, Bishop, Bishop)
-    val legal = filterMoves(state, dice)
-    assert(legal.nonEmpty)
-  }
-
-  test("B9: Capture freeing friendly pieces".ignore) {
-    /*
-     * Input: Rook captures enemy piece freeing Bishop. Dice = [Rook, Bishop, Bishop]
-     * Expected: Capture is legal since it frees the Bishop path.
-     */
-    val fen   = "k7/8/8/8/8/1r6/1P6/B3K3 w - - 0 1"
-    val state = parse(fen)
-    val dice  = List(Rook, Bishop, Bishop)
-    val legal = filterMoves(state, dice)
-    assert(legal.nonEmpty)
-  }
-
   test("B10: Promotion to Rook and immediate Rook move".ignore) {
     /*
      * Input: Pawn on a7, King on e1. Dice = [Pawn, Rook, Rook]
