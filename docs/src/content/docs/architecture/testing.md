@@ -154,6 +154,13 @@ The build task executes our documentation compiler `DocGenerator.scala` which:
 4. **Applies Responsive HTML Grid**: Wraps each scenario in a premium two-column CSS grid that automatically adapts to mobile screens.
 5. **Compiles the Astro Site**: Automatically updates `/architecture/move-generation/06-test-cases/` on the docs site.
 
+## Shared vs. Platform-Specific Tests
+
+Because our engine is a cross-compiled Scala project targetting both **JVM (Java)** and **JS (Scala.js)**, we categorize our test suite files based on their runtime environment constraints:
+
+* **Shared Tests (`shared/src/test/`)**: Programmatic unit tests (such as `MutableLegalMovesFilterSpec.scala` and `MakeMoveSpec.scala`) that construct states in-memory without external I/O. These compile and execute on both JVM and JS environments to ensure identical behavior across server (JVM) and client/browser (JS).
+* **Platform-Specific Tests (`jvm/src/test/`)**: Tests that rely on Java-specific runtime APIs. A key example is `MoveGenJsonSpec.scala`, which uses ClassLoader classpath resource loading (`getClass.getClassLoader.getResourceAsStream`) and runtime generic derivation via `Circe`. Since JavaScript lacks Java ClassLoader capabilities, keeping these in the JVM module prevents Scala.js compilation errors.
+
 ---
 
 ## Why this matters
