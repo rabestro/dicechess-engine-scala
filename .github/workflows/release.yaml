@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # To push commits, tags, and create releases
+      packages: write # To publish packages
 
     steps:
       - name: Checkout repository
@@ -114,12 +115,27 @@ jobs:
           git tag ${{ steps.bump_version.outputs.new_tag }}
           git push origin ${{ steps.bump_version.outputs.new_tag }}
 
-      - name: Create GitHub Release
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "26"
+          registry-url: "https://npm.pkg.github.com"
+
+      - name: Build JavaScript package
+        run: mise run package:prepare
+
+      - name: Publish to GitHub Package Registry
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release and Upload Assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NEW_TAG: ${{ steps.bump_version.outputs.new_tag }}
         run: |
-          # Create a release, which will in turn trigger the publish.yml workflow
           gh release create "$NEW_TAG" \
+            dist/dicechess-engine.js \
+            dist/dicechess-engine.d.ts \
             --generate-notes \
             --title "$NEW_TAG"
