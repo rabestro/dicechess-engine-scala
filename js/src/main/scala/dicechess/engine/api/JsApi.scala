@@ -1,7 +1,7 @@
 package dicechess.engine.api
 
 import dicechess.engine.domain.*
-import dicechess.engine.movegen.MoveGenerator
+import dicechess.engine.movegen.LegalMovesFilter
 import scala.scalajs.js
 import scala.scalajs.js.annotation.*
 import scala.scalajs.js.JSConverters.*
@@ -31,8 +31,8 @@ object JsApi:
     FenParser.parse(fen) match
       case Left(_)      => js.Dictionary.empty
       case Right(state) =>
-        // Generate moves for each dice and flatten the results
-        val allMoves = dice.flatMap(d => MoveGenerator.generateMoves(state, d))
+        // Filter legal moves according to the Maximum Micro-moves Rule
+        val allMoves = LegalMovesFilter.filterMaximalMoves(state, dice.toList)
 
         // Group moves by origin square and convert to notation strings
         allMoves
@@ -60,10 +60,8 @@ object JsApi:
     FenParser.parse(fen) match
       case Left(_)      => false
       case Right(state) =>
-        dice.exists { d =>
-          val moves = MoveGenerator.generateMoves(state, d)
-          moves.exists(m => m.fromSquare.toNotation == from && m.toSquare.toNotation == to)
-        }
+        val moves = LegalMovesFilter.filterMaximalMoves(state, dice.toList)
+        moves.exists(m => m.fromSquare.toNotation == from && m.toSquare.toNotation == to)
 
   /** Returns the piece type associated with a dice roll.
     *

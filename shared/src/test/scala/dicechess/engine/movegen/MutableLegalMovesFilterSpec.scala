@@ -26,14 +26,12 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
   private def parse(fen: String): GameState =
     FenParser.parse(fen).getOrElse(sys.error(s"Failed to parse FEN: $fen"))
 
-  // Dummy mock implementation of the filter to satisfy compiler references before implementation begins
   private def filterMoves(state: GameState, dice: List[Int]): List[Move] =
-    // In actual implementation, this will call the filtering algorithm
-    Nil
+    LegalMovesFilter.filterMaximalMoves(state, dice)
 
   // ── AREA A: BASIC SCENARIOS (SINGLE & MULTIPLE DICE) ──────────────────────
 
-  test("A1: Starting position, single Pawn die -> correct pawn moves".ignore) {
+  test("A1: Starting position, single Pawn die -> correct pawn moves") {
     /*
      * Input: Initial position, dice = [Pawn]
      * Expected: All 16 pseudo-legal Pawn moves are legal.
@@ -46,7 +44,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assertEquals(legal.size, allPawnMoves.size)
   }
 
-  test("A2: Starting position, Pawn + Knight -> allows both".ignore) {
+  test("A2: Starting position, Pawn + Knight -> allows both") {
     /*
      * Input: Initial position, dice = [Pawn, Knight]
      * Expected: Must allow all 16 pawn moves and all 4 knight moves.
@@ -80,7 +78,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     assert(isE2E3Legal, "Pawn e2-e3 must be legal since it opens the bishop")
   }
 
-  test("A4: Blocked starting pieces (Knight, Bishop, King) -> Knight only".ignore) {
+  test("A4: Blocked starting pieces (Knight, Bishop, King) -> Knight only") {
     /*
      * Input: Initial position, dice = [Knight, Bishop, King]
      * Expected: Bishop and King are blocked and have no moves. Only Knight can move.
