@@ -1,7 +1,7 @@
 # Dice Chess Engine (Scala) 🎲♟️
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=rabestro_dicechess-engine-scala&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=rabestro_dicechess-engine-scala)
-[![CI Pipeline](https://github.com/rabestro/dicechess-engine-scala/actions/workflows/ci.yml/badge.svg)](https://github.com/rabestro/dicechess-engine-scala/actions/workflows/ci.yaml)
+[![CI Pipeline](https://github.com/rabestro/dicechess-engine-scala/actions/workflows/ci.yaml/badge.svg)](https://github.com/rabestro/dicechess-engine-scala/actions/workflows/ci.yaml)
 [![Architecture Docs](https://img.shields.io/badge/Docs-Architecture-orange)](https://jc.id.lv/dicechess-engine-scala/)
 [![Scaladoc API](https://img.shields.io/badge/Scaladoc-API-blue)](https://jc.id.lv/dicechess-engine-scala/api/)
 
