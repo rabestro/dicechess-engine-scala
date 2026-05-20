@@ -97,8 +97,8 @@
     "expectedMoves": [
       "f7f8r"
     ],
-    "title": "Force promotion to rock",
-    "description": "Forcing a pawn to promote to a rock in this position"
+    "title": "Force promotion to rook",
+    "description": "Forcing a pawn to promote to a rook in this position"
   },
   {
     "fen": "3k4/5P2/2P5/8/5K2/8/8/8 w - - 0 1",
@@ -148,8 +148,8 @@
       "c6d7",
       "f7f8r"
     ],
-    "title": "Beat the King or force promotion to rock",
-    "description": "Beat the King (1 micro move) or forcing a pawn to promote to a rock in this position (2 micro moves). Both options are legal and the player can choose which one to execute."
+    "title": "Beat the King or force promotion to rook",
+    "description": "Beat the King (1 micro move) or forcing a pawn to promote to a rook in this position (2 micro moves). Both options are legal and the player can choose which one to execute."
   },
   {
     "fen": "8/3k1P2/2P5/8/5K2/8/8/8 w - - 0 1",
