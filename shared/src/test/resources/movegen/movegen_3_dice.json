@@ -71,7 +71,7 @@
       "e7a3",
       "a8b8"
     ],
-    "title": "Pawns with three dice",
-    "description": "In this position, the white pawn on d5 can move to c6, d6, or e6 using one of the '1' dice. The white pawn on e7 can promote to a knight, bishop, queen, or rook on d8, e8, or f8 using the remaining two '1' dice."
+    "title": "Casting and bishop moves with three dice",
+    "description": "In this position, the black king on e8 can castle kingside to g8, or move to f8. The black bishop on e7 can move to f8, d6, c5, b4, or a3. The black rook on a8 can move to b8"
   }
 ]
