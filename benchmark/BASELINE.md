@@ -86,3 +86,41 @@ Checks whether a specific square is under attack. Consistently fast across all p
   - `castling`: `~120 - 124 ops/us`
   - `promotion`: `~111 - 123 ops/us`
 - **Average Time:** `~0.004 - 0.008 us/op` across all positions.
+
+---
+
+## 4. Legal Moves Filter Performance (`LegalMovesFilterBenchmark`)
+
+Benchmarks for `LegalMovesFilter.filterMaximalMoves` — the recursive Maximum Micro-moves algorithm.
+This is the **primary optimization target**: it performs two full tree-search passes over all possible
+micro-move sequences for a given set of dice.
+
+> **Note on `~0` entries:** JMH reports throughput as unmeasurable (< 0.001 ops/us) when average time
+> is in the thousands of microseconds. See Average Time table for the actual figures.
+
+### Throughput (Higher is better, `ops/us`)
+
+| Dice | Initial | Kiwipete | Endgame | Castling | Promotion |
+|------|---------|----------|---------|----------|-----------|
+| **`1,2,3`** (Pawn+Knight+Bishop) | `0.003` | `~0` | `0.243` | `0.072` | `0.194` |
+| **`4,5,6`** (Rook+Queen+King) | `6.789` | `0.001` | `0.020` | `0.040` | `0.543` |
+| **`1,1,1`** (3x Pawn) | `~0` | `0.002` | `0.010` | `~0` | `0.822` |
+| **`6,4,2`** (King+Rook+Knight) | `0.106` | `0.001` | `0.021` | `0.040` | `0.531` |
+| **`5,5,5`** (3x Queen) | `20.568` | `0.001` | `22.518` | `22.765` | `21.421` |
+
+### Average Time (Lower is better, `us/op`)
+
+| Dice | Initial | Kiwipete | Endgame | Castling | Promotion |
+|------|---------|----------|---------|----------|-----------|
+| **`1,2,3`** (Pawn+Knight+Bishop) | `436.595` | `5469.823` | `4.219` | `13.955` | `5.099` |
+| **`4,5,6`** (Rook+Queen+King) | `0.154` | `757.540` | `49.935` | `24.942` | `1.901` |
+| **`1,1,1`** (3x Pawn) | `3517.842` | `420.962` | `106.214` | `4537.278` | `1.233` |
+| **`6,4,2`** (King+Rook+Knight) | `9.895` | `789.916` | `46.627` | `24.584` | `1.948` |
+| **`5,5,5`** (3x Queen) | `0.050` | `804.434` | `0.045` | `0.045` | `0.044` |
+
+### Key Observations
+
+- **`kiwipete`** is the hardest position for all dice (437-5470 us/op) due to its high branching factor (~48 legal moves vs ~20 average).
+- **`1,2,3` on `initial`** (436 us) and **`1,1,1` on `initial`/`castling`** (3.5-4.5 ms) are worst-case scenarios — many pawns generate deep 3-move sequences.
+- **`5,5,5` (three Queens)** is fast on most positions (< 0.1 us/op) because Queen moves quickly dominate — the optimal depth is found immediately on most branches.
+- **`4,5,6` on `initial`** (0.154 us/op) is the fastest realistic dice combination in the opening since King/Rook/Queen movement is heavily restricted.
