@@ -51,6 +51,18 @@ run = "sbt scalafmtCheckAll test"
 description = "💻 Launch an interactive Scala REPL"
 run = "sbt rootJVM/console"
 
+[tasks.bench]
+description = "⚡ Run all JMH benchmarks"
+run = "sbt benchmark/Jmh/run"
+
+[tasks."bench:quick"]
+description = "⚡ Run a quick JMH benchmark (3 warmup, 5 measurement, 1 fork)"
+run = "sbt 'benchmark/Jmh/run -wi 3 -i 5 -f 1'"
+
+[tasks."bench:filter"]
+description = "⚡ Run JMH benchmarks matching a regex pattern"
+run = "sbt \"benchmark/Jmh/run {{arg(name=\\\"pattern\\\")}}\""
+
 [tasks.clean]
 description = "🧹 Remove build artifacts"
 run = "sbt clean"
