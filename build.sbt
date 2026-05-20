@@ -68,3 +68,14 @@ lazy val root = crossProject(JSPlatform, JVMPlatform)
 
 lazy val rootJVM = root.jvm
 lazy val rootJS  = root.js
+
+lazy val benchmark = project
+  .in(file("benchmark"))
+  .dependsOn(rootJVM)
+  .enablePlugins(JmhPlugin)
+  .settings(
+    name := "dicechess-benchmark",
+    Compile / doc / sources := Seq.empty,
+    coverageEnabled := false,
+    scalacOptions -= "-Werror"
+  )
