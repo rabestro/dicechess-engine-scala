@@ -17,5 +17,8 @@ pnpm-debug.log*
 .env
 .env.production
 
+# generated documentation
+src/content/docs/architecture/move-generation/06-test-cases.md
+
 # macOS-specific files
 .DS_Store
