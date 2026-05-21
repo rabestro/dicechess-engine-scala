@@ -50,6 +50,7 @@ export default defineConfig({
 					label: 'Developer Experience',
 					items: [
 						{ label: 'AI Agent Workflows', slug: 'guidelines/agent-workflows' },
+						{ label: 'NPM Packaging & Local Integration', slug: 'guidelines/npm-packaging' },
 					],
 				},
 			],
