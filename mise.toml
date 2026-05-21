@@ -79,6 +79,10 @@ run = "sbt scalafmtCheckAll"
 description = "📦 Build optimized JavaScript bundle"
 run = "sbt rootJS/fullOptJS"
 
+[tasks."build:js:dev"]
+description = "📦 Build fast JavaScript bundle for local dev"
+run = "sbt rootJS/fastOptJS"
+
 [tasks."package:prepare"]
 description = "📦 Prepare the distribution folder for the npm package"
 depends = ["build:js"]
@@ -117,6 +121,23 @@ description = "🚀 Run the documentation site dev server"
 depends = ["docs:generate"]
 run = "npm run dev"
 dir = "docs"
+
+[tasks."ui:setup"]
+description = "📦 Install dependencies for the Svelte test harness"
+run = "npm install"
+dir = "test-harness"
+
+[tasks."ui:dev"]
+description = "🚀 Run the test harness dev server"
+depends = ["build:js:dev"]
+run = "npm run dev"
+dir = "test-harness"
+
+[tasks."ui:build"]
+description = "📦 Build the test harness PWA"
+depends = ["build:js"]
+run = "npm run build"
+dir = "test-harness"
 
 [tasks."docs:build"]
 description = "📦 Build production-ready documentation static site"
