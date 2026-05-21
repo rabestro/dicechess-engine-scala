@@ -1,31 +1,27 @@
 /**
  * TypeScript declarations for the Scala.js Dice Chess Engine.
  */
-export interface DiceChessApi {
+export interface EngineFacadeApi {
     /**
-     * Returns all legal moves for a given position and a set of available dice rolls.
-     * @param fen The position in Forsyth-Edwards Notation.
-     * @param dice An array of available dice roll results (1-6).
-     * @returns A dictionary of legal destination squares grouped by origin square notation.
+     * Computes a bot move for the given FEN and dice roll.
      */
-    getLegalMoves(fen: string, dice: number[]): Record<string, string[]>;
+    getBotMove(fen: string, diceRoll: number, seed?: number): Record<string, string> | undefined;
 
     /**
-     * Validates if a move is legal for the given position and any of the available dice rolls.
-     * @param fen The position in Forsyth-Edwards Notation.
-     * @param dice An array of available dice roll results (1-6).
-     * @param from The origin square notation (e.g., "e2").
-     * @param to The destination square notation (e.g., "e4").
-     * @returns True if the move is legal, false otherwise.
+     * Retrieves the dice value (1-6) of the piece at the specified square.
      */
-    isValidMove(fen: string, dice: number[], from: string, to: string): boolean;
+    getPieceTypeAt(fen: string, square: string): number | undefined;
 
     /**
-     * Returns the piece type associated with a dice roll.
-     * @param dice The dice roll (1-6).
-     * @returns The piece notation (p, n, b, r, q, k) or null if invalid.
+     * Computes all legal destinations for pieces that match the provided dice rolls.
      */
-    getPieceFromDice(dice: number): string | null;
+    getLegalDests(fen: string, diceRolls: number[]): Record<string, string[]> | undefined;
+
+    /**
+     * Applies a move to the given FEN and returns the resulting state.
+     */
+    applyMove(fen: string, from: string, to: string, promotion?: string): string | undefined;
 }
 
-export const DiceChess: DiceChessApi;
+export const EngineFacade: EngineFacadeApi;
+

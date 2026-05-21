@@ -79,6 +79,10 @@ run = "sbt scalafmtCheckAll"
 description = "📦 Build optimized JavaScript bundle"
 run = "sbt rootJS/fullOptJS"
 
+[tasks."build:js:dev"]
+description = "📦 Build fast JavaScript bundle for local dev"
+run = "sbt rootJS/fastOptJS"
+
 [tasks."package:prepare"]
 description = "📦 Prepare the distribution folder for the npm package"
 depends = ["build:js"]
@@ -125,7 +129,7 @@ dir = "test-harness"
 
 [tasks."ui:dev"]
 description = "🚀 Run the test harness dev server"
-depends = ["build:js"]
+depends = ["build:js:dev"]
 run = "npm run dev"
 dir = "test-harness"
 

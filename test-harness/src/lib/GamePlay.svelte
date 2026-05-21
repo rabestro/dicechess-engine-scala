@@ -25,6 +25,14 @@
 		return dests;
 	});
 
+	function rollThreeDice(): number[] {
+		return [
+			Math.floor(Math.random() * 6) + 1,
+			Math.floor(Math.random() * 6) + 1,
+			Math.floor(Math.random() * 6) + 1
+		];
+	}
+
 	function endTurn() {
 		// Flip the active color in the FEN
 		const parts = fen.split(' ');
@@ -40,18 +48,22 @@
 
 	function handleHumanMove(orig: string, dest: string, metadata: any) {
 		const pt = EngineFacade.getPieceTypeAt(fen, orig);
-		if (pt && diceRolls.includes(pt)) {
-			// Consume the die
-			const idx = diceRolls.indexOf(pt);
-			diceRolls.splice(idx, 1);
-			diceRolls = [...diceRolls]; // trigger reactivity
+		
+		if (!pt || !diceRolls.includes(pt)) {
+			// Invalid move: piece type not matching available dice
+			fen = fen + ' '; // Force redraw
+			setTimeout(() => { fen = fen.trim(); }, 0);
+			return;
 		}
+
+		// Consume the die
+		const idx = diceRolls.indexOf(pt);
+		diceRolls.splice(idx, 1);
+		diceRolls = [...diceRolls]; // trigger reactivity
 
 		const newFen = EngineFacade.applyMove(fen, orig, dest, 'q');
 		if (newFen) {
-			// Check if any legal moves remain for the remaining dice using the prospective FEN
-			// Note: applyMove flips the color naturally, so we must construct a temporary FEN 
-			// with the preserved color to accurately ask getLegalDests
+			// Preserve the current turn color to construct a prospective FEN
 			const parts = newFen.split(' ');
 			parts[1] = activeColor === 'white' ? 'w' : 'b';
 			const tempFenPreserved = parts.join(' ');
@@ -60,10 +72,8 @@
 			const hasMoves = diceRolls.length > 0 && Object.keys(remainingDests).length > 0;
 
 			if (hasMoves) {
-				// We still have dice and moves. Apply the preserved color FEN.
 				fen = tempFenPreserved;
 			} else {
-				// Turn is over, accept the natural color flip from applyMove
 				fen = newFen;
 				diceRolls = [];
 				if (fen.split(' ')[1] === 'b') {
@@ -72,17 +82,14 @@
 				}
 			}
 		} else {
-			fen = fen; // Force redraw on invalid
+			fen = fen + ' '; // Force redraw
+			setTimeout(() => { fen = fen.trim(); }, 0);
 		}
 	}
 
 	function startEngineTurn() {
 		// Roll 3 dice for the engine
-		diceRolls = [
-			Math.floor(Math.random() * 6) + 1,
-			Math.floor(Math.random() * 6) + 1,
-			Math.floor(Math.random() * 6) + 1
-		];
+		diceRolls = rollThreeDice();
 		executeEngineMicroMove();
 	}
 
@@ -124,13 +131,13 @@
 			const newFen = EngineFacade.applyMove(fen, chosenMove.from, chosenMove.to, chosenMove.promotion);
 			if (newFen) {
 				if (diceRolls.length > 0) {
-					// Flip back
+					// Flip back to preserve engine color
 					const parts = newFen.split(' ');
-					parts[1] = 'b';
+					parts[1] = activeColor === 'white' ? 'w' : 'b';
 					fen = parts.join(' ');
 					setTimeout(executeEngineMicroMove, 600); // 600ms delay between micro-moves
 				} else {
-					fen = newFen; // Turn ends, natural flip to white
+					fen = newFen; // Turn ends, natural flip back to human
 					engineThinking = false;
 				}
 			} else {
@@ -144,11 +151,7 @@
 	}
 
 	function rollDice() {
-		diceRolls = [
-			Math.floor(Math.random() * 6) + 1,
-			Math.floor(Math.random() * 6) + 1,
-			Math.floor(Math.random() * 6) + 1
-		];
+		diceRolls = rollThreeDice();
 	}
 
 	let cgConfig = $derived({

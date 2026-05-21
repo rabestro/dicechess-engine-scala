@@ -6,11 +6,37 @@ import dicechess.engine.domain.*
 import dicechess.engine.movegen.MoveGenerator
 import scala.util.Random
 
+/** The `EngineFacade` provides a JavaScript-friendly API to interact with the Dice Chess Scala engine.
+  *
+  * It exposes methods to generate bot moves, query piece types, fetch legal moves filtered by dice, and apply moves
+  * directly to FEN strings.
+  */
 @JSExportTopLevel("EngineFacade")
 object EngineFacade {
 
+  /** Computes a bot move for the given FEN and dice roll.
+    *
+    * @param fen
+    *   The current board state in FEN notation.
+    * @param diceRoll
+    *   The dice value (1-6) available for the move.
+    * @param seed
+    *   Optional random seed for deterministic move selection.
+    * @return
+    *   A dictionary containing `from` and `to` square notations, and an optional `promotion` piece, or `undefined` if
+    *   no legal moves exist.
+    * @example
+    *   {{{
+    *   const move = EngineFacade.getBotMove("rnbqkbnr/... w - - 0 1", 3, 12345);
+    *   if (move) console.log(move.from, move.to);
+    *   }}}
+    */
   @JSExport
-  def getBotMove(fen: String, diceRoll: Int): js.UndefOr[js.Dictionary[String]] = {
+  def getBotMove(
+      fen: String,
+      diceRoll: Int,
+      seed: js.UndefOr[Int] = js.undefined
+  ): js.UndefOr[js.Dictionary[String]] = {
     FenParser.parse(fen) match {
       case Right(state) =>
         val moves = MoveGenerator.generateMoves(state, diceRoll)
@@ -21,7 +47,8 @@ object EngineFacade {
           val kingCapture = moves.find(m => state.mailbox.get(m.toSquare).exists(_.pieceType == PieceType.King))
 
           val chosenMove = kingCapture.getOrElse {
-            moves(Random.nextInt(moves.length))
+            val rng = seed.toOption.map(new Random(_)).getOrElse(Random)
+            moves(rng.nextInt(moves.length))
           }
 
           val isPromotion = chosenMove.isPromotion
@@ -49,6 +76,20 @@ object EngineFacade {
     }
   }
 
+  /** Retrieves the dice value (1-6) of the piece at the specified square.
+    *
+    * @param fen
+    *   The current board state in FEN notation.
+    * @param square
+    *   The algebraic notation of the square (e.g. "e2").
+    * @return
+    *   The integer dice value corresponding to the piece type (1=Pawn..6=King), or `undefined` if the square is empty
+    *   or invalid.
+    * @example
+    *   {{{
+    *   const pt = EngineFacade.getPieceTypeAt(fen, "e2"); // returns 1 for a pawn
+    *   }}}
+    */
   @JSExport
   def getPieceTypeAt(fen: String, square: String): js.UndefOr[Int] = {
     FenParser.parse(fen) match {
@@ -57,16 +98,7 @@ object EngineFacade {
           case Some(sq) =>
             state.mailbox
               .get(sq)
-              .map(_.pieceType match {
-                case PieceType.Pawn   => 1
-                case PieceType.Knight => 2
-                case PieceType.Bishop => 3
-                case PieceType.Rook   => 4
-                case PieceType.Queen  => 5
-                case PieceType.King   => 6
-                case _                => -1
-              })
-              .filter(_ != -1)
+              .map(_.pieceType.diceValue)
               .fold(js.undefined)(v => v)
           case None => js.undefined
         }
@@ -74,13 +106,26 @@ object EngineFacade {
     }
   }
 
+  /** Computes all legal destinations for pieces that match the provided dice rolls.
+    *
+    * @param fen
+    *   The current board state in FEN notation.
+    * @param diceRolls
+    *   An array of available dice integers (1-6).
+    * @return
+    *   A dictionary mapping "from" square notations to arrays of "to" square notations, or `undefined` if the FEN is
+    *   invalid.
+    * @example
+    *   {{{
+    *   const dests = EngineFacade.getLegalDests(fen, [2, 5]);
+    *   console.log(dests["b1"]); // e.g. ["a3", "c3"]
+    *   }}}
+    */
   @JSExport
   def getLegalDests(fen: String, diceRolls: js.Array[Int]): js.UndefOr[js.Dictionary[js.Array[String]]] = {
     FenParser.parse(fen) match {
       case Right(state) =>
-        val dests = js.Dictionary[js.Array[String]]()
-
-        // Compute the unique set of dice available
+        val tempDests  = scala.collection.mutable.Map[String, scala.collection.mutable.Set[String]]()
         val uniqueDice = diceRolls.toSet
 
         uniqueDice.foreach { dice =>
@@ -88,29 +133,45 @@ object EngineFacade {
           moves.foreach { move =>
             val fromStr = move.fromSquare.toNotation
             val toStr   = move.toSquare.toNotation
-            if (!dests.contains(fromStr)) {
-              dests.put(fromStr, js.Array())
-            }
-            // avoid duplicates in dests array (promotions generate 4 moves to same square)
-            val arr = dests(fromStr)
-            if (!arr.contains(toStr)) {
-              arr.push(toStr)
-            }
+            tempDests.getOrElseUpdate(fromStr, scala.collection.mutable.Set()).add(toStr)
           }
         }
 
-        dests
+        // Convert the Scala map to JS Dictionary + Arrays only once at the end
+        val jsDests = js.Dictionary[js.Array[String]]()
+        tempDests.foreach { case (from, tos) =>
+          jsDests.put(from, js.Array(tos.toSeq*))
+        }
+        jsDests
+
       case Left(_) => js.undefined
     }
   }
 
+  /** Applies a move to the given FEN and returns the resulting state.
+    *
+    * @param fen
+    *   The starting board state in FEN notation.
+    * @param from
+    *   The algebraic notation of the starting square.
+    * @param to
+    *   The algebraic notation of the target square.
+    * @param promotion
+    *   The optional piece type to promote to (e.g. "q").
+    * @return
+    *   The updated FEN string after applying the move, or `undefined` if the move is pseudo-illegal.
+    * @example
+    *   {{{
+    *   const newFen = EngineFacade.applyMove(fen, "e2", "e4", undefined);
+    *   }}}
+    */
   @JSExport
   def applyMove(fen: String, from: String, to: String, promotion: js.UndefOr[String]): js.UndefOr[String] = {
     FenParser.parse(fen) match {
       case Right(state) =>
         (Square.fromNotation(from), Square.fromNotation(to)) match {
           case (Some(fromSq), Some(toSq)) =>
-            // Generate all pseudo-legal moves for standard standard generation (no dice roll constraint to find the human's move)
+            // Generate all pseudo-legal moves for standard generation (no dice roll constraint to find the human's move)
             val moves = MoveGenerator.generateAllMoves(state)
 
             val moveOpt = moves.find { m =>
