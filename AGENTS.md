@@ -101,15 +101,19 @@ Agent rules (Copilot / automation):
 ## Approved Milestones
 
 Assign tasks to these milestones logically. Each milestone must be fully tested (including performance benchmarks) before moving to the next.
+
+[View current milestones on GitHub](https://github.com/rabestro/dicechess-engine-scala/milestones?sort=title&direction=asc)
+
 > [!IMPORTANT]
 > You MUST strictly assign tasks ONLY to the following milestones. Do not create or invent new milestone names.
 
 * **v0.1 - Foundation & Core Types**: Project setup (SBT 1.x / Scala 3), configuration, `mise` setup. Implementation of basic Opaque Types (`Bitboard`, `Square`, `Piece`, `Color`). Basic FEN parsing and serialization.
 * **v0.2 - Move Generation (Classic)**: Bitwise operations, precomputed attack tables (Magic Bitboards). Pawn, knight, king, and sliding piece move generation. Perft (Performance Test) framework integration to verify move correctness.
 * **v0.3 - Dice Chess Mechanics**: Dice roll representations, filtering pseudo-legal moves based on dice outcomes. Game state management with random events.
-* **v0.4 - Evaluation & Heuristics**: Static evaluation function (Material balance, Piece-Square Tables). Zobrist Hashing and Transposition Tables (TT) for caching board states.
-* **v0.5 - Expectimax Search Engine**: Core search algorithm implementation. Integration of Virtual Threads (`Ox`) for parallelizing probability branches. Mathematical expectation calculations.
-* **v0.6 - WebSocket API**: Integration of `Http4s` (or `Cask`). Implementing the command protocol (`start_search`, `stop`, `info`, `bestmove`). Structured concurrency for search cancellation.
+* **v0.4 - Basic Bot & Gameplay**: Dedicated test harness (Svelte/Vite PWA). Implementation of a simple random or greedy bot using Scala.js to validate game state transitions and dice mechanics in a live browser environment.
+* **v0.5 - Evaluation & Heuristics**: Static evaluation function (Material balance, Piece-Square Tables). Zobrist Hashing and Transposition Tables (TT) for caching board states.
+* **v0.6 - Expectimax Search Engine**: Core search algorithm implementation. Integration of Virtual Threads (`Ox`) for parallelizing probability branches. Mathematical expectation calculations.
+* **v0.7 - WebSocket API**: Integration of `Http4s` (or `Cask`). Implementing the command protocol (`start_search`, `stop`, `info`, `bestmove`). Structured concurrency for search cancellation.
 * **v1.0 - Production & Native Image**: GraalVM Native Image compilation, Dockerfile optimization, CI/CD pipelines, deployment configurations for Homelab / Oracle Cloud.
 
 ## Approved GitHub Labels
