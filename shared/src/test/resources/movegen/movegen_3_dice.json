@@ -73,5 +73,82 @@
     ],
     "title": "Casting and bishop moves with three dice",
     "description": "In this position, the black king on e8 can castle kingside to g8, or move to f8. The black bishop on e7 can move to f8, d6, c5, b4, or a3. The black rook on a8 can move to b8"
+  },
+  {
+    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1",
+    "dice": [
+      2,
+      1,
+      3
+    ],
+    "expectedMoves": [
+      "e7e8n",
+      "e7e8b"
+    ],
+    "title": "Force promotion to knight or bishop",
+    "description": "Forcing a pawn to promote to a knight or bishop. Maximum two micro moves in this position."
+  },
+  {
+    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1",
+    "dice": [
+      2,
+      1,
+      4
+    ],
+    "expectedMoves": [
+      "e7e8n",
+      "e7e8r"
+    ],
+    "title": "Force promotion to knight or rook",
+    "description": "Forcing a pawn to promote to a knight or rook. Maximum two micro moves in this position."
+  },
+  {
+    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1",
+    "dice": [
+      2,
+      1,
+      5
+    ],
+    "expectedMoves": [
+      "e7e8n",
+      "e7e8q"
+    ],
+    "title": "Force promotion to knight or queen",
+    "description": "Forcing a pawn to promote to a knight or queen. Maximum two micro moves in this position."
+  },
+  {
+    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1",
+    "dice": [
+      2,
+      1,
+      6
+    ],
+    "expectedMoves": [
+      "e7e8n",
+      "f6f7",
+      "f6f5",
+      "f6e5",
+      "f6g5",
+      "f6e6",
+      "f6g6",
+      "f6g7"
+    ],
+    "title": "Force promotion to knight only",
+    "description": "Forcing a pawn to promote to a knight only."
+  },
+  {
+    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1",
+    "dice": [
+      2,
+      1,
+      1
+    ],
+    "expectedMoves": [
+      "e7e8n",
+      "b2b3",
+      "b2b4"
+    ],
+    "title": "Beat the king or promote to a knight",
+    "description": "We can beat the king or promote to a knight. Two or three micro moves in this position."
   }
 ]
