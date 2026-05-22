@@ -47,7 +47,8 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      'dicechess-engine': getScalaEngineAlias()
+      'dicechess-engine': getScalaEngineAlias(),
+      '@rabestro/dicechess-engine': getScalaEngineAlias()
     }
   }
 });
