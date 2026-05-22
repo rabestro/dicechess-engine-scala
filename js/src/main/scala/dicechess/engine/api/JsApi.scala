@@ -82,16 +82,19 @@ object JsApi:
     * @param dice
     *   An array of available dice roll results (1-6).
     * @param options
-    *   Optional configuration (e.g. { algorithm: "greedy" }).
+    *   Optional configuration (e.g. `{{{ { algorithm: "greedy" } }}}`).
     * @return
     *   An object containing the array of moves, score, and time taken.
     */
   @JSExport
   def getBestMove(fen: String, dice: js.Array[Int], options: js.UndefOr[js.Dynamic]): js.Dynamic =
     val algoName = options.toOption
-      .flatMap(opt =>
-        js.Object.keys(opt.asInstanceOf[js.Object]).find(_ == "algorithm").map(_ => opt.algorithm.asInstanceOf[String])
-      )
+      .filter(_ != null)
+      .flatMap { opt =>
+        val alg = opt.selectDynamic("algorithm")
+        if scala.scalajs.js.typeOf(alg) == "string" then Some(alg.asInstanceOf[String])
+        else None
+      }
       .getOrElse("greedy")
 
     val searchAlgo = algoName.toLowerCase match

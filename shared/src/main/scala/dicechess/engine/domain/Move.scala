@@ -69,7 +69,10 @@ object Move:
     /** Returns true if the move is any type of promotion. */
     def isPromotion: Boolean = (flags & 8) != 0
 
-    /** Returns the piece type to promote to, if this move is a promotion. */
+    /** Decodes promotion flags to the promoted [[PieceType]] for API/serialization consumers.
+      *
+      * Keep this mapping aligned with Position-level promotion decoding.
+      */
     def promotionPieceType: Option[PieceType] =
       if !isPromotion then None
       else

@@ -12,6 +12,4 @@ object RandomSearch extends SearchAlgorithm:
     if paths.isEmpty then None
     else
       val randomPath = paths(rand.nextInt(paths.length))
-      val finalState = randomPath.foldLeft(state)((s, m) => s.makeMove(m).copy(activeColor = s.activeColor))
-      val score      = Evaluator.evaluateMaterial(finalState, state.activeColor)
-      Some(ScoredSequence(randomPath, score))
+      Some(SearchScoring.scorePath(state, randomPath))

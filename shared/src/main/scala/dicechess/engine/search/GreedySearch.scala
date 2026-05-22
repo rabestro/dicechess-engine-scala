@@ -8,11 +8,5 @@ object GreedySearch extends SearchAlgorithm:
     val paths = TurnGenerator.generateAllLegalTurnPaths(state, dice)
     if paths.isEmpty then None
     else
-      val scoredPaths = paths.map { path =>
-        // Evaluate the material balance at the end of the sequence.
-        // We evaluate from the perspective of the player whose turn it currently is.
-        val finalState = path.foldLeft(state)((s, m) => s.makeMove(m).copy(activeColor = s.activeColor))
-        val score      = Evaluator.evaluateMaterial(finalState, state.activeColor)
-        ScoredSequence(path, score)
-      }
+      val scoredPaths = paths.map(path => SearchScoring.scorePath(state, path))
       Some(scoredPaths.maxBy(_.score))
