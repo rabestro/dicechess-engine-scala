@@ -69,6 +69,19 @@ object Move:
     /** Returns true if the move is any type of promotion. */
     def isPromotion: Boolean = (flags & 8) != 0
 
+    /** Decodes promotion flags to the promoted [[PieceType]] for API/serialization consumers.
+      *
+      * Keep this mapping aligned with Position-level promotion decoding.
+      */
+    def promotionPieceType: Option[PieceType] =
+      if !isPromotion then None
+      else
+        flags match
+          case Move.KnightPromotion | Move.KnightPromoCapture => Some(PieceType.Knight)
+          case Move.BishopPromotion | Move.BishopPromoCapture => Some(PieceType.Bishop)
+          case Move.RookPromotion | Move.RookPromoCapture     => Some(PieceType.Rook)
+          case _                                              => Some(PieceType.Queen)
+
     /** Returns true if the move is an en passant capture. */
     def isEnPassant: Boolean = flags == EnPassantCapture
 
