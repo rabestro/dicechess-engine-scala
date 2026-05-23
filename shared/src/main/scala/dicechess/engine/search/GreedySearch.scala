@@ -9,4 +9,7 @@ object GreedySearch extends SearchAlgorithm:
     if paths.isEmpty then None
     else
       val scoredPaths = paths.map(path => SearchScoring.scorePath(state, path))
-      Some(scoredPaths.maxBy(_.score))
+      Some(scoredPaths.maxBy(scored => (scored.score, terminalWinPreference(scored))))
+
+  private def terminalWinPreference(scored: ScoredSequence): Int =
+    if scored.score == SearchScoring.TerminalWinScore then -scored.moves.size else 0
