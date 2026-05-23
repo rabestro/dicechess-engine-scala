@@ -90,9 +90,15 @@ val finalState = path.foldLeft(state)((s, m) => s.makeMove(m).copy(activeColor =
 
 This mirrors the turn generator: the active color stays constant throughout the path because the player is still inside the same Dice Chess turn.
 
-### Evaluation model
+### Evaluation & Terminal Scoring
 
-The current evaluator is deliberately simple. It computes **material balance only**:
+Path scoring distinguishes **terminal wins** from standard positional/material evaluations:
+
+1. **Terminal Win Check**: The scorer first checks if the path results in a king capture (meaning the last move captures the opponent's king). If it does, the path is immediately scored as a terminal win:
+   $$
+   \text{score} = \text{TerminalWinScore} = \text{Int.MaxValue}
+   $$
+2. **Material Evaluation**: If the path does not capture the king, the scorer simulates the entire sequence to get the final board state and computes the **material balance**:
 
 * Pawn = `100`
 * Knight = `300`
@@ -101,13 +107,12 @@ The current evaluator is deliberately simple. It computes **material balance onl
 * Queen = `900`
 * King = `10000`
 
-The score is always measured from the starting side's perspective:
-
+The score is measured from the starting side's perspective:
 $$
 \text{score} = \text{material(active side)} - \text{material(opponent)}
 $$
 
-This has an important practical consequence: both search strategies are tactical and short-horizon. They can detect immediate captures, but they do not model reply moves, king safety, initiative, or dice probability.
+This has an important practical consequence: both search strategies remain short-horizon and tactical, but the bot now explicitly prioritizes winning the game (capturing the opponent's king) over any material gain.
 
 ## RandomSearch
 
@@ -152,17 +157,24 @@ This strategy is useful as:
 
 1. Generate all legal full-turn paths.
 2. Return `None` if the set is empty.
-3. Score every candidate path.
-4. Return the path with the highest material score.
+3. Score every candidate path using `SearchScoring.scorePath`.
+4. Return the path with the highest score, applying a **tie-breaker** for terminal wins: if multiple paths achieve `TerminalWinScore`, prefer the **shortest path** to win as quickly as possible.
 
 ```mermaid
 flowchart TD
     A["Legal turn paths"] --> B{"Empty?"}
     B -- Yes --> C["None"]
     B -- No --> D["Map each path to ScoredSequence"]
-    D --> E["maxBy(_.score)"]
-    E --> F["Return highest-scoring path"]
+    D --> E["maxBy(scored => (scored.score, terminalWinPreference))"]
+    E --> F["Return best-scoring path"]
 ```
+
+The tie-breaker is implemented as:
+```scala
+private def terminalWinPreference(scored: ScoredSequence): Int =
+  if scored.score == SearchScoring.TerminalWinScore then -scored.moves.size else 0
+```
+This ensures that when a terminal win is possible in 1 move, the engine doesn't pick a 2- or 3-move sequence that also captures the king.
 
 ### What it optimizes
 
@@ -194,7 +206,7 @@ The first move has no direct material gain. It is chosen only because the shared
 | Aspect | RandomSearch | GreedySearch |
 | :--- | :--- | :--- |
 | Candidate generation | All legal full-turn paths | All legal full-turn paths |
-| Selection rule | Uniform random pick | Highest material score |
+| Selection rule | Uniform random pick | Highest score (prioritizes terminal wins & shortest win paths) |
 | Determinism | No | Yes, unless scores tie |
 | Uses evaluator for choice | No | Yes |
 | Typical purpose | Baseline / UI smoke testing | Simple bot / immediate tactics |
