@@ -23,7 +23,23 @@ trait SearchAlgorithm:
   def findBestMove(state: GameState, dice: List[Int]): Option[ScoredSequence]
 
 object SearchScoring:
+  val TerminalWinScore: Int = Int.MaxValue
+
   def scorePath(state: GameState, path: List[Move]): ScoredSequence =
-    val finalState = path.foldLeft(state)((s, m) => s.makeMove(m).copy(activeColor = s.activeColor))
-    val score      = Evaluator.evaluateMaterial(finalState, state.activeColor)
+    val score =
+      if isKingCapturePath(state, path) then TerminalWinScore
+      else
+        val finalState = path.foldLeft(state)((s, m) => s.makeMove(m).copy(activeColor = s.activeColor))
+        Evaluator.evaluateMaterial(finalState, state.activeColor)
     ScoredSequence(path, score)
+
+  private def isKingCapturePath(initialState: GameState, path: List[Move]): Boolean =
+    if path.isEmpty then false
+    else
+      val activeColor     = initialState.activeColor
+      val stateBeforeLast = path.init.foldLeft(initialState) { (state, move) =>
+        state.makeMove(move).copy(activeColor = activeColor)
+      }
+      stateBeforeLast.mailbox
+        .get(path.last.toSquare)
+        .exists(piece => piece.pieceType == PieceType.King && piece.color != activeColor)
