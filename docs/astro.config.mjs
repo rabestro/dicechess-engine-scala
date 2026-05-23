@@ -26,6 +26,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Glossary', slug: 'architecture/glossary' },
 						{ label: 'Domain Modeling', slug: 'architecture/domain-modeling' },
+						{ label: 'Primitive Best-Move Search', slug: 'architecture/primitive-search' },
 						{
 							label: 'Move Generation',
 							collapsed: true,
