@@ -110,6 +110,25 @@ class GreedySearchSuite extends FunSuite:
     assertEquals(scored.score, SearchScoring.TerminalWinScore)
   }
 
+  test("GreedySearch should prefer the shortest terminal king capture line") {
+    // Ra1xa8 wins in one move; Rh1-h8-a8 also wins, but spends an extra die.
+    val fen   = "k7/8/8/8/8/8/8/R6R w - - 0 1"
+    val state = FenParser
+      .parse(fen)
+      .fold(
+        err => fail(s"Failed to parse FEN: $err"),
+        state => state
+      )
+    val bestMoveOpt = GreedySearch.findBestMove(state, List(4, 4))
+
+    assert(bestMoveOpt.isDefined)
+    val bestMove = bestMoveOpt.get
+    assertEquals(bestMove.score, SearchScoring.TerminalWinScore)
+    assertEquals(bestMove.moves.size, 1)
+    assertEquals(bestMove.moves.head.fromSquare.toNotation, "a1")
+    assertEquals(bestMove.moves.head.toSquare.toNotation, "a8")
+  }
+
   test("GreedySearch should return None when no legal moves exist") {
     // White king trapped, rolls only pawns, but has no pawns.
     val fen   = "8/8/8/8/8/8/8/k6K w - - 0 1"
