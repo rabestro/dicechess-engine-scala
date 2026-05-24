@@ -21,26 +21,24 @@ npm install @rabestro/dicechess-engine
 The package is distributed as a standard ES Module (`type: "module"`).
 
 ```javascript
-import { FenParser, LegalMovesFilter } from '@rabestro/dicechess-engine';
+import { DiceChess } from '@rabestro/dicechess-engine';
 
-// 1. Parse a position from FEN
+// 1. Get all legal moves as a flat array of UCI strings for the rolled dice
 const fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-const parseResult = FenParser.parse(fen);
+const dice = [1, 2]; // 1 = Pawn, 2 = Knight
+const legalMoves = DiceChess.getLegalUciMoves(fen, dice);
 
-if (parseResult.isLeft()) {
-  console.error("Invalid FEN:", parseResult.value);
-} else {
-  const gameState = parseResult.value; // GameState object
-  
-  // 2. Roll the dice (e.g. 1 = Pawn, 2 = Knight)
-  const dice = [1, 2];
-  
-  // 3. Filter legal micro-moves under Dice Chess path optimization rules
-  const legalMoves = LegalMovesFilter.filterMaximalMoves(gameState, dice);
-  
-  // 4. Output the legal move sequences (e.g. ["e2e4", "g1f3", ...])
-  console.log("Legal moves in this turn:", legalMoves.map(m => m.toNotation()));
-}
+console.log("Legal moves in this turn:", legalMoves);
+// e.g. ["e2e3", "e2e4", "b1c3", "b1a3", ...]
+
+// 2. Apply a move to get the updated FEN
+const nextFen = DiceChess.applyMove(fen, "e2", "e4");
+console.log("Next FEN:", nextFen);
+
+// 3. Compute the best sequence of micro-moves using the greedy bot search
+const botResult = DiceChess.getBestMove(nextFen, [3, 4], { algorithm: "greedy" });
+console.log("Bot moves:", botResult.moves);
+// e.g. [ { from: "g1", to: "f3", promotion: null } ]
 ```
 
 ---
