@@ -41,7 +41,7 @@ class JsApiSpec extends FunSuite:
 
   test("getLegalUciMoves: pawn promotion generates UCI moves with promotion pieces") {
     // White pawn on e7, can promote to e8. Dice: [1] (Pawn)
-    val fen = "4k3/4P3/8/8/8/8/8/4K3 w - - 0 1"
+    val fen = "k7/4P3/8/8/8/8/8/4K3 w - - 0 1"
     val dice = js.Array(1)
     
     val moves = JsApi.getLegalUciMoves(fen, dice).toList
