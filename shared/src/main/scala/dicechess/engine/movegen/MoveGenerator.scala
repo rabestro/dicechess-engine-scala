@@ -267,8 +267,9 @@ object MoveGenerator {
 
   /** Appends pawn capture moves from `from` to every set bit in `targets`.
     *
-    * Promotion-rank captures expand to four moves each (Queen, Rook, Bishop, Knight). All other captures emit a single
-    * `Capture` move.
+    * Promotion-rank captures expand to four moves each (Queen, Rook, Bishop, Knight). All other captures,
+    * including captures of a King on the promotion rank (since capturing the King ends the game immediately),
+    * emit a single `Capture` move.
     *
     * @param from
     *   square the capturing pawn is on
@@ -276,6 +277,10 @@ object MoveGenerator {
     *   bitboard of reachable enemy squares
     * @param color
     *   color of the capturing pawn (used to identify the promotion rank)
+    * @param enemyKings
+    *   bitboard of enemy kings, used to prevent promotion logic on king captures
+    * @param moves
+    *   mutable builder to accumulate generated moves
     */
   private def addPawnCaptures(
       from: Square,
