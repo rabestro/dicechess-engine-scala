@@ -35,13 +35,34 @@ object JsApi:
         // Filter legal moves according to the Maximum Micro-moves Rule
         val allMoves = LegalMovesFilter.filterMaximalMoves(state, dice.toList)
 
-        // Group moves by origin square and convert to notation strings
         allMoves
           .groupBy(_.fromSquare)
           .map { (from, mvs) =>
             from.toNotation -> mvs.map(_.toSquare.toNotation).distinct.toJSArray
           }
           .toJSDictionary
+
+  /** Returns all legal moves as an array of UCI strings (e.g., ["e2e4", "e7e8q"]).
+    *
+    * Useful for pawn promotion logic on the frontend to know exactly which pieces are allowed.
+    *
+    * @param fen
+    *   The position in Forsyth-Edwards Notation.
+    * @param dice
+    *   An array of available dice roll results (1-6).
+    * @return
+    *   An array of full UCI move strings.
+    */
+  @JSExport
+  def getLegalUciMoves(fen: String, dice: js.Array[Int]): js.Array[String] =
+    FenParser.parse(fen) match
+      case Left(_)      => js.Array()
+      case Right(state) =>
+        val allMoves = LegalMovesFilter.filterMaximalMoves(state, dice.toList)
+        allMoves.map { m =>
+          val base = m.fromSquare.toNotation + m.toSquare.toNotation
+          m.promotionPieceType.map(pt => base + pt.asNotation).getOrElse(base)
+        }.toJSArray
 
   /** Validates if a move is legal for the given position and any of the available dice rolls.
     *
