@@ -267,9 +267,9 @@ object MoveGenerator {
 
   /** Appends pawn capture moves from `from` to every set bit in `targets`.
     *
-    * Promotion-rank captures expand to four moves each (Queen, Rook, Bishop, Knight). All other captures,
-    * including captures of a King on the promotion rank (since capturing the King ends the game immediately),
-    * emit a single `Capture` move.
+    * Promotion-rank captures expand to four moves each (Queen, Rook, Bishop, Knight). All other captures, including
+    * captures of a King on the promotion rank (since capturing the King ends the game immediately), emit a single
+    * `Capture` move.
     *
     * @param from
     *   square the capturing pawn is on
