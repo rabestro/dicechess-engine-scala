@@ -13,11 +13,6 @@ export interface EngineFacadeApi {
     getPieceTypeAt(fen: string, square: string): number | undefined;
 
     /**
-     * Computes all legal destinations for pieces that match the provided dice rolls.
-     */
-    getLegalDests(fen: string, diceRolls: number[]): Record<string, string[]> | undefined;
-
-    /**
      * Applies a move to the given FEN and returns the resulting state.
      */
     applyMove(fen: string, from: string, to: string, promotion?: string): string | undefined;
@@ -27,14 +22,9 @@ export const EngineFacade: EngineFacadeApi;
 
 export interface DiceChessApi {
     /**
-     * Returns all legal moves for a given position and a set of available dice rolls.
+     * Returns all legal moves as a flat array of UCI strings (e.g., ["e2e4", "e7e8q"]).
      */
-    getLegalMoves(fen: string, dice: number[]): Record<string, string[]>;
-
-    /**
-     * Validates if a move is legal for the given position and any of the available dice rolls.
-     */
-    isValidMove(fen: string, dice: number[], from: string, to: string): boolean;
+    getLegalUciMoves(fen: string, dice: number[]): string[];
 
     /**
      * Returns the piece type associated with a dice roll.

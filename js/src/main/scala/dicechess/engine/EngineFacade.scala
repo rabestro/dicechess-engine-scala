@@ -106,48 +106,6 @@ object EngineFacade {
     }
   }
 
-  /** Computes all legal destinations for pieces that match the provided dice rolls.
-    *
-    * @param fen
-    *   The current board state in FEN notation.
-    * @param diceRolls
-    *   An array of available dice integers (1-6).
-    * @return
-    *   A dictionary mapping "from" square notations to arrays of "to" square notations, or `undefined` if the FEN is
-    *   invalid.
-    * @example
-    *   {{{
-    *   const dests = EngineFacade.getLegalDests(fen, [2, 5]);
-    *   console.log(dests["b1"]); // e.g. ["a3", "c3"]
-    *   }}}
-    */
-  @JSExport
-  def getLegalDests(fen: String, diceRolls: js.Array[Int]): js.UndefOr[js.Dictionary[js.Array[String]]] = {
-    FenParser.parse(fen) match {
-      case Right(state) =>
-        val tempDests  = scala.collection.mutable.Map[String, scala.collection.mutable.Set[String]]()
-        val uniqueDice = diceRolls.toSet
-
-        uniqueDice.foreach { dice =>
-          val moves = MoveGenerator.generateMoves(state, dice)
-          moves.foreach { move =>
-            val fromStr = move.fromSquare.toNotation
-            val toStr   = move.toSquare.toNotation
-            tempDests.getOrElseUpdate(fromStr, scala.collection.mutable.Set()).add(toStr)
-          }
-        }
-
-        // Convert the Scala map to JS Dictionary + Arrays only once at the end
-        val jsDests = js.Dictionary[js.Array[String]]()
-        tempDests.foreach { case (from, tos) =>
-          jsDests.put(from, js.Array(tos.toSeq*))
-        }
-        jsDests
-
-      case Left(_) => js.undefined
-    }
-  }
-
   /** Applies a move to the given FEN and returns the resulting state.
     *
     * @param fen
