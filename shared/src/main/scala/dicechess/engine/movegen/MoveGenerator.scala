@@ -207,23 +207,13 @@ object MoveGenerator {
       kingSide: Boolean
   ): Unit =
     if state.castlingRights.contains(right) then
-      val (pathClear, kingTo, flag) =
-        if kingSide then
-          (
-            !allPieces.contains(Square('f', rank)) &&
-              !allPieces.contains(Square('g', rank)),
-            Square('g', rank),
-            Move.KingCastle
-          )
-        else
-          (
-            !allPieces.contains(Square('b', rank)) &&
-              !allPieces.contains(Square('c', rank)) &&
-              !allPieces.contains(Square('d', rank)),
-            Square('c', rank),
-            Move.QueenCastle
-          )
-      if pathClear then moves += Move(Square('e', rank), kingTo, flag)
+      if kingSide then
+        if !allPieces.contains(Square('f', rank)) && !allPieces.contains(Square('g', rank)) then
+          moves += Move(Square('e', rank), Square('g', rank), Move.KingCastle)
+      else if !allPieces.contains(Square('b', rank)) && !allPieces.contains(Square('c', rank)) && !allPieces.contains(
+          Square('d', rank)
+        )
+      then moves += Move(Square('e', rank), Square('c', rank), Move.QueenCastle)
 
   /** Generates pseudo-legal moves for a sliding piece (Bishop, Rook, or Queen).
     *
