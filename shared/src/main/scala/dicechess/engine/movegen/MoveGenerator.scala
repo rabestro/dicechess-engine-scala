@@ -80,6 +80,8 @@ object MoveGenerator {
     val myPawns = if (isWhite) state.whitePieces & state.pawns else state.blackPieces & state.pawns
     if (myPawns.isEmpty) return Nil
 
+    val enemyKings = enemies & state.kings
+
     val moves = List.newBuilder[Move]
     var p     = myPawns.value
     while (p != 0) {
@@ -115,8 +117,8 @@ object MoveGenerator {
       // --- Captures ---
       val east = PawnGeneration.eastCaptures(fromBB, enemies, color)
       val west = PawnGeneration.westCaptures(fromBB, enemies, color)
-      addPawnCaptures(from, east, color, moves)
-      addPawnCaptures(from, west, color, moves)
+      addPawnCaptures(from, east, color, enemyKings, moves)
+      addPawnCaptures(from, west, color, enemyKings, moves)
 
       // --- En Passant ---
       state.enPassant.foreach { epSquare =>
@@ -279,10 +281,14 @@ object MoveGenerator {
       from: Square,
       targets: Bitboard,
       color: Color,
+      enemyKings: Bitboard,
       moves: mutable.Builder[Move, List[Move]]
   ): Unit = {
-    val prom = PawnGeneration.promotionSquares(targets, color)
-    val std  = PawnGeneration.nonPromotionSquares(targets, color)
+    val kingTargets   = targets & enemyKings
+    val normalTargets = targets & ~enemyKings
+
+    val prom = PawnGeneration.promotionSquares(normalTargets, color)
+    val std  = PawnGeneration.nonPromotionSquares(normalTargets, color) | kingTargets
     var cp   = prom.value
     while (cp != 0) {
       val to = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(cp))
