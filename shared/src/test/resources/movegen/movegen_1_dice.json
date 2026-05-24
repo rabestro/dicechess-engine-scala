@@ -147,5 +147,20 @@
     ],
     "title": "King and pawn, king move",
     "description": "A pawn on the seventh rank can advance to the eighth rank and promote to any piece (usually a queen). In this case, with a roll of 6, the king moves."
+  },
+  {
+    "fen": "4k3/3P4/8/2K5/8/8/8/8 w - - 0 1",
+    "dice": [
+      1
+    ],
+    "expectedMoves": [
+      "d7d8b",
+      "d7d8n",
+      "d7d8q",
+      "d7d8r",
+      "d7e8"
+    ],
+    "title": "Pawn promotion or capture",
+    "description": "With a roll of Pawn (1), the pawn on d7 can promote to any piece on d8, or capture the black king on e8."
   }
 ]

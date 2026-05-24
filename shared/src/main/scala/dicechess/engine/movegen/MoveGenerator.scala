@@ -80,6 +80,8 @@ object MoveGenerator {
     val myPawns = if (isWhite) state.whitePieces & state.pawns else state.blackPieces & state.pawns
     if (myPawns.isEmpty) return Nil
 
+    val enemyKings = enemies & state.kings
+
     val moves = List.newBuilder[Move]
     var p     = myPawns.value
     while (p != 0) {
@@ -115,8 +117,8 @@ object MoveGenerator {
       // --- Captures ---
       val east = PawnGeneration.eastCaptures(fromBB, enemies, color)
       val west = PawnGeneration.westCaptures(fromBB, enemies, color)
-      addPawnCaptures(from, east, color, moves)
-      addPawnCaptures(from, west, color, moves)
+      addPawnCaptures(from, east, color, enemyKings, moves)
+      addPawnCaptures(from, west, color, enemyKings, moves)
 
       // --- En Passant ---
       state.enPassant.foreach { epSquare =>
@@ -265,7 +267,8 @@ object MoveGenerator {
 
   /** Appends pawn capture moves from `from` to every set bit in `targets`.
     *
-    * Promotion-rank captures expand to four moves each (Queen, Rook, Bishop, Knight). All other captures emit a single
+    * Promotion-rank captures expand to four moves each (Queen, Rook, Bishop, Knight). All other captures, including
+    * captures of a King on the promotion rank (since capturing the King ends the game immediately), emit a single
     * `Capture` move.
     *
     * @param from
@@ -274,15 +277,23 @@ object MoveGenerator {
     *   bitboard of reachable enemy squares
     * @param color
     *   color of the capturing pawn (used to identify the promotion rank)
+    * @param enemyKings
+    *   bitboard of enemy kings, used to prevent promotion logic on king captures
+    * @param moves
+    *   mutable builder to accumulate generated moves
     */
   private def addPawnCaptures(
       from: Square,
       targets: Bitboard,
       color: Color,
+      enemyKings: Bitboard,
       moves: mutable.Builder[Move, List[Move]]
   ): Unit = {
-    val prom = PawnGeneration.promotionSquares(targets, color)
-    val std  = PawnGeneration.nonPromotionSquares(targets, color)
+    val kingTargets   = targets & enemyKings
+    val normalTargets = targets & ~enemyKings
+
+    val prom = PawnGeneration.promotionSquares(normalTargets, color)
+    val std  = PawnGeneration.nonPromotionSquares(normalTargets, color) | kingTargets
     var cp   = prom.value
     while (cp != 0) {
       val to = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(cp))
