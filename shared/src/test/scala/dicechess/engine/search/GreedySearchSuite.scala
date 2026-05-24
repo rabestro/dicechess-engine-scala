@@ -142,3 +142,55 @@ class GreedySearchSuite extends FunSuite:
     val bestMoveOpt = GreedySearch.findBestMove(state, List(1, 1))
     assert(bestMoveOpt.isEmpty)
   }
+
+  test("GreedySearch should select non-deterministically among equally optimal moves using mock Random") {
+    // White queen on d4. Black knights on c5 and e5. Both are worth 300.
+    // White rolls a queen (5) and can take either.
+    val fen   = "8/8/8/2n1n3/3Q4/8/8/8 w - - 0 1"
+    val state = FenParser
+      .parse(fen)
+      .fold(
+        err => fail(s"Failed to parse FEN: $err"),
+        state => state
+      )
+
+    val mockRandomZero = new scala.util.Random {
+      override def nextInt(n: Int): Int = 0
+    }
+    val mockRandomOne = new scala.util.Random {
+      override def nextInt(n: Int): Int = 1
+    }
+
+    val resZero = GreedySearch.findBestMove(state, List(5), mockRandomZero)
+    val resOne  = GreedySearch.findBestMove(state, List(5), mockRandomOne)
+
+    assert(resZero.isDefined)
+    assert(resOne.isDefined)
+
+    val targetZero = resZero.get.moves.head.toSquare.toNotation
+    val targetOne  = resOne.get.moves.head.toSquare.toNotation
+
+    // Ensure we selected both possible targets and they are different
+    assert(Set(targetZero, targetOne) == Set("c5", "e5"))
+  }
+
+  test("GreedySearch should statistically select both equally optimal moves over multiple runs with default Random") {
+    val fen   = "8/8/8/2n1n3/3Q4/8/8/8 w - - 0 1"
+    val state = FenParser
+      .parse(fen)
+      .fold(
+        err => fail(s"Failed to parse FEN: $err"),
+        state => state
+      )
+
+    var chosenTargets = Set.empty[String]
+    for (_ <- 1 to 50) {
+      val bestMoveOpt = GreedySearch.findBestMove(state, List(5))
+      bestMoveOpt.foreach { bm =>
+        chosenTargets += bm.moves.head.toSquare.toNotation
+      }
+    }
+
+    // Both c5 and e5 must eventually be chosen
+    assertEquals(chosenTargets, Set("c5", "e5"))
+  }

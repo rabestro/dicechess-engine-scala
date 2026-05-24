@@ -29,7 +29,7 @@ graph TD
     F --> G["Evaluator.evaluateMaterial(finalState, startingColor)"]
     G --> H{"Strategy"}
     H -- RandomSearch --> I["Pick one random path"]
-    H -- GreedySearch --> J["Pick path with max score"]
+    H -- GreedySearch --> J["Pick random path among max scores"]
     I --> K["Return ScoredSequence"]
     J --> K
 ```
@@ -158,15 +158,16 @@ This strategy is useful as:
 1. Generate all legal full-turn paths.
 2. Return `None` if the set is empty.
 3. Score every candidate path using `SearchScoring.scorePath`.
-4. Return the path with the highest score, applying a **tie-breaker** for terminal wins: if multiple paths achieve `TerminalWinScore`, prefer the **shortest path** to win as quickly as possible.
+4. Identify all optimal paths with the highest score, applying a **tie-breaker** for terminal wins: if multiple paths achieve `TerminalWinScore`, prefer the **shortest path** to win as quickly as possible.
+5. If multiple paths share the exact same maximum evaluation criterion, choose one uniformly at random.
 
 ```mermaid
 flowchart TD
     A["Legal turn paths"] --> B{"Empty?"}
     B -- Yes --> C["None"]
     B -- No --> D["Map each path to ScoredSequence"]
-    D --> E["maxBy(scored => (scored.score, terminalWinPreference))"]
-    E --> F["Return best-scoring path"]
+    D --> E["Find paths matching max evaluation criterion"]
+    E --> F["Pick one optimal path uniformly at random"]
 ```
 
 The tie-breaker is implemented as:
@@ -206,8 +207,8 @@ The first move has no direct material gain. It is chosen only because the shared
 | Aspect | RandomSearch | GreedySearch |
 | :--- | :--- | :--- |
 | Candidate generation | All legal full-turn paths | All legal full-turn paths |
-| Selection rule | Uniform random pick | Highest score (prioritizes terminal wins & shortest win paths) |
-| Determinism | No | Yes, unless scores tie |
+| Selection rule | Uniform random pick | Random choice among highest-scoring optimal paths (prioritizes terminal wins & shortest win paths) |
+| Determinism | No | No, selects randomly among top-evaluated paths |
 | Uses evaluator for choice | No | Yes |
 | Typical purpose | Baseline / UI smoke testing | Simple bot / immediate tactics |
 
