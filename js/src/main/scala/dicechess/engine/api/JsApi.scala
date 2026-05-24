@@ -43,6 +43,31 @@ object JsApi:
           }
           .toJSDictionary
 
+  /** Returns all legal promotions for a specific move.
+    *
+    * @param fen
+    *   The position in Forsyth-Edwards Notation.
+    * @param dice
+    *   An array of available dice roll results (1-6).
+    * @param from
+    *   The origin square notation (e.g., "e7").
+    * @param to
+    *   The destination square notation (e.g., "e8").
+    * @return
+    *   An array of promotion piece types (e.g., ["q", "n"]) or an empty array.
+    */
+  @JSExport
+  def getPromotions(fen: String, dice: js.Array[Int], from: String, to: String): js.Array[String] =
+    FenParser.parse(fen) match
+      case Left(_)      => js.Array()
+      case Right(state) =>
+        val moves = LegalMovesFilter.filterMaximalMoves(state, dice.toList)
+        moves
+          .filter(m => m.fromSquare.toNotation == from && m.toSquare.toNotation == to)
+          .flatMap(_.promotionPieceType.map(_.asNotation))
+          .distinct
+          .toJSArray
+
   /** Validates if a move is legal for the given position and any of the available dice rolls.
     *
     * @param fen

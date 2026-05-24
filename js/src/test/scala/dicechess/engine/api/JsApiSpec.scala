@@ -38,3 +38,19 @@ class JsApiSpec extends FunSuite:
     val result     = JsApi.applyMove(initialFen, "e2", "e5", js.undefined)
     assertEquals(result.toOption, None)
   }
+
+  test("getPromotions: returns all promotions if not constrained by dice") {
+    val fen = "3k4/5P2/2P5/8/5K2/8/8/8 w - - 0 1"
+    val dice = js.Array(1, 6, 6) // p, k, k
+    val result = JsApi.getPromotions(fen, dice, "f7", "f8")
+    val expected = Set("q", "r", "b", "n")
+    assertEquals(result.toSet, expected)
+  }
+
+  test("getPromotions: returns forced promotion to knight if knight die is unused") {
+    val fen      = "3k4/5P2/2P5/8/5K2/8/8/8 w - - 0 1"
+    val dice     = js.Array(2, 1) // n, p
+    val result   = JsApi.getPromotions(fen, dice, "f7", "f8")
+    val expected = Set("n")
+    assertEquals(result.toSet, expected)
+  }
