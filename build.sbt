@@ -1,5 +1,5 @@
 ThisBuild / organization := "lv.id.jc"
-ThisBuild / version      := "0.3.2-SNAPSHOT"
+ThisBuild / version      := "0.3.3-SNAPSHOT"
 ThisBuild / scalaVersion := "3.8.3"
 
 ThisBuild / description := "High-performance Dice Chess engine and probability calculator in Scala 3."
