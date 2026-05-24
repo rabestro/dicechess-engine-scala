@@ -305,5 +305,78 @@
     ],
     "title": "Only short castling is possible",
     "description": "In this position the rook on square A1 has already made a move and therefore only short castling is possible."
+  },
+  {
+    "fen": "4k3/8/8/8/8/8/8/R3K2R w Q - 0 1",
+    "dice": [
+      6,
+      4
+    ],
+    "expectedMoves": [
+      "e1d1",
+      "e1d2",
+      "e1e2",
+      "e1f1",
+      "e1f2",
+      "h1f1",
+      "h1g1",
+      "e1c1",
+      "h1h2",
+      "h1h3",
+      "h1h4",
+      "h1h5",
+      "h1h6",
+      "h1h7",
+      "h1h8",
+      "a1b1",
+      "a1c1",
+      "a1d1",
+      "a1a2",
+      "a1a3",
+      "a1a4",
+      "a1a5",
+      "a1a6",
+      "a1a7",
+      "a1a8"
+    ],
+    "title": "Only long castling is possible",
+    "description": "In this position the rook on square H1 has already made a move and therefore only long castling is possible."
+  },
+  {
+    "fen": "4k3/8/8/8/8/8/8/R3K2R w KQ - 0 1",
+    "dice": [
+      6,
+      4
+    ],
+    "expectedMoves": [
+      "e1d1",
+      "e1d2",
+      "e1e2",
+      "e1f1",
+      "e1f2",
+      "h1f1",
+      "h1g1",
+      "e1c1",
+      "e1g1",
+      "h1h2",
+      "h1h3",
+      "h1h4",
+      "h1h5",
+      "h1h6",
+      "h1h7",
+      "h1h8",
+      "a1b1",
+      "a1c1",
+      "a1d1",
+      "a1a2",
+      "a1a3",
+      "a1a4",
+      "a1a5",
+      "a1a6",
+      "a1a7",
+      "a1a8"
+    ],
+    "title": "Both castling options are possible",
+    "description": "In this position both rooks and the king have not made a move and therefore both short and long castling are possible."
   }
 ]
