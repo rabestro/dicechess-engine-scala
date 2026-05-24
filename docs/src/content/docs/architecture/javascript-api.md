@@ -9,15 +9,15 @@ The Dice Chess Engine exposes the `DiceChess` object to JavaScript consumers (li
 
 The primary interface for interacting with the engine from JavaScript/TypeScript.
 
-### `getLegalMoves`
+### `getLegalUciMoves`
 
-Returns all legal moves for a given position and a set of available dice rolls.
+Returns all legal moves for a given position and a set of available dice rolls as a flat array of UCI strings (e.g., `["e2e4", "e7e8q"]`).
 
 ```typescript
-function getLegalMoves(fen: string, dice: number[]): Record<string, string[]>
+function getLegalUciMoves(fen: string, dice: number[]): string[]
 ```
 
-**Returns:** An object mapping origin squares to an array of valid destination squares. This format is directly compatible with the `dests` property of [Chessground](https://github.com/lichess-org/chessground).
+**Returns:** An array of full UCI move strings. If a pawn promotion is legal, the 5th character contains the target piece notation (e.g., `"e7e8q"`).
 
 ---
 
@@ -50,15 +50,6 @@ function getBestMove(fen: string, dice: number[], options?: { algorithm?: string
 
 ---
 
-### `isValidMove`
-
-Validates if a move is legal for the given position and any of the available dice rolls.
-
-```typescript
-function isValidMove(fen: string, dice: number[], from: string, to: string): boolean
-```
-
----
 
 ### `getPieceFromDice`
 
