@@ -121,3 +121,20 @@ object JsApi:
               score = scoredSeq.score,
               timeTakenMs = (System.currentTimeMillis() - start).toInt
             )
+
+  /** Applies a move to the given FEN and returns the resulting state.
+    *
+    * @param fen
+    *   The starting board state in FEN notation.
+    * @param from
+    *   The algebraic notation of the starting square.
+    * @param to
+    *   The algebraic notation of the target square.
+    * @param promotion
+    *   The optional piece type to promote to (e.g. "q").
+    * @return
+    *   The updated FEN string after applying the move, or `undefined` if the move is pseudo-illegal.
+    */
+  @JSExport
+  def applyMove(fen: String, from: String, to: String, promotion: js.UndefOr[String]): js.UndefOr[String] =
+    dicechess.engine.EngineFacade.applyMove(fen, from, to, promotion)
