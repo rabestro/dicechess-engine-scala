@@ -175,7 +175,8 @@ object MoveGenerator {
 
   /** Appends castling moves (king-side and queen-side) for `color` to `moves`.
     *
-    * Delegates each side to [[tryCastle]], which checks castling rights, path clearance, and king-safety.
+    * Delegates each side to [[tryCastle]], which checks castling rights and path clearance. In Dice Chess, attacked
+    * transit/destination squares do not block castling.
     */
   private def generateCastlingMoves(state: GameState, color: Color, moves: mutable.Builder[Move, List[Move]]): Unit = {
     val allPieces        = state.whitePieces | state.blackPieces
@@ -185,7 +186,7 @@ object MoveGenerator {
     tryCastle(state, allPieces, moves, qRight, rank, kingSide = false)
   }
 
-  /** Appends a castling move if all three preconditions are satisfied:
+  /** Appends a castling move if both preconditions are satisfied:
     *
     *   1. The castling right character (`K`, `Q`, `k`, or `q`) is present in [[GameState.castlingRights]].
     *   2. Every square on the rook's path between king and rook is empty.
@@ -206,20 +207,23 @@ object MoveGenerator {
       kingSide: Boolean
   ): Unit =
     if state.castlingRights.contains(right) then
-      val (path, kingTo, flag) =
+      val (pathClear, kingTo, flag) =
         if kingSide then
           (
-            List(Square('f', rank), Square('g', rank)),
+            !allPieces.contains(Square('f', rank)) &&
+              !allPieces.contains(Square('g', rank)),
             Square('g', rank),
             Move.KingCastle
           )
         else
           (
-            List(Square('b', rank), Square('c', rank), Square('d', rank)),
+            !allPieces.contains(Square('b', rank)) &&
+              !allPieces.contains(Square('c', rank)) &&
+              !allPieces.contains(Square('d', rank)),
             Square('c', rank),
             Move.QueenCastle
           )
-      if path.forall(!allPieces.contains(_)) then moves += Move(Square('e', rank), kingTo, flag)
+      if pathClear then moves += Move(Square('e', rank), kingTo, flag)
 
   /** Generates pseudo-legal moves for a sliding piece (Bishop, Rook, or Queen).
     *
