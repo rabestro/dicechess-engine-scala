@@ -175,22 +175,21 @@ object MoveGenerator {
 
   /** Appends castling moves (king-side and queen-side) for `color` to `moves`.
     *
-    * Delegates each side to [[tryCastle]], which checks castling rights, path clearance, and king-safety.
+    * Delegates each side to [[tryCastle]], which checks castling rights and path clearance. In Dice Chess, attacked
+    * transit/destination squares do not block castling.
     */
   private def generateCastlingMoves(state: GameState, color: Color, moves: mutable.Builder[Move, List[Move]]): Unit = {
     val allPieces        = state.whitePieces | state.blackPieces
-    val enemy            = color.opponent
     val rank             = if color.isWhite then 1 else 8
     val (kRight, qRight) = if color.isWhite then ('K', 'Q') else ('k', 'q')
-    tryCastle(state, allPieces, enemy, moves, kRight, rank, kingSide = true)
-    tryCastle(state, allPieces, enemy, moves, qRight, rank, kingSide = false)
+    tryCastle(state, allPieces, moves, kRight, rank, kingSide = true)
+    tryCastle(state, allPieces, moves, qRight, rank, kingSide = false)
   }
 
-  /** Appends a castling move if all three preconditions are satisfied:
+  /** Appends a castling move if both preconditions are satisfied:
     *
     *   1. The castling right character (`K`, `Q`, `k`, or `q`) is present in [[GameState.castlingRights]].
     *   2. Every square on the rook's path between king and rook is empty.
-    *   3. None of the king's transit squares (origin, pass-through, destination) are attacked by `enemy`.
     *
     * @param right
     *   castling-right character to check (e.g. `'K'` for White king-side)
@@ -202,30 +201,19 @@ object MoveGenerator {
   private def tryCastle(
       state: GameState,
       allPieces: Bitboard,
-      enemy: Color,
       moves: mutable.Builder[Move, List[Move]],
       right: Char,
       rank: Int,
       kingSide: Boolean
   ): Unit =
     if state.castlingRights.contains(right) then
-      val (path, safe, kingTo, flag) =
-        if kingSide then
-          (
-            List(Square('f', rank), Square('g', rank)),
-            List(Square('e', rank), Square('f', rank), Square('g', rank)),
-            Square('g', rank),
-            Move.KingCastle
-          )
-        else
-          (
-            List(Square('b', rank), Square('c', rank), Square('d', rank)),
-            List(Square('e', rank), Square('d', rank), Square('c', rank)),
-            Square('c', rank),
-            Move.QueenCastle
-          )
-      if path.forall(!allPieces.contains(_)) && safe.forall(sq => isSquareAttacked(state, sq, enemy).isEmpty) then
-        moves += Move(Square('e', rank), kingTo, flag)
+      if kingSide then
+        if !allPieces.contains(Square('f', rank)) && !allPieces.contains(Square('g', rank)) then
+          moves += Move(Square('e', rank), Square('g', rank), Move.KingCastle)
+      else if !allPieces.contains(Square('b', rank)) && !allPieces.contains(Square('c', rank)) && !allPieces.contains(
+          Square('d', rank)
+        )
+      then moves += Move(Square('e', rank), Square('c', rank), Move.QueenCastle)
 
   /** Generates pseudo-legal moves for a sliding piece (Bishop, Rook, or Queen).
     *

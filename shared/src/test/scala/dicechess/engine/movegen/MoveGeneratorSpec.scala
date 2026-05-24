@@ -76,12 +76,23 @@ class MoveGeneratorSpec extends FunSuite:
     assert(!moves.exists(_.flags == Move.KingCastle), "King-side castle should be blocked")
   }
 
-  test("castling not generated when king would pass through check") {
+  test("castling IS generated when king would pass through check (Dice Chess rule)") {
     // Black rook on g8 covers g1 — white king-side castling target square is unsafe
     val fen   = "4k1r1/8/8/8/8/8/8/R3K2R w KQ - 0 1"
     val state = parse(fen)
     val moves = MoveGenerator.generateAllMoves(state)
-    assert(!moves.exists(_.flags == Move.KingCastle), "King-side castle through check should be blocked")
+    assert(moves.exists(_.flags == Move.KingCastle), "King-side castle through check should be allowed in Dice Chess")
+  }
+
+  test("castling IS generated when transit square is attacked but destination is safe (Dice Chess rule)") {
+    // Black rook on f8 covers f1; g1 remains safe
+    val fen   = "4kr2/8/8/8/8/8/8/R3K2R w KQ - 0 1"
+    val state = parse(fen)
+    val moves = MoveGenerator.generateAllMoves(state)
+    assert(
+      moves.exists(_.flags == Move.KingCastle),
+      "King-side castle through attacked transit square should be allowed in Dice Chess"
+    )
   }
 
   test("black queen-side castling included in generated moves") {
