@@ -37,6 +37,7 @@ object EngineFacade {
       diceRoll: Int,
       seed: js.UndefOr[Int] = js.undefined
   ): js.UndefOr[js.Dictionary[String]] = {
+    if (fen == null) return js.undefined
     FenParser.parse(fen) match {
       case Right(state) =>
         val moves = MoveGenerator.generateMoves(state, diceRoll)
@@ -92,6 +93,7 @@ object EngineFacade {
     */
   @JSExport
   def getPieceTypeAt(fen: String, square: String): js.UndefOr[Int] = {
+    if (fen == null || square == null) return js.undefined
     FenParser.parse(fen) match {
       case Right(state) =>
         Square.fromNotation(square) match {
@@ -125,6 +127,7 @@ object EngineFacade {
     */
   @JSExport
   def applyMove(fen: String, from: String, to: String, promotion: js.UndefOr[String]): js.UndefOr[String] = {
+    if (fen == null || from == null || to == null) return js.undefined
     FenParser.parse(fen) match {
       case Right(state) =>
         (Square.fromNotation(from), Square.fromNotation(to)) match {

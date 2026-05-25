@@ -28,14 +28,16 @@ object JsApi:
     */
   @JSExport
   def getLegalUciMoves(fen: String, dice: js.Array[Int]): js.Array[String] =
-    FenParser.parse(fen) match
-      case Left(_)      => js.Array()
-      case Right(state) =>
-        val allMoves = LegalMovesFilter.filterMaximalMoves(state, dice.toList)
-        allMoves.map { m =>
-          val base = m.fromSquare.toNotation + m.toSquare.toNotation
-          m.promotionPieceType.map(pt => base + pt.asNotation).getOrElse(base)
-        }.toJSArray
+    if fen == null || dice == null then js.Array()
+    else
+      FenParser.parse(fen) match
+        case Left(_)      => js.Array()
+        case Right(state) =>
+          val allMoves = LegalMovesFilter.filterMaximalMoves(state, dice.toList)
+          allMoves.map { m =>
+            val base = m.fromSquare.toNotation + m.toSquare.toNotation
+            m.promotionPieceType.map(pt => base + pt.asNotation).getOrElse(base)
+          }.toJSArray
 
   /** Returns the piece type associated with a dice roll.
     *
@@ -61,39 +63,45 @@ object JsApi:
     */
   @JSExport
   def getBestMove(fen: String, dice: js.Array[Int], options: js.UndefOr[js.Dynamic]): js.Dynamic =
-    val algoName = options.toOption
-      .filter(_ != null)
-      .flatMap { opt =>
-        val alg = opt.selectDynamic("algorithm")
-        if scala.scalajs.js.typeOf(alg) == "string" then Some(alg.asInstanceOf[String])
-        else None
-      }
-      .getOrElse("greedy")
+    if fen == null || dice == null then js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
+    else
+      val algoName = options.toOption
+        .filter(_ != null)
+        .flatMap { opt =>
+          val alg = opt.selectDynamic("algorithm")
+          if scala.scalajs.js.typeOf(alg) == "string" then Some(alg.asInstanceOf[String])
+          else None
+        }
+        .getOrElse("greedy")
 
-    val searchAlgo = algoName.toLowerCase match
-      case "random" => RandomSearch
-      case _        => GreedySearch
+      val searchAlgo = algoName.toLowerCase match
+        case "random" => RandomSearch
+        case _        => GreedySearch
 
-    FenParser.parse(fen) match
-      case Left(_)      => js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
-      case Right(state) =>
-        val start = System.currentTimeMillis()
-        searchAlgo.findBestMove(state, dice.toList) match
-          case None =>
-            js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = (System.currentTimeMillis() - start).toInt)
-          case Some(scoredSeq) =>
-            val jsMoves = scoredSeq.moves.map { m =>
+      FenParser.parse(fen) match
+        case Left(_)      => js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
+        case Right(state) =>
+          val start = System.currentTimeMillis()
+          searchAlgo.findBestMove(state, dice.toList) match
+            case None =>
               js.Dynamic.literal(
-                from = m.fromSquare.toNotation,
-                to = m.toSquare.toNotation,
-                promotion = m.promotionPieceType.map(_.asNotation).getOrElse(null)
+                moves = js.Array(),
+                score = 0,
+                timeTakenMs = (System.currentTimeMillis() - start).toInt
               )
-            }.toJSArray
-            js.Dynamic.literal(
-              moves = jsMoves,
-              score = scoredSeq.score,
-              timeTakenMs = (System.currentTimeMillis() - start).toInt
-            )
+            case Some(scoredSeq) =>
+              val jsMoves = scoredSeq.moves.map { m =>
+                js.Dynamic.literal(
+                  from = m.fromSquare.toNotation,
+                  to = m.toSquare.toNotation,
+                  promotion = m.promotionPieceType.map(_.asNotation).getOrElse(null)
+                )
+              }.toJSArray
+              js.Dynamic.literal(
+                moves = jsMoves,
+                score = scoredSeq.score,
+                timeTakenMs = (System.currentTimeMillis() - start).toInt
+              )
 
   /** Applies a move to the given FEN and returns the resulting state.
     *
