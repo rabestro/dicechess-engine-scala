@@ -66,7 +66,10 @@ object MoveGenerator {
     *   - **Single push** — quiet move, or four promotion moves on the back rank.
     *   - **Double push** — only from the starting rank, sets the en-passant square flag.
     *   - **Diagonal captures** (east and west) — standard or promotion captures.
-    *   - **En-passant capture** — when [[GameState.enPassant]] is set and the pawn can reach it.
+    *   - **En-passant capture** — when [[GameState.enPassant]] is set, the pawn can reach it,
+    *     and the target rank matches the capturing side (rank 6 for White, rank 3 for Black).
+    *     The rank guard prevents the same player from capturing their own pawn en passant
+    *     during a Dice Chess multi-move turn (where `activeColor` never flips mid-turn).
     *
     * Returns early with `Nil` when the active side has no pawns.
     */
@@ -121,7 +124,14 @@ object MoveGenerator {
       addPawnCaptures(from, west, color, enemyKings, moves)
 
       // --- En Passant ---
-      state.enPassant.foreach { epSquare =>
+      // Guard: only generate EP if the target square is on the correct rank for the
+      // active color (rank 6 for White, rank 3 for Black).  In standard chess this
+      // invariant always holds because turns alternate, so the EP square is always
+      // set by the opponent's last move.  In Dice Chess the active color is kept
+      // constant across all micro-moves of a turn, so a player who just made a
+      // double pawn push could otherwise EP-capture their own pawn on the next
+      // micro-move of the same turn.
+      state.enPassant.filter(ep => ep.rank == (if (isWhite) 6 else 3)).foreach { epSquare =>
         val epBB     = Bitboard.fromSquare(epSquare)
         val epEast   = PawnGeneration.eastCaptures(fromBB, epBB, color)
         val epWest   = PawnGeneration.westCaptures(fromBB, epBB, color)

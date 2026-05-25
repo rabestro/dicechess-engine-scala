@@ -47,19 +47,11 @@ class GreedySearchSuite extends FunSuite:
   }
 
   test("GreedySearch should maximize score with 3 micro-moves") {
-    // Black queen on h8. White rook on a1. White pawn on a2 blocks the rook. White knight on b1.
-    // White rolls: pawn (1), knight (2), rook (4).
-    // White must move pawn to unblock rook, move knight somewhere, then rook a1-a8-h8? No, rook a1-a8 is blocked?
-    // Let's make a simple one:
-    // White king on e1. Black queen on e4. White pawn on d2. White bishop on c1.
-    // White rolls: pawn(1), bishop(3), king(6).
-    // Move pawn d2-d3, then bishop c1-d2, then king e1-d1. (Not maximizing anything).
-    // Let's do: black queen on h8. White bishop on a1. White pawn on b2 blocks. White pawn on c2 blocks.
-    // Actually, simply: white pawn on a2, white pawn on b2, white rook on a1. Black queen on a8.
+    // White pawn on a2, white pawn on b2, white rook on a1. Black queen on a8.
+    // Black knight on b3 serves as a real capture target to clear the a-file.
     // White rolls: pawn(1), pawn(1), rook(4).
-    // White must move a2-a3, b2-b3 (or whatever), then rook takes queen.
-    // Wait, pawn can move twice if we have two pawns rolled!
-    val fen   = "q7/8/8/8/8/8/PP6/R7 w - - 0 1"
+    // Optimal line: a2xb3 (captures knight), b2-b3 or b2-b4, then Ra1xa8 (queen).
+    val fen   = "q7/8/8/8/8/1n6/PP6/R3K3 w - - 0 1"
     val state = FenParser
       .parse(fen)
       .fold(
@@ -72,7 +64,7 @@ class GreedySearchSuite extends FunSuite:
     val bestMove = bestMoveOpt.get
     assertEquals(bestMove.moves.size, 3)
     val moves = bestMove.moves
-    // One of the moves must be rook capturing on a8
+    // One of the moves must be rook capturing the queen on a8
     assert(moves.exists(_.toSquare.toNotation == "a8"))
   }
 

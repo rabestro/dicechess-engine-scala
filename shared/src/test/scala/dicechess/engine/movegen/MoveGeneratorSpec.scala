@@ -111,3 +111,19 @@ class MoveGeneratorSpec extends FunSuite:
     val moves = MoveGenerator.generateMoves(state, 1) // pawns dice
     assertEquals(moves, Nil)
   }
+
+  // ── En Passant edge cases ──────────────────────────────────────────────────
+
+  test("generateMoves does not allow self en-passant capture during Dice Chess multi-move turn") {
+    // Regression test for bug: in a multi-move Dice Chess turn the active color
+    // never flips.  If White pushes b2-b4 (micro-move 1) the engine sets
+    // enPassant=b3.  Without the rank guard the White pawn on a2 could generate
+    // EnPassantCapture to b3 as micro-move 2, illegally hopping diagonally onto
+    // an empty square and leaving its own pawn on b4 intact.
+    val state          = parse(FenParser.InitialPosition)
+    val stateAfterPush =
+      state.makeMove(Move(Square('b', 2), Square('b', 4), Move.DoublePawnPush)).copy(activeColor = Color.White)
+    val pawnMoves   = MoveGenerator.generateMoves(stateAfterPush, 1)
+    val selfEpMoves = pawnMoves.filter(_.isEnPassant)
+    assertEquals(selfEpMoves, Nil)
+  }
