@@ -52,3 +52,60 @@ class JsApiSpec extends FunSuite:
     assert(moves.contains("e7e8b"))
     assert(moves.contains("e7e8n"))
   }
+
+  // --- Negative and Boundary Tests ---
+
+  test("applyMove: handles null parameters gracefully by returning undefined") {
+    val initialFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    assertEquals(JsApi.applyMove(null, "e2", "e4", js.undefined).toOption, None)
+    assertEquals(JsApi.applyMove(initialFen, null, "e4", js.undefined).toOption, None)
+    assertEquals(JsApi.applyMove(initialFen, "e2", null, js.undefined).toOption, None)
+  }
+
+  test("applyMove: handles malformed FEN or coordinates by returning undefined") {
+    val initialFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    assertEquals(JsApi.applyMove("invalid-fen", "e2", "e4", js.undefined).toOption, None)
+    assertEquals(JsApi.applyMove(initialFen, "e9", "e4", js.undefined).toOption, None)
+    assertEquals(JsApi.applyMove(initialFen, "e2", "z4", js.undefined).toOption, None)
+    assertEquals(JsApi.applyMove(initialFen, "foo", "bar", js.undefined).toOption, None)
+  }
+
+  test("getLegalUciMoves: handles null parameters gracefully by returning empty array") {
+    val fen  = "k7/4P3/8/8/8/8/8/4K3 w - - 0 1"
+    val dice = js.Array(1)
+    assertEquals(JsApi.getLegalUciMoves(null, dice).length, 0)
+    assertEquals(JsApi.getLegalUciMoves(fen, null).length, 0)
+  }
+
+  test("getLegalUciMoves: handles empty dice array by returning empty array") {
+    val fen = "k7/4P3/8/8/8/8/8/4K3 w - - 0 1"
+    assertEquals(JsApi.getLegalUciMoves(fen, js.Array()).length, 0)
+  }
+
+  test("getLegalUciMoves: handles invalid FEN by returning empty array") {
+    assertEquals(JsApi.getLegalUciMoves("invalid-fen", js.Array(1)).length, 0)
+  }
+
+  test("getPieceFromDice: returns null for invalid dice values") {
+    assertEquals(JsApi.getPieceFromDice(0), null)
+    assertEquals(JsApi.getPieceFromDice(7), null)
+  }
+
+  test("getBestMove: handles null parameters gracefully by returning zero structure") {
+    val fen  = "k7/4P3/8/8/8/8/8/4K3 w - - 0 1"
+    val dice = js.Array(1)
+
+    val res1 = JsApi.getBestMove(null, dice, js.undefined)
+    assertEquals(res1.moves.length.asInstanceOf[Int], 0)
+    assertEquals(res1.score.asInstanceOf[Int], 0)
+
+    val res2 = JsApi.getBestMove(fen, null, js.undefined)
+    assertEquals(res2.moves.length.asInstanceOf[Int], 0)
+    assertEquals(res2.score.asInstanceOf[Int], 0)
+  }
+
+  test("getBestMove: handles invalid FEN gracefully by returning zero structure") {
+    val res = JsApi.getBestMove("invalid-fen", js.Array(1), js.undefined)
+    assertEquals(res.moves.length.asInstanceOf[Int], 0)
+    assertEquals(res.score.asInstanceOf[Int], 0)
+  }
