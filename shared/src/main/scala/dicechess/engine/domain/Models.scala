@@ -276,10 +276,30 @@ case class GameState(
     queens: Bitboard,
     kings: Bitboard,
     mailbox: Map[Square, Piece],
-    activeColor: Color,
-    castlingRights: String,
+    flags: GameFlags,
     enPassant: Bitboard,
-    dicePool: List[Int],
-    halfMoveClock: Int,
     fullMoveNumber: Int
-)
+):
+  inline def activeColor: Color = flags.activeColor
+
+  def castlingRights: String =
+    val cr = flags.castlingRights
+    if (cr == 0) "-"
+    else
+      val sb = new StringBuilder()
+      if ((cr & 1) != 0) sb.append("K")
+      if ((cr & 2) != 0) sb.append("Q")
+      if ((cr & 4) != 0) sb.append("k")
+      if ((cr & 8) != 0) sb.append("q")
+      sb.toString()
+
+  // enPassant is now a dedicated field because GameFlags (8 bits) is lossy
+
+  inline def dicePool: List[Int] = flags.dicePool
+  inline def halfMoveClock: Int  = flags.halfMoveClock
+
+  def withActiveColor(c: Color): GameState =
+    copy(flags = flags.withActiveColor(c))
+
+  def withDicePool(pool: List[Int]): GameState =
+    copy(flags = flags.withDicePool(pool))

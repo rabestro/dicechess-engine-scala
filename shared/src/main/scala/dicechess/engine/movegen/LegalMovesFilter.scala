@@ -65,12 +65,12 @@ object LegalMovesFilter:
               remainingDice.contains(PieceType.Rook.diceValue)
             then
               val afterCastle = remainingDice.diff(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
-              val next        = state.makeMove(move).copy(activeColor = activeColor)
+              val next        = state.makeMove(move).withActiveColor(activeColor)
               val depth       = 2 + maxSequenceLength(next, afterCastle)
               if depth > best then best = depth
           else
             val afterMove = remainingDice.diff(List(d))
-            val next      = state.makeMove(move).copy(activeColor = activeColor)
+            val next      = state.makeMove(move).withActiveColor(activeColor)
             val depth     = 1 + maxSequenceLength(next, afterMove)
             if depth > best then best = depth
 
@@ -123,12 +123,12 @@ object LegalMovesFilter:
                 dice.contains(PieceType.Rook.diceValue)
               then
                 val afterCastle = dice.diff(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
-                val next        = state.makeMove(move).copy(activeColor = activeColor)
+                val next        = state.makeMove(move).withActiveColor(activeColor)
                 val reachable   = 2 + maxSequenceLength(next, afterCastle)
                 if reachable == maxLen then result += move
             else
               val afterMove = dice.diff(List(d))
-              val next      = state.makeMove(move).copy(activeColor = activeColor)
+              val next      = state.makeMove(move).withActiveColor(activeColor)
               val reachable = 1 + maxSequenceLength(next, afterMove)
               if reachable == maxLen then result += move
 

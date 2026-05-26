@@ -52,53 +52,39 @@ private object Position:
     *   updated castling-rights string, or `"-"` if none remain
     */
   def updatedCastlingRights(
-      rights: String,
+      rights: Int,
       movingPiece: Piece,
       from: Square,
       targetPiece: Option[Piece],
       to: Square,
       isWhite: Boolean
-  ): String =
-    val r = removeMoverRights(removeCapturedRookRights(rights, targetPiece, to), movingPiece.pieceType, from, isWhite)
-    if r.isEmpty then "-" else r
+  ): Int =
+    removeMoverRights(removeCapturedRookRights(rights, targetPiece, to), movingPiece.pieceType, from, isWhite)
 
-  /** Removes castling rights caused by the moving piece.
-    *
-    * A king move revokes both rights for its color. A rook move from a home corner revokes only the right for that
-    * corner; any other piece leaves rights unchanged.
-    */
-  private def removeMoverRights(rights: String, pieceType: PieceType, from: Square, isWhite: Boolean): String =
+  private def removeMoverRights(rights: Int, pieceType: PieceType, from: Square, isWhite: Boolean): Int =
     pieceType match
       case PieceType.King =>
-        if isWhite then rights.filterNot(c => c == 'K' || c == 'Q')
-        else rights.filterNot(c => c == 'k' || c == 'q')
+        if isWhite then rights & ~3
+        else rights & ~12
       case PieceType.Rook => removeRookMoverRights(rights, from, isWhite)
       case _              => rights
 
-  /** Removes the castling right associated with a rook that has moved off its home square.
-    *
-    * Only corner squares (a1, h1 for White; a8, h8 for Black) trigger a revocation; all other origins are no-ops.
-    */
-  private def removeRookMoverRights(rights: String, from: Square, isWhite: Boolean): String =
+  private def removeRookMoverRights(rights: Int, from: Square, isWhite: Boolean): Int =
     if isWhite then
-      if from == Square('a', 1) then rights.filterNot(_ == 'Q')
-      else if from == Square('h', 1) then rights.filterNot(_ == 'K')
+      if from == Square('a', 1) then rights & ~2
+      else if from == Square('h', 1) then rights & ~1
       else rights
-    else if from == Square('a', 8) then rights.filterNot(_ == 'q')
-    else if from == Square('h', 8) then rights.filterNot(_ == 'k')
+    else if from == Square('a', 8) then rights & ~8
+    else if from == Square('h', 8) then rights & ~4
     else rights
 
-  /** Removes castling rights caused by a rook being captured on its home corner.
-    *
-    * Only applies when the captured piece is a `Rook` and the destination square is one of the four corner squares.
-    */
-  private def removeCapturedRookRights(rights: String, targetPiece: Option[Piece], to: Square): String =
+  private def removeCapturedRookRights(rights: Int, targetPiece: Option[Piece], to: Square): Int =
     targetPiece match
       case Some(p) if p.pieceType == PieceType.Rook =>
-        if to == Square('a', 8) then rights.filterNot(_ == 'q')
-        else if to == Square('h', 8) then rights.filterNot(_ == 'k')
-        else if to == Square('a', 1) then rights.filterNot(_ == 'Q')
-        else if to == Square('h', 1) then rights.filterNot(_ == 'K')
+        if to == Square('a', 8) then rights & ~8
+        else if to == Square('h', 8) then rights & ~4
+        else if to == Square('a', 1) then rights & ~2
+        else if to == Square('h', 1) then rights & ~1
         else rights
       case _ => rights
 
@@ -236,6 +222,29 @@ extension (state: GameState)
       state.dicePool
     }
 
+    val newCastlingRights =
+      Position.updatedCastlingRights(state.flags.castlingRights, movingPiece, from, targetPiece, to, isWhite)
+    val newHalfMoveClock =
+      if movingPiece.pieceType == PieceType.Pawn || targetPiece.isDefined || isEnPassantCapture then 0
+      else state.flags.halfMoveClock + 1
+    val newFullMoveNumber = if state.activeColor.isBlack then state.fullMoveNumber + 1 else state.fullMoveNumber
+
+    var epFiles = 0
+    var ep      = finalEnPassant.value
+    while (ep != 0) {
+      val fileIdx = java.lang.Long.numberOfTrailingZeros(ep) % 8
+      epFiles |= (1 << fileIdx)
+      ep &= ep - 1
+    }
+
+    val newFlags = GameFlags.fromList(
+      color = state.activeColor.opponent,
+      castlingRights = newCastlingRights,
+      enPassantFiles = epFiles,
+      dicePool = nextDicePool,
+      halfMoveClock = newHalfMoveClock
+    )
+
     state.copy(
       whitePieces = b.white,
       blackPieces = b.black,
@@ -246,11 +255,9 @@ extension (state: GameState)
       queens = b.queens,
       kings = b.kings,
       mailbox = b.mailbox,
+      flags = newFlags,
       enPassant = finalEnPassant,
-      dicePool = nextDicePool,
-      halfMoveClock =
-        if movingPiece.pieceType == PieceType.Pawn || targetPiece.isDefined || isEnPassantCapture then 0
-        else state.halfMoveClock + 1
+      fullMoveNumber = newFullMoveNumber
     )
   }
 
@@ -336,6 +343,27 @@ extension (state: GameState)
         b.mailbox += (to -> Piece(color, mover.pieceType))
     }
 
+    val newCastlingRights = Position.updatedCastlingRights(state.flags.castlingRights, mover, from, target, to, isWhite)
+    val newHalfMoveClock  =
+      if mover.pieceType == PieceType.Pawn || mv.isCapture then 0 else state.flags.halfMoveClock + 1
+    val newFullMoveNumber = if state.activeColor.isBlack then state.fullMoveNumber + 1 else state.fullMoveNumber
+
+    var epFiles = 0
+    var epV     = newEnPassant.value
+    while (epV != 0L) {
+      val fileIdx = java.lang.Long.numberOfTrailingZeros(epV) % 8
+      epFiles |= (1 << fileIdx)
+      epV &= epV - 1L
+    }
+
+    val newFlags = GameFlags.fromList(
+      color = state.activeColor.opponent,
+      castlingRights = newCastlingRights,
+      enPassantFiles = epFiles,
+      dicePool = Nil,
+      halfMoveClock = newHalfMoveClock
+    )
+
     state.copy(
       whitePieces = b.white,
       blackPieces = b.black,
@@ -346,11 +374,8 @@ extension (state: GameState)
       queens = b.queens,
       kings = b.kings,
       mailbox = b.mailbox,
-      activeColor = state.activeColor.opponent,
+      flags = newFlags,
       enPassant = newEnPassant,
-      dicePool = Nil,
-      castlingRights = Position.updatedCastlingRights(state.castlingRights, mover, from, target, to, isWhite),
-      halfMoveClock = if mover.pieceType == PieceType.Pawn || mv.isCapture then 0 else state.halfMoveClock + 1,
-      fullMoveNumber = if state.activeColor.isBlack then state.fullMoveNumber + 1 else state.fullMoveNumber
+      fullMoveNumber = newFullMoveNumber
     )
   }

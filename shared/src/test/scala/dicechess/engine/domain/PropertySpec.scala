@@ -89,23 +89,43 @@ class PropertySpec extends ScalaCheckSuite:
 
     halfMoveClock  <- Gen.choose(0, 100)
     fullMoveNumber <- Gen.choose(1, 500)
-  yield GameState(
-    whitePieces = whitePieces,
-    blackPieces = blackPieces,
-    pawns = pawns,
-    knights = knights,
-    bishops = bishops,
-    rooks = rooks,
-    queens = queens,
-    kings = kings,
-    mailbox = mailbox,
-    activeColor = activeColor,
-    castlingRights = castlingRights,
-    enPassant = enPassantBB,
-    dicePool = dicePool,
-    halfMoveClock = halfMoveClock,
-    fullMoveNumber = fullMoveNumber
-  )
+  yield
+    var castlingInt = 0
+    if (castlingRights.contains('K')) castlingInt |= 1
+    if (castlingRights.contains('Q')) castlingInt |= 2
+    if (castlingRights.contains('k')) castlingInt |= 4
+    if (castlingRights.contains('q')) castlingInt |= 8
+
+    var epFiles = 0
+    var epV     = enPassantBB.value
+    while (epV != 0) {
+      val fileIdx = java.lang.Long.numberOfTrailingZeros(epV) % 8
+      epFiles |= (1 << fileIdx)
+      epV &= epV - 1
+    }
+
+    val flags = GameFlags.fromList(
+      color = activeColor,
+      castlingRights = castlingInt,
+      enPassantFiles = epFiles,
+      dicePool = dicePool,
+      halfMoveClock = halfMoveClock
+    )
+
+    GameState(
+      whitePieces = whitePieces,
+      blackPieces = blackPieces,
+      pawns = pawns,
+      knights = knights,
+      bishops = bishops,
+      rooks = rooks,
+      queens = queens,
+      kings = kings,
+      mailbox = mailbox,
+      flags = flags,
+      enPassant = enPassantBB,
+      fullMoveNumber = fullMoveNumber
+    )
 
   // Custom implicits for ScalaCheck
   given Arbitrary[Color]     = Arbitrary(colorGen)
