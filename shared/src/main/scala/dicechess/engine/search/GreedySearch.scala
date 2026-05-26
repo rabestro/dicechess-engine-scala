@@ -5,11 +5,16 @@ import scala.util.Random
 
 object GreedySearch extends SearchAlgorithm:
 
-  override def findBestMove(state: GameState, dice: List[Int]): Option[ScoredSequence] =
-    findBestMove(state, dice, new Random())
+  /** Explores all legal turn paths and selects the one that results in the best material advantage for the active
+    * player at the end of their turn.
+    *
+    * Breaks ties arbitrarily (currently takes the first discovered path that achieves the maximum score).
+    */
+  override def findBestMove(state: GameState): Option[ScoredSequence] =
+    findBestMove(state, new Random())
 
-  def findBestMove(state: GameState, dice: List[Int], rand: Random): Option[ScoredSequence] =
-    val paths = TurnGenerator.generateAllLegalTurnPaths(state, dice)
+  def findBestMove(state: GameState, rand: Random): Option[ScoredSequence] =
+    val paths = TurnGenerator.generateAllLegalTurnPaths(state)
     if paths.isEmpty then None
     else
       val scoredPaths  = paths.map(path => SearchScoring.scorePath(state, path))

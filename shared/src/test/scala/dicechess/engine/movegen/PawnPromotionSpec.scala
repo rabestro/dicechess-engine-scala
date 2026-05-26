@@ -21,7 +21,7 @@ class PawnPromotionSpec extends FunSuite:
   test("White pawn on e7: single push to e8 generates exactly 4 promotions") {
     // Only the white pawn exists; e8 is empty; Black king on a8
     val state = parseUnsafe("k7/4P3/8/8/8/8/8/4K3 w - - 0 1")
-    val moves = MoveGenerator.generateMoves(state, PawnDice)
+    val moves = MoveGenerator.generateMoves(state.withDicePool(List(PawnDice)))
 
     val promotions = moves.filter(_.isPromotion)
     assertEquals(promotions.size, 4, s"Expected 4 promotions, got: $moves")
@@ -34,7 +34,7 @@ class PawnPromotionSpec extends FunSuite:
   test("Black pawn on d2: single push to d1 generates exactly 4 promotions") {
     // Black pawn on d2; d1 is empty; White king on h1
     val state = parseUnsafe("4k3/8/8/8/8/8/3p4/7K b - - 0 1")
-    val moves = MoveGenerator.generateMoves(state, PawnDice)
+    val moves = MoveGenerator.generateMoves(state.withDicePool(List(PawnDice)))
 
     val promotions = moves.filter(_.isPromotion)
     assertEquals(promotions.size, 4, s"Expected 4 promotions, got: $moves")
@@ -46,7 +46,7 @@ class PawnPromotionSpec extends FunSuite:
   test("White pawn promotion capture: g7 captures h8 generates 4 promotion-captures") {
     // White pawn on g7; black rook on h8; g8 is empty; Black king on a8
     val state = parseUnsafe("k6r/6P1/8/8/8/8/8/4K3 w - - 0 1")
-    val moves = MoveGenerator.generateMoves(state, PawnDice)
+    val moves = MoveGenerator.generateMoves(state.withDicePool(List(PawnDice)))
 
     // Promotion-captures land on h8
     val promoCapturesH8 = moves.filter(m => m.isPromotion && m.toSquare == Square('h', 8))
@@ -62,7 +62,7 @@ class PawnPromotionSpec extends FunSuite:
   test("Black pawn promotion capture: b2 captures a1 generates 4 promotion-captures") {
     // Black pawn on b2; white rook on a1; b1 is empty; White king on h1
     val state = parseUnsafe("4k3/8/8/8/8/8/1p6/R6K b - - 0 1")
-    val moves = MoveGenerator.generateMoves(state, PawnDice)
+    val moves = MoveGenerator.generateMoves(state.withDicePool(List(PawnDice)))
 
     // Promotion-captures land on a1
     val promoCapturesA1 = moves.filter(m => m.isPromotion && m.isCapture && m.toSquare == Square('a', 1))
@@ -75,7 +75,7 @@ class PawnPromotionSpec extends FunSuite:
 
   test("Standard pawn on e2 produces no promotions") {
     val state = parseUnsafe("4k3/8/8/8/8/8/4P3/4K3 w - - 0 1")
-    val moves = MoveGenerator.generateMoves(state, PawnDice)
+    val moves = MoveGenerator.generateMoves(state.withDicePool(List(PawnDice)))
 
     val promotions = moves.filter(_.isPromotion)
     assert(promotions.isEmpty, s"Expected no promotions for e2 pawn, got: $promotions")

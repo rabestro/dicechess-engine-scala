@@ -27,7 +27,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     FenParser.parse(fen).getOrElse(sys.error(s"Failed to parse FEN: $fen"))
 
   private def filterMoves(state: GameState, dice: List[Int]): List[Move] =
-    LegalMovesFilter.filterMaximalMoves(state, dice)
+    LegalMovesFilter.filterMaximalMoves(state.withDicePool(dice))
 
   // ── AREA A: BASIC SCENARIOS (SINGLE & MULTIPLE DICE) ──────────────────────
 
@@ -40,7 +40,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     val state        = parse(FenParser.InitialPosition)
     val dice         = List(Pawn)
     val legal        = filterMoves(state, dice)
-    val allPawnMoves = MoveGenerator.generateMoves(state, Pawn)
+    val allPawnMoves = MoveGenerator.generateMoves(state.withDicePool(List(Pawn)))
     assertEquals(legal.size, allPawnMoves.size)
   }
 
@@ -54,7 +54,9 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     val state            = parse(FenParser.InitialPosition)
     val dice             = List(Pawn, Knight)
     val legal            = filterMoves(state, dice)
-    val allPawnAndKnight = MoveGenerator.generateMoves(state, Pawn) ++ MoveGenerator.generateMoves(state, Knight)
+    val allPawnAndKnight = MoveGenerator.generateMoves(state.withDicePool(List(Pawn))) ++ MoveGenerator.generateMoves(
+      state.withDicePool(List(Knight))
+    )
     assertEquals(legal.size, allPawnAndKnight.size)
   }
 
@@ -87,7 +89,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
     val state      = parse(FenParser.InitialPosition)
     val dice       = List(Knight, Bishop, King)
     val legal      = filterMoves(state, dice)
-    val allKnights = MoveGenerator.generateMoves(state, Knight)
+    val allKnights = MoveGenerator.generateMoves(state.withDicePool(List(Knight)))
     assertEquals(legal.size, allKnights.size)
   }
 
@@ -409,12 +411,9 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
   property("D1: All filtered moves belong to a valid dice roll") {
     forAll(gameStateGen, diceGen) { (state, dice) =>
       val legalMoves = filterMoves(state, dice)
+      val allPseudo  = MoveGenerator.generateMoves(state.withDicePool(dice))
       legalMoves.forall { m =>
-        // A legal move must be pseudo-legal for at least one of the rolled dice
-        dice.exists { d =>
-          val moves = MoveGenerator.generateMoves(state, d)
-          moves.contains(m)
-        }
+        allPseudo.contains(m)
       }
     }
   }
@@ -431,7 +430,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
   property("D3: Returned move list is a subset of all pseudo-legal moves") {
     forAll(gameStateGen, diceGen) { (state, dice) =>
       val legal     = filterMoves(state, dice)
-      val allPseudo = dice.distinct.flatMap(d => MoveGenerator.generateMoves(state, d))
+      val allPseudo = MoveGenerator.generateMoves(state.withDicePool(dice))
       legal.forall(allPseudo.contains)
     }
   }

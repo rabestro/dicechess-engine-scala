@@ -8,22 +8,25 @@ import scala.collection.mutable
   */
 object MoveGenerator {
 
-  /** Generates all pseudo-legal moves for the active color and a given dice roll.
+  /** Generates all pseudo-legal moves for the active color based on the current dice pool.
     *
-    * Maps the dice roll to a [[PieceType]] via [[PieceType.fromDice]] and delegates to [[generatePieceMoves]]. Returns
-    * `Nil` immediately for invalid rolls (0 or 7+).
+    * Maps each available dice roll in the pool to a [[PieceType]] via [[PieceType.fromDice]] and delegates to
+    * [[generatePieceMoves]]. Returns a concatenated list of all possible moves.
     *
     * @param state
-    *   current game state
-    * @param diceRoll
-    *   value in `[1, 6]`; values outside this range yield an empty list
+    *   current game state (which includes the dice pool)
     * @return
-    *   pseudo-legal moves for the piece type indicated by the dice roll
+    *   pseudo-legal moves for all available dice
     */
-  def generateMoves(state: GameState, diceRoll: Int): List[Move] = {
-    val optPieceType = PieceType.fromDice(diceRoll)
-    if (optPieceType.isEmpty) return Nil
-    generatePieceMoves(state, optPieceType.get)
+  def generateMoves(state: GameState): List[Move] = {
+    state.dicePool.distinct.flatMap { diceRoll =>
+      PieceType
+        .fromDice(diceRoll)
+        .map { pt =>
+          generatePieceMoves(state, pt)
+        }
+        .getOrElse(Nil)
+    }
   }
 
   /** Generates all pseudo-legal moves for all pieces of the active color (standard chess).
@@ -37,7 +40,8 @@ object MoveGenerator {
     *   combined pseudo-legal move list for all piece types
     */
   def generateAllMoves(state: GameState): List[Move] = {
-    PieceType.all.flatMap(pt => generatePieceMoves(state, pt))
+    val stateWithCastlingDice = state.withDicePool(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
+    PieceType.all.flatMap(pt => generatePieceMoves(stateWithCastlingDice, pt))
   }
 
   /** Dispatches move generation to the correct subsystem for `pieceType`. */
@@ -184,10 +188,12 @@ object MoveGenerator {
 
   /** Appends castling moves (king-side and queen-side) for `color` to `moves`.
     *
-    * Delegates each side to [[tryCastle]], which checks castling rights and path clearance. In Dice Chess, attacked
-    * transit/destination squares do not block castling.
+    * Checks if both King and Rook dice are available in the dice pool. If they are, it delegates each side to
+    * [[tryCastle]], which checks castling rights and path clearance. In Dice Chess, attacked transit/destination
+    * squares do not block castling.
     */
   private def generateCastlingMoves(state: GameState, color: Color, moves: mutable.Builder[Move, List[Move]]): Unit = {
+
     val allPieces        = state.whitePieces | state.blackPieces
     val rank             = if color.isWhite then 1 else 8
     val (kRight, qRight) = if color.isWhite then ('K', 'Q') else ('k', 'q')
