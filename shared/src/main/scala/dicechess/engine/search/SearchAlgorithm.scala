@@ -15,12 +15,10 @@ trait SearchAlgorithm:
     *
     * @param state
     *   current [[GameState]]
-    * @param dice
-    *   available die faces (1-6) for this turn
     * @return
     *   `Some([[ScoredSequence]])` when at least one legal path exists; otherwise `None`.
     */
-  def findBestMove(state: GameState, dice: List[Int]): Option[ScoredSequence]
+  def findBestMove(state: GameState): Option[ScoredSequence]
 
 object SearchScoring:
   val TerminalWinScore: Int = Int.MaxValue

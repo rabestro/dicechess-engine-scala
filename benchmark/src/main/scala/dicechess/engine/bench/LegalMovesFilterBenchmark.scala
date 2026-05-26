@@ -48,4 +48,4 @@ class LegalMovesFilterBenchmark:
 
   @Benchmark
   def filterMaximalMoves(): List[Move] =
-    LegalMovesFilter.filterMaximalMoves(state, dice)
+    LegalMovesFilter.filterMaximalMoves(state.withDicePool(dice))

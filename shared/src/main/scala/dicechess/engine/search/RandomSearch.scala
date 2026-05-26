@@ -7,8 +7,8 @@ object RandomSearch extends SearchAlgorithm:
 
   private val rand = new Random()
 
-  override def findBestMove(state: GameState, dice: List[Int]): Option[ScoredSequence] =
-    val paths = TurnGenerator.generateAllLegalTurnPaths(state, dice)
+  override def findBestMove(state: GameState): Option[ScoredSequence] =
+    val paths = TurnGenerator.generateAllLegalTurnPaths(state)
     if paths.isEmpty then None
     else
       val randomPath = paths(rand.nextInt(paths.length))

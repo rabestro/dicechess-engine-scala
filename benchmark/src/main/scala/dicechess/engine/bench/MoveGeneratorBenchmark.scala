@@ -29,7 +29,7 @@ class MoveGeneratorBenchmark:
 
   @Benchmark
   def generateMoves(): List[Move] =
-    MoveGenerator.generateMoves(state, diceRoll)
+    MoveGenerator.generateMoves(state.withDicePool(List(diceRoll)))
 
   @Benchmark
   def generateAllMoves(): List[Move] =

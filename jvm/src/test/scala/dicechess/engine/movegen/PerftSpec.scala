@@ -40,6 +40,6 @@ class PerftSpec extends FunSuite:
         case Right(s)  => s
         case Left(err) => fail(s"Failed to parse FEN '${tc.fen}': $err")
 
-      val actualNodes = Perft.countNodes(state, tc.diceRoll, tc.depth)
+      val actualNodes = Perft.countNodes(state.withDicePool(List(tc.diceRoll)), tc.depth)
       assertEquals(actualNodes, tc.expectedNodes)
     }

@@ -13,7 +13,7 @@ class GreedySearchSuite extends FunSuite:
         err => fail(s"Failed to parse FEN: $err"),
         state => state
       )
-    val bestMoveOpt = GreedySearch.findBestMove(state, List(1))
+    val bestMoveOpt = GreedySearch.findBestMove(state.withDicePool(List(1)))
 
     assert(bestMoveOpt.isDefined)
     val bestMove = bestMoveOpt.get
@@ -33,7 +33,7 @@ class GreedySearchSuite extends FunSuite:
         err => fail(s"Failed to parse FEN: $err"),
         state => state
       )
-    val bestMoveOpt = GreedySearch.findBestMove(state, List(1, 3))
+    val bestMoveOpt = GreedySearch.findBestMove(state.withDicePool(List(1, 3)))
 
     assert(bestMoveOpt.isDefined)
     val bestMove = bestMoveOpt.get
@@ -66,7 +66,7 @@ class GreedySearchSuite extends FunSuite:
         err => fail(s"Failed to parse FEN: $err"),
         state => state
       )
-    val bestMoveOpt = GreedySearch.findBestMove(state, List(1, 1, 4))
+    val bestMoveOpt = GreedySearch.findBestMove(state.withDicePool(List(1, 1, 4)))
 
     assert(bestMoveOpt.isDefined)
     val bestMove = bestMoveOpt.get
@@ -85,7 +85,7 @@ class GreedySearchSuite extends FunSuite:
         err => fail(s"Failed to parse FEN: $err"),
         state => state
       )
-    val bestMoveOpt = GreedySearch.findBestMove(state, List(4, 4, 4))
+    val bestMoveOpt = GreedySearch.findBestMove(state.withDicePool(List(4, 4, 4)))
 
     assert(bestMoveOpt.isDefined)
     val bestMove = bestMoveOpt.get
@@ -119,7 +119,7 @@ class GreedySearchSuite extends FunSuite:
         err => fail(s"Failed to parse FEN: $err"),
         state => state
       )
-    val bestMoveOpt = GreedySearch.findBestMove(state, List(4, 4))
+    val bestMoveOpt = GreedySearch.findBestMove(state.withDicePool(List(4, 4)))
 
     assert(bestMoveOpt.isDefined)
     val bestMove = bestMoveOpt.get
@@ -139,7 +139,7 @@ class GreedySearchSuite extends FunSuite:
         state => state
       )
     // Roll pawns
-    val bestMoveOpt = GreedySearch.findBestMove(state, List(1, 1))
+    val bestMoveOpt = GreedySearch.findBestMove(state.withDicePool(List(1, 1)))
     assert(bestMoveOpt.isEmpty)
   }
 
@@ -161,8 +161,8 @@ class GreedySearchSuite extends FunSuite:
       override def nextInt(n: Int): Int = 1
     }
 
-    val resZero = GreedySearch.findBestMove(state, List(5), mockRandomZero)
-    val resOne  = GreedySearch.findBestMove(state, List(5), mockRandomOne)
+    val resZero = GreedySearch.findBestMove(state.withDicePool(List(5)), mockRandomZero)
+    val resOne  = GreedySearch.findBestMove(state.withDicePool(List(5)), mockRandomOne)
 
     assert(resZero.isDefined)
     assert(resOne.isDefined)
@@ -185,7 +185,7 @@ class GreedySearchSuite extends FunSuite:
 
     var chosenTargets = Set.empty[String]
     for (_ <- 1 to 50) {
-      val bestMoveOpt = GreedySearch.findBestMove(state, List(5))
+      val bestMoveOpt = GreedySearch.findBestMove(state.withDicePool(List(5)))
       bestMoveOpt.foreach { bm =>
         chosenTargets += bm.moves.head.toSquare.toNotation
       }

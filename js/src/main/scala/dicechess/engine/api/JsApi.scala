@@ -33,7 +33,8 @@ object JsApi:
       FenParser.parse(fen) match
         case Left(_)      => js.Array()
         case Right(state) =>
-          val allMoves = LegalMovesFilter.filterMaximalMoves(state, dice.toList)
+          val stateWithDice = state.withDicePool(dice.toList)
+          val allMoves      = LegalMovesFilter.filterMaximalMoves(stateWithDice)
           allMoves.map { m =>
             val base = m.fromSquare.toNotation + m.toSquare.toNotation
             m.promotionPieceType.map(pt => base + pt.asNotation).getOrElse(base)
@@ -82,7 +83,7 @@ object JsApi:
         case Left(_)      => js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
         case Right(state) =>
           val start = System.currentTimeMillis()
-          searchAlgo.findBestMove(state, dice.toList) match
+          searchAlgo.findBestMove(state.withDicePool(dice.toList)) match
             case None =>
               js.Dynamic.literal(
                 moves = js.Array(),
