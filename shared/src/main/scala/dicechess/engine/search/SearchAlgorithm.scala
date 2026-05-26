@@ -29,7 +29,12 @@ object SearchScoring:
     val score =
       if isKingCapturePath(state, path) then TerminalWinScore
       else
-        val finalState = path.foldLeft(state)((s, m) => s.makeMove(m).copy(activeColor = s.activeColor))
+        val finalState = if path.isEmpty then state
+        else {
+          val initMoves         = path.init
+          val intermediateState = initMoves.foldLeft(state)((s, m) => s.makeMove(m).copy(activeColor = s.activeColor))
+          intermediateState.makeMove(path.last)
+        }
         Evaluator.evaluateMaterial(finalState, state.activeColor)
     ScoredSequence(path, score)
 
