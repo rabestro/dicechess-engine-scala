@@ -55,11 +55,11 @@ class GreedySearchSuite extends FunSuite:
     // White rolls: pawn(1), bishop(3), king(6).
     // Move pawn d2-d3, then bishop c1-d2, then king e1-d1. (Not maximizing anything).
     // Let's do: black queen on h8. White bishop on a1. White pawn on b2 blocks. White pawn on c2 blocks.
-    // Actually, simply: white pawn on a2, white pawn on b2, white rook on a1. Black queen on a8.
+    // Black queen on a8. White rook on a1. White pawn on a2 blocks the rook.
+    // Black knight on b3. White pawn on h2.
     // White rolls: pawn(1), pawn(1), rook(4).
-    // White must move a2-a3, b2-b3 (or whatever), then rook takes queen.
-    // Wait, pawn can move twice if we have two pawns rolled!
-    val fen   = "q7/8/8/8/8/8/PP6/R7 w - - 0 1"
+    // White must capture a2xb3 to clear the a-file, move h2-h3, then rook a1xa8.
+    val fen   = "q7/8/8/8/8/1n6/P6P/R7 w - - 0 1"
     val state = FenParser
       .parse(fen)
       .fold(

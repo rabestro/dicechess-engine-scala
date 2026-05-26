@@ -278,7 +278,7 @@ case class GameState(
     mailbox: Map[Square, Piece],
     activeColor: Color,
     castlingRights: String,
-    enPassant: Option[Square],
+    enPassant: Bitboard,
     halfMoveClock: Int,
     fullMoveNumber: Int
 )

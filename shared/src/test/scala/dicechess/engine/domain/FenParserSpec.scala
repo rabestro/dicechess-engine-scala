@@ -13,7 +13,7 @@ class FenParserSpec extends FunSuite:
 
     assertEquals(state.activeColor, Color.White)
     assertEquals(state.castlingRights, "KQkq")
-    assertEquals(state.enPassant, None)
+    assertEquals(state.enPassant, Bitboard.empty)
     assertEquals(state.halfMoveClock, 0)
     assertEquals(state.fullMoveNumber, 1)
 
@@ -48,8 +48,21 @@ class FenParserSpec extends FunSuite:
     val fen    = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
     val parsed = FenParser.parse(fen).toOption.get
 
-    assertEquals(parsed.enPassant, Some(Square('e', 3)))
+    assertEquals(parsed.enPassant, Bitboard.fromSquare(Square('e', 3)))
     assertEquals(FenParser.serialize(parsed), fen)
+  }
+
+  test("FenParser should correctly parse and serialize multiple en passant targets") {
+    val fen    = "rnbqkbnr/pppppppp/8/8/P1P1P3/8/1P1P1PPP/RNBQKBNR b KQkq a3c3e3 0 1"
+    val parsed = FenParser.parse(fen)
+
+    assert(parsed.isRight)
+    val state = parsed.toOption.get
+    assertEquals(
+      state.enPassant,
+      Bitboard.fromSquare(Square('a', 3)) | Bitboard.fromSquare(Square('c', 3)) | Bitboard.fromSquare(Square('e', 3))
+    )
+    assertEquals(FenParser.serialize(state), fen)
   }
 
   test("FenParser should return Left for an invalid board layout") {
