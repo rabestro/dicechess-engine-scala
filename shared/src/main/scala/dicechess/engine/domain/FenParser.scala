@@ -187,14 +187,12 @@ object FenParser {
     if (state.enPassant.isEmpty) {
       res.append("-")
     } else {
-      val squares = mutable.ListBuffer.empty[Square]
-      var ep      = state.enPassant.value
+      var ep = state.enPassant.value
       while (ep != 0) {
         val sq = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(ep))
-        squares += sq
+        res.append(sq.toNotation)
         ep &= ep - 1
       }
-      squares.sortBy(_.toNotation).foreach(sq => res.append(sq.toNotation))
     }
     res.append(" ")
     res.append(state.halfMoveClock.toString)

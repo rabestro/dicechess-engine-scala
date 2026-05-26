@@ -121,16 +121,19 @@ object MoveGenerator {
       addPawnCaptures(from, west, color, enemyKings, moves)
 
       // --- En Passant ---
-      var ep = state.enPassant.value
+      val validEPRank = if (color.isWhite) 6 else 3
+      var ep          = state.enPassant.value
       while (ep != 0) {
         val epIdx    = java.lang.Long.numberOfTrailingZeros(ep)
         val epSquare = Square.fromIndex(epIdx)
-        val epBB     = Bitboard.fromSquare(epSquare)
-        val epEast   = PawnGeneration.eastCaptures(fromBB, epBB, color)
-        val epWest   = PawnGeneration.westCaptures(fromBB, epBB, color)
-        val epTarget = epEast | epWest
-        if (!epTarget.isEmpty) {
-          moves += Move(from, epSquare, Move.EnPassantCapture)
+        if (epSquare.rank == validEPRank) {
+          val epBB     = Bitboard.fromSquare(epSquare)
+          val epEast   = PawnGeneration.eastCaptures(fromBB, epBB, color)
+          val epWest   = PawnGeneration.westCaptures(fromBB, epBB, color)
+          val epTarget = epEast | epWest
+          if (!epTarget.isEmpty) {
+            moves += Move(from, epSquare, Move.EnPassantCapture)
+          }
         }
         ep &= ep - 1
       }

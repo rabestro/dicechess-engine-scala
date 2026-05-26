@@ -214,10 +214,17 @@ extension (state: GameState)
     b.mailbox += (to -> Piece(movingPiece.color, finalPieceType))
 
     val isDoublePush   = movingPiece.pieceType == PieceType.Pawn && math.abs(to.rank - from.rank) == 2
-    val finalEnPassant = if (isDoublePush) {
-      state.enPassant.add(Square.fromIndex(to.index + rankOffset))
+    var finalEnPassant = state.enPassant
+    if (isDoublePush) {
+      finalEnPassant = finalEnPassant.add(Square.fromIndex(to.index + rankOffset))
+    } else if (isEnPassantCapture) {
+      finalEnPassant = finalEnPassant.remove(to)
     } else {
-      state.enPassant
+      targetPiece.foreach { p =>
+        if (p.pieceType == PieceType.Pawn) {
+          finalEnPassant = finalEnPassant.remove(Square.fromIndex(to.index - rankOffset))
+        }
+      }
     }
 
     state.copy(
