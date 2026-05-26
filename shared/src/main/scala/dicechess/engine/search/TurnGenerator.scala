@@ -19,7 +19,7 @@ import dicechess.engine.movegen.MoveGenerator
   */
 object TurnGenerator:
 
-  /** Returns all legal full-turn paths for the given position and dice multiset.
+  /** Generates all legal full-turn paths (sequences of 1 to 3 moves) for the given state.
     *
     * A path is a `List[Move]` of 1–3 micro-moves. An empty list means no legal move exists (the player passes). The
     * filtering guarantees that the returned paths either end with a King capture or share the maximum achievable
@@ -27,13 +27,11 @@ object TurnGenerator:
     *
     * @param state
     *   the current [[GameState]]; `state.activeColor` indicates who is moving
-    * @param dice
-    *   multiset of die values (each in `[1, 6]`) available for this turn
     * @return
     *   a (possibly empty) list of legal full-turn paths; each path contains 1–3 moves
     */
-  def generateAllLegalTurnPaths(state: GameState, dice: List[Int]): List[List[Move]] =
-    val allPaths = generateAllPaths(state, dice).filter(_.nonEmpty)
+  def generateAllLegalTurnPaths(state: GameState): List[List[Move]] =
+    val allPaths = generateAllPaths(state).filter(_.nonEmpty)
     if allPaths.isEmpty then Nil
     else
       val maxLen = allPaths.map(_.size).maxOption.getOrElse(0)
@@ -62,9 +60,9 @@ object TurnGenerator:
       }
       isKingCapture(stateBeforeLast, path.last)
 
-  /** Recursively enumerates all micro-move paths reachable from `state` using `remainingDice`.
+  /** Recursively enumerates all micro-move paths reachable from `state` using `state.dicePool`.
     *
-    * Base case: when `remainingDice` is empty, returns `List(Nil)` — a single empty path representing a pass.
+    * Base case: when `state.dicePool` is empty, returns `List(Nil)` — a single empty path representing a pass.
     *
     * For each distinct die value, all pseudo-legal moves of the matching piece type are explored:
     *   - **King capture** — terminal; recorded as a length-1 path without further recursion.
@@ -76,37 +74,33 @@ object TurnGenerator:
     *
     * @param state
     *   the position to explore; active color is kept fixed throughout the recursion
-    * @param remainingDice
-    *   the dice still available in this turn (multiset, consumed on each move)
     * @return
     *   all reachable paths from this position, each encoded as a `List[Move]` (may include `Nil` for pass)
     */
-  private def generateAllPaths(state: GameState, remainingDice: List[Int]): List[List[Move]] =
-    if remainingDice.isEmpty then List(Nil)
+  private def generateAllPaths(state: GameState): List[List[Move]] =
+    if state.dicePool.isEmpty then List(Nil)
     else
       val activeColor = state.activeColor
       val branches    = List.newBuilder[List[Move]]
       var hasAnyMove  = false
 
-      for d <- remainingDice.distinct do
-        for move <- MoveGenerator.generateMoves(state, d) do
-          hasAnyMove = true
-          if isKingCapture(state, move) then branches += List(move)
-          else if move.isCastling then
-            if remainingDice.contains(PieceType.King.diceValue) &&
-              remainingDice.contains(PieceType.Rook.diceValue)
-            then
-              val afterCastle = remainingDice.diff(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
-              val next        = state.makeMove(move).withActiveColor(activeColor).withDicePool(afterCastle)
-              val subPaths    = generateAllPaths(next, afterCastle)
-              if subPaths.isEmpty || subPaths == List(Nil) then branches += List(move)
-              else for p <- subPaths if p.nonEmpty do branches += (move :: p)
-          else
-            val afterMove = remainingDice.diff(List(d))
-            val next      = state.makeMove(move).withActiveColor(activeColor).withDicePool(afterMove)
-            val subPaths  = generateAllPaths(next, afterMove)
-            if subPaths.isEmpty || subPaths == List(Nil) then branches += List(move)
-            else for p <- subPaths if p.nonEmpty do branches += (move :: p)
+      for move <- MoveGenerator.generateMoves(state) do
+        hasAnyMove = true
+        val moverType = state.mailbox(move.fromSquare).pieceType
+        if isKingCapture(state, move) then branches += List(move)
+        else if move.isCastling then
+          // Castling consumes both King and Rook dice
+          val afterCastle = state.dicePool.diff(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
+          val next        = state.makeMove(move).withActiveColor(activeColor).withDicePool(afterCastle)
+          val subPaths    = generateAllPaths(next)
+          if subPaths.isEmpty || subPaths == List(Nil) then branches += List(move)
+          else for p <- subPaths if p.nonEmpty do branches += (move :: p)
+        else
+          val afterMove = state.dicePool.diff(List(moverType.diceValue))
+          val next      = state.makeMove(move).withActiveColor(activeColor).withDicePool(afterMove)
+          val subPaths  = generateAllPaths(next)
+          if subPaths.isEmpty || subPaths == List(Nil) then branches += List(move)
+          else for p <- subPaths if p.nonEmpty do branches += (move :: p)
 
       val res = branches.result()
       if !hasAnyMove then List(Nil) else res

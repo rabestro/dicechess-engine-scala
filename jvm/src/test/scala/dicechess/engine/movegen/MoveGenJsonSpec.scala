@@ -9,7 +9,7 @@ import scala.io.Source
 class MoveGenJsonSpec extends FunSuite:
 
   private def filterMoves(state: GameState, dice: List[Int]): List[Move] =
-    LegalMovesFilter.filterMaximalMoves(state, dice)
+    LegalMovesFilter.filterMaximalMoves(state.withDicePool(dice))
 
   private def loadTestCases(resourceName: String): List[MoveGenTestCase] =
     val source = Option(getClass.getClassLoader.getResourceAsStream(resourceName))

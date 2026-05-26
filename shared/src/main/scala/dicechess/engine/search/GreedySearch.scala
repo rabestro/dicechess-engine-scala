@@ -18,27 +18,23 @@ object GreedySearch extends SearchAlgorithm:
     *
     * @param state
     *   current [[GameState]]; `state.activeColor` indicates who is moving
-    * @param dice
-    *   multiset of available die values (each in `[1, 6]`)
     * @return
     *   the highest-scoring [[ScoredSequence]], or `None` if no legal move exists
     */
-  override def findBestMove(state: GameState, dice: List[Int]): Option[ScoredSequence] =
-    findBestMove(state, dice, new Random())
+  override def findBestMove(state: GameState): Option[ScoredSequence] =
+    findBestMove(state, new Random())
 
   /** Finds the best move with an explicit `Random` instance, enabling deterministic testing.
     *
     * @param state
     *   current [[GameState]]
-    * @param dice
-    *   multiset of available die values (each in `[1, 6]`)
     * @param rand
     *   random number generator used for tie-breaking among equally-scored paths
     * @return
     *   the highest-scoring [[ScoredSequence]], or `None` if no legal move exists
     */
-  def findBestMove(state: GameState, dice: List[Int], rand: Random): Option[ScoredSequence] =
-    val paths = TurnGenerator.generateAllLegalTurnPaths(state, dice)
+  def findBestMove(state: GameState, rand: Random): Option[ScoredSequence] =
+    val paths = TurnGenerator.generateAllLegalTurnPaths(state)
     if paths.isEmpty then None
     else
       val scoredPaths  = paths.map(path => SearchScoring.scorePath(state, path))

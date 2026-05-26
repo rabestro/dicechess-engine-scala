@@ -25,12 +25,10 @@ trait SearchAlgorithm:
     *
     * @param state
     *   the current [[GameState]]; `state.activeColor` identifies the side to move
-    * @param dice
-    *   multiset of available die values (each in `[1, 6]`) for this turn
     * @return
     *   `Some([[ScoredSequence]])` when at least one legal path exists; `None` when the player must pass
     */
-  def findBestMove(state: GameState, dice: List[Int]): Option[ScoredSequence]
+  def findBestMove(state: GameState): Option[ScoredSequence]
 
 /** Shared scoring utilities used by all [[SearchAlgorithm]] implementations.
   *

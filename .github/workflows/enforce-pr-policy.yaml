@@ -27,7 +27,7 @@ jobs:
               core.setFailed(`Branch name "${headRef}" does not match required pattern: (task|feat|bug)/<ID>-<short-desc>`);
               return;
             }
-            const issuePattern = /(Closes|Resolves)\s+#\d+/i;
+            const issuePattern = /(Closes|Resolves|Fixes)\s+#\d+/i;
             if (!issuePattern.test(body)) {
               core.setFailed('PR body must include "Closes #<issue-number>", "Fixes #<issue-number>" or "Resolves #<issue-number>" linking to the issue.');
               return;

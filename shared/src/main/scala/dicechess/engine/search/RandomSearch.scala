@@ -22,13 +22,11 @@ object RandomSearch extends SearchAlgorithm:
     *
     * @param state
     *   current [[GameState]]; `state.activeColor` indicates who is moving
-    * @param dice
-    *   multiset of available die values (each in `[1, 6]`)
     * @return
     *   a randomly chosen [[ScoredSequence]], or `None` if no legal move exists (forced pass)
     */
-  override def findBestMove(state: GameState, dice: List[Int]): Option[ScoredSequence] =
-    val paths = TurnGenerator.generateAllLegalTurnPaths(state, dice)
+  override def findBestMove(state: GameState): Option[ScoredSequence] =
+    val paths = TurnGenerator.generateAllLegalTurnPaths(state)
     if paths.isEmpty then None
     else
       val randomPath = paths(rand.nextInt(paths.length))

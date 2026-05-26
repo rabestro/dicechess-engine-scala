@@ -40,7 +40,7 @@ object EngineFacade {
     if (fen == null) return js.undefined
     FenParser.parse(fen) match {
       case Right(state) =>
-        val moves = MoveGenerator.generateMoves(state, diceRoll)
+        val moves = MoveGenerator.generateMoves(state.withDicePool(List(diceRoll)))
         if (moves.isEmpty) {
           js.undefined
         } else {

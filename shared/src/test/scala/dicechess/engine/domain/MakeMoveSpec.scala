@@ -419,7 +419,7 @@ class MakeMoveSpec extends FunSuite:
     // Generate Black's legal pawn moves for die 1 (Pawn)
     // Black has a pawn on b4 which can capture en-passant on a3 and c3.
     // Black has a pawn on d4 which can capture en-passant on c3 and e3.
-    val blackMoves = dicechess.engine.movegen.MoveGenerator.generateMoves(finalState, 1)
+    val blackMoves = dicechess.engine.movegen.MoveGenerator.generateMoves(finalState.withDicePool(List(1)))
 
     // Verify all four en-passant captures are generated:
     // b4xa3 (b4 -> a3), b4xc3 (b4 -> c3), d4xc3 (d4 -> c3), d4xe3 (d4 -> e3)
