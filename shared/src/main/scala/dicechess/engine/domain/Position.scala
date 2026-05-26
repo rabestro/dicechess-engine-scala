@@ -227,6 +227,14 @@ extension (state: GameState)
       }
     }
 
+    val diceVal      = movingPiece.pieceType.diceValue
+    val nextDicePool = if (state.dicePool.contains(diceVal)) {
+      val idx = state.dicePool.indexOf(diceVal)
+      state.dicePool.patch(idx, Nil, 1)
+    } else {
+      state.dicePool
+    }
+
     state.copy(
       whitePieces = b.white,
       blackPieces = b.black,
@@ -238,6 +246,7 @@ extension (state: GameState)
       kings = b.kings,
       mailbox = b.mailbox,
       enPassant = finalEnPassant,
+      dicePool = nextDicePool,
       halfMoveClock =
         if movingPiece.pieceType == PieceType.Pawn || targetPiece.isDefined || isEnPassantCapture then 0
         else state.halfMoveClock + 1
@@ -338,6 +347,7 @@ extension (state: GameState)
       mailbox = b.mailbox,
       activeColor = state.activeColor.opponent,
       enPassant = newEnPassant,
+      dicePool = Nil,
       castlingRights = Position.updatedCastlingRights(state.castlingRights, mover, from, target, to, isWhite),
       halfMoveClock = if mover.pieceType == PieceType.Pawn || mv.isCapture then 0 else state.halfMoveClock + 1,
       fullMoveNumber = if state.activeColor.isBlack then state.fullMoveNumber + 1 else state.fullMoveNumber

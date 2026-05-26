@@ -47,13 +47,13 @@ object TurnGenerator:
               remainingDice.contains(PieceType.Rook.diceValue)
             then
               val afterCastle = remainingDice.diff(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
-              val next        = state.makeMove(move).copy(activeColor = activeColor)
+              val next        = state.makeMove(move).copy(activeColor = activeColor, dicePool = afterCastle)
               val subPaths    = generateAllPaths(next, afterCastle)
               if subPaths.isEmpty || subPaths == List(Nil) then branches += List(move)
               else for p <- subPaths if p.nonEmpty do branches += (move :: p)
           else
             val afterMove = remainingDice.diff(List(d))
-            val next      = state.makeMove(move).copy(activeColor = activeColor)
+            val next      = state.makeMove(move).copy(activeColor = activeColor, dicePool = afterMove)
             val subPaths  = generateAllPaths(next, afterMove)
             if subPaths.isEmpty || subPaths == List(Nil) then branches += List(move)
             else for p <- subPaths if p.nonEmpty do branches += (move :: p)

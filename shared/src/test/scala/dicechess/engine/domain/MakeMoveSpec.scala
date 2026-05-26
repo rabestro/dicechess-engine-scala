@@ -363,3 +363,17 @@ class MakeMoveSpec extends FunSuite:
     assertEquals(result.mailbox.get(Square('d', 5)), None) // victim removed
     assertEquals(result.mailbox.get(Square('d', 6)), Some(Piece(Color.White, PieceType.Pawn)))
   }
+
+  test("MicroMove: playing a move consumes the matching die from the dicePool") {
+    val fen   = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 114"
+    val state = parse(fen)
+    assertEquals(state.dicePool, List(1, 1, 4))
+
+    // White pawn moves a2a4 (pawn pieceType = 1)
+    val state1 = state.makeMove(MicroMove(Square('a', 2), Square('a', 4)))
+    assertEquals(state1.dicePool, List(1, 4)) // One '1' consumed
+
+    // White rook moves a1a3 (rook pieceType = 4)
+    val state2 = state1.makeMove(MicroMove(Square('a', 1), Square('a', 3)))
+    assertEquals(state2.dicePool, List(1)) // The '4' consumed
+  }

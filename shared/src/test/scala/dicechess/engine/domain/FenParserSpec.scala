@@ -81,3 +81,33 @@ class FenParserSpec extends FunSuite:
     assert(parsed.isLeft)
     assert(parsed.left.toOption.get.contains("Unknown piece character 'X'"))
   }
+
+  test("FenParser should correctly parse and serialize DFEN with 7th field dice pool") {
+    val fen    = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 111"
+    val parsed = FenParser.parse(fen)
+
+    assert(parsed.isRight)
+    val state = parsed.toOption.get
+    assertEquals(state.dicePool, List(1, 1, 1))
+    assertEquals(FenParser.serialize(state), fen)
+  }
+
+  test("FenParser should support backward compatibility for 6-field standard FEN and default dicePool to Nil") {
+    val fen    = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    val parsed = FenParser.parse(fen)
+
+    assert(parsed.isRight)
+    val state = parsed.toOption.get
+    assertEquals(state.dicePool, Nil)
+    assertEquals(FenParser.serialize(state), fen)
+  }
+
+  test("FenParser should parse 7-field FEN with empty dice pool '-' and serialize to 6-field FEN") {
+    val fen    = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 -"
+    val parsed = FenParser.parse(fen)
+
+    assert(parsed.isRight)
+    val state = parsed.toOption.get
+    assertEquals(state.dicePool, Nil)
+    assertEquals(FenParser.serialize(state), "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+  }

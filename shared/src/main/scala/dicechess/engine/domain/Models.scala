@@ -279,6 +279,7 @@ case class GameState(
     activeColor: Color,
     castlingRights: String,
     enPassant: Bitboard,
+    dicePool: List[Int],
     halfMoveClock: Int,
     fullMoveNumber: Int
 )
