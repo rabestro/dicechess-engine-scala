@@ -1,0 +1,117 @@
+package dicechess.engine.domain
+
+opaque type GameFlags = Int
+
+/** An ultra-compact 32-bit representation of the meta-state of a Dice Chess game.
+  *
+  * Memory Layout (29 bits total):
+  *   - Bit 0 (1 bit) : Active Color (0 = White, 1 = Black)
+  *   - Bits 1-4 (4 bits): Castling Rights (Bit 1=K, Bit 2=Q, Bit 3=k, Bit 4=q)
+  *   - Bits 5-12 (8 bits): En-Passant Files (Bit N = File N has an EP target)
+  *   - Bits 13-15 (3 bits): Dice Slot 1 (0 = empty, 1-6 = piece/die value)
+  *   - Bits 16-18 (3 bits): Dice Slot 2
+  *   - Bits 19-21 (3 bits): Dice Slot 3
+  *   - Bits 22-28 (7 bits): Half Move Clock (0-127, for the 50-move rule)
+  */
+object GameFlags:
+  val empty: GameFlags = 0
+
+  /** Builds a [[GameFlags]] integer from individual components. */
+  def apply(
+      color: Color,
+      castlingRights: Int,
+      enPassantFiles: Int,
+      dice1: Int,
+      dice2: Int,
+      dice3: Int,
+      halfMoveClock: Int
+  ): GameFlags =
+    val c        = color.value & 0x1
+    val castling = (castlingRights & 0xf) << 1
+    val ep       = (enPassantFiles & 0xff) << 5
+    val d1       = (dice1 & 0x7) << 13
+    val d2       = (dice2 & 0x7) << 16
+    val d3       = (dice3 & 0x7) << 19
+    val hmc      = (halfMoveClock & 0x7f) << 22
+    c | castling | ep | d1 | d2 | d3 | hmc
+
+  /** Helper to build [[GameFlags]] from a list of dice instead of individual slots. */
+  def fromList(
+      color: Color,
+      castlingRights: Int,
+      enPassantFiles: Int,
+      dicePool: List[Int],
+      halfMoveClock: Int
+  ): GameFlags =
+    val d1 = dicePool.lift(0).getOrElse(0)
+    val d2 = dicePool.lift(1).getOrElse(0)
+    val d3 = dicePool.lift(2).getOrElse(0)
+    apply(color, castlingRights, enPassantFiles, d1, d2, d3, halfMoveClock)
+
+  extension (flags: GameFlags)
+    /** Returns the active player's color. */
+    inline def activeColor: Color = Color(flags & 0x1)
+
+    /** Returns the active player's color flipped. */
+    inline def toggleActiveColor: GameFlags = flags ^ 0x1
+
+    /** Returns the 4-bit castling rights integer. */
+    inline def castlingRights: Int = (flags >>> 1) & 0xf
+
+    /** Sets the castling rights, returning a new [[GameFlags]]. */
+    inline def withCastlingRights(rights: Int): GameFlags =
+      (flags & ~(0xf << 1)) | ((rights & 0xf) << 1)
+
+    /** Returns the 8-bit en-passant files mask. */
+    inline def enPassantFiles: Int = (flags >>> 5) & 0xff
+
+    /** Sets the en-passant files mask, returning a new [[GameFlags]]. */
+    inline def withEnPassantFiles(filesMask: Int): GameFlags =
+      (flags & ~(0xff << 5)) | ((filesMask & 0xff) << 5)
+
+    inline def diceSlot1: Int = (flags >>> 13) & 0x7
+    inline def diceSlot2: Int = (flags >>> 16) & 0x7
+    inline def diceSlot3: Int = (flags >>> 19) & 0x7
+
+    /** Extracts the available dice into a standard Scala List (useful for UI/FEN boundaries). Avoid using in hot-paths.
+      */
+    def dicePool: List[Int] =
+      val pool = List.newBuilder[Int]
+      val d1   = diceSlot1; if d1 != 0 then pool += d1
+      val d2   = diceSlot2; if d2 != 0 then pool += d2
+      val d3   = diceSlot3; if d3 != 0 then pool += d3
+      pool.result()
+
+    /** Adds a single die to the pool. Throws if the pool is already full (3 dice). */
+    def addDie(die: Int): GameFlags =
+      require(die >= 1 && die <= 6, s"Invalid die: $die")
+      if diceSlot1 == 0 then flags | (die << 13)
+      else if diceSlot2 == 0 then flags | (die << 16)
+      else if diceSlot3 == 0 then flags | (die << 19)
+      else throw new IllegalStateException(s"Dice pool is full: $diceSlot1, $diceSlot2, $diceSlot3")
+
+    /** Removes a single occurrence of the specified die from the pool. Does nothing if the die is not present.
+      */
+    def removeDie(die: Int): GameFlags =
+      if diceSlot1 == die then flags & ~(0x7 << 13)
+      else if diceSlot2 == die then flags & ~(0x7 << 16)
+      else if diceSlot3 == die then flags & ~(0x7 << 19)
+      else flags
+
+    /** Replaces the entire dice pool. */
+    def withDicePool(dice: List[Int]): GameFlags =
+      val base = flags & ~((0x7 << 13) | (0x7 << 16) | (0x7 << 19))
+      val d1   = dice.lift(0).getOrElse(0)
+      val d2   = dice.lift(1).getOrElse(0)
+      val d3   = dice.lift(2).getOrElse(0)
+      base | ((d1 & 0x7) << 13) | ((d2 & 0x7) << 16) | ((d3 & 0x7) << 19)
+
+    /** Returns the half-move clock counter. */
+    inline def halfMoveClock: Int = (flags >>> 22) & 0x7f
+
+    /** Sets the half-move clock. */
+    inline def withHalfMoveClock(clock: Int): GameFlags =
+      (flags & ~(0x7f << 22)) | ((clock & 0x7f) << 22)
+
+    /** Exposes the underlying integer. */
+    inline def value: Int = flags
