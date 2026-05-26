@@ -6,6 +6,7 @@ sidebar:
 ---
 
 To fully represent the state of a **Dice Chess** game, standard Forsyth-Edwards Notation (FEN) is insufficient. Dice Chess introduces two major mechanics that break standard FEN assumptions:
+
 1. **Multiple En Passant Squares**: Because a player can execute up to three micro-moves in a single turn, they can perform multiple double pawn pushes (e.g., `a2-a4`, `c2-c4`, `e2-e4`). In the subsequent turn, the opponent must be able to capture *any* of these pawns on the pass.
 2. **Mid-Turn Game State (Dice Pool)**: A standard turn consists of rolling three dice and performing up to three micro-moves. To support game pauses, bookmarks, and search-tree evaluations mid-turn, the FEN must encode the active player's remaining dice pool.
 
@@ -17,7 +18,7 @@ To address these requirements, we specify **Dice Chess FEN (DFEN)**.
 
 DFEN extends the standard FEN to **seven space-separated fields**:
 
-```
+```text
 <pieces> <color> <castling> <en-passant> <halfmove> <fullmove> [dice-pool]
 ```
 
@@ -35,14 +36,18 @@ In DFEN, Field 4 supports **multiple en-passant squares** through **Alphabetical
 - **Multiple Active Targets**: Represented as a concatenated string of 2-character square notations, sorted alphabetically (e.g., `a3c3e3` or `b6f6`).
 
 ### Sorting & Determinism
+
 To guarantee that logically identical positions serialize to identical DFEN strings:
+
 * En-passant squares **must** be sorted alphabetically (e.g., `a3` < `c3` < `e3`).
 * Only squares that are valid en-passant capture coordinates (the squares skipped by double-pushed pawns in the immediate previous turn) are included.
 
-### Example (3 Double Pawn Pushes):
+### Example (3 Double Pawn Pushes)
+
 If White plays `a2-a4`, `c2-c4`, and `e2-e4` in one turn:
+
 * The en-passant field becomes: `a3c3e3`
-* Complete DFEN: `rnbqkbnr/pppppppp/8/8/P1P1P3/8/1P1P1PPP/RNBQKBNR b KQkq a3c3e3 0 1`
+* Complete DFEN (Field 7 omitted or empty `-`): `rnbqkbnr/pppppppp/8/8/P1P1P3/8/1P1P1PPP/RNBQKBNR b KQkq a3c3e3 0 1 -`
 
 ---
 
@@ -51,6 +56,7 @@ If White plays `a2-a4`, `c2-c4`, and `e2-e4` in one turn:
 Field 7 is an **optional** field that represents the active player's remaining dice pool for their current turn.
 
 The dice values are mapped to piece types:
+
 * `1` = Pawn (♙)
 * `2` = Knight (♘)
 * `3` = Bishop (♗)
@@ -58,11 +64,13 @@ The dice values are mapped to piece types:
 * `5` = Queen (♕)
 * `6` = King (♔)
 
-### Representation Rules:
+### Representation Rules
+
 - **No Dice Rolled / Fresh Turn**: Represented by a single dash `-`. This indicates that the active color has transitioned, and the player must roll the dice before making any moves.
 - **Active Dice Pool**: Represented by a string of digits `1-6`, sorted in ascending order (e.g., `111` or `125`).
 
 ### 🔄 Five-Phase Turn State Progression (Example)
+
 Here is how the active color and 7th field progress during a White turn where White rolls three pawns (`1, 1, 1`) and plays three micro-moves:
 
 | Phase | State Description | Color Field | Dice Field | Meaning |
@@ -78,11 +86,15 @@ Here is how the active color and 7th field progress during a White turn where Wh
 ## 🚀 Impact on Engine Domain & Search
 
 ### 1. `GameState` Updates
+
 `enPassant` is represented as a high-performance `Bitboard` instead of an `Option[Square]`:
+
 ```scala
 opaque type Bitboard = Long // Zero-GC 64-bit mask
 ```
+
 A new field `dicePool` is introduced to `GameState`:
+
 ```scala
 case class GameState(
     ...,
@@ -93,6 +105,7 @@ case class GameState(
 ```
 
 ### 2. Move Generation & Application
+
 * **Move Generation**: Iterates through set bits in `state.enPassant` to yield all possible en-passant capture moves.
 * **Move Application**: If a micro-move is applied:
   - The played die is removed from `dicePool`.
@@ -100,6 +113,9 @@ case class GameState(
   - If the `dicePool` becomes empty or no legal moves remain, the turn ends: `activeColor` is toggled, `dicePool` is cleared to empty (`Nil`), and the old `enPassant` bitboard is cleared.
 
 ### 3. Bot & Expectimax Engine Alignment
+
 Expectimax search transitions between states using the 7th field:
+
 * When evaluating chance nodes (dice rolls), the engine branches on the 6 possible rolls (`1` to `6`), populating the `dicePool` field in child states.
 * Maximizing/Minimizing players then search through paths matching the `dicePool` combinations, fully aligned with multiple en-passant opportunities.
+
