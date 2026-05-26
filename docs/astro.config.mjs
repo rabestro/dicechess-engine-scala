@@ -26,6 +26,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Glossary', slug: 'architecture/glossary' },
 						{ label: 'Domain Modeling', slug: 'architecture/domain-modeling' },
+						{ label: 'Dice Chess FEN (DFEN)', slug: 'architecture/dice-chess-fen' },
 						{ label: 'Primitive Best-Move Search', slug: 'architecture/primitive-search' },
 						{
 							label: 'Move Generation',

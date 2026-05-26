@@ -83,6 +83,10 @@ class PropertySpec extends ScalaCheckSuite:
     )
     enPassantBB = epSquares.foldLeft(Bitboard.empty)((bb, sq) => bb.add(sq))
 
+    numDice <- Gen.choose(0, 3)
+    dice    <- Gen.listOfN(numDice, Gen.choose(1, 6))
+    dicePool = dice.sorted
+
     halfMoveClock  <- Gen.choose(0, 100)
     fullMoveNumber <- Gen.choose(1, 500)
   yield GameState(
@@ -98,6 +102,7 @@ class PropertySpec extends ScalaCheckSuite:
     activeColor = activeColor,
     castlingRights = castlingRights,
     enPassant = enPassantBB,
+    dicePool = dicePool,
     halfMoveClock = halfMoveClock,
     fullMoveNumber = fullMoveNumber
   )

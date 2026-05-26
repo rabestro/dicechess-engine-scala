@@ -61,6 +61,27 @@ object FenParser {
       val halfMove  = if (parts.length > 4) parts(4).toInt else 0
       val fullMove  = if (parts.length > 5) parts(5).toInt else 1
 
+      val dicePool = if (parts.length >= 7) {
+        val poolField = parts(6)
+        if (poolField == "-") Nil
+        else {
+          val list = mutable.ListBuffer.empty[Int]
+          var idx  = 0
+          while (idx < poolField.length) {
+            val char = poolField.charAt(idx)
+            if (char >= '1' && char <= '6') {
+              list += char.asDigit
+            } else {
+              return Left(s"Invalid dice-pool character '$char'")
+            }
+            idx += 1
+          }
+          list.toList.sorted
+        }
+      } else {
+        Nil
+      }
+
       val ranks = board.split("/")
       if (ranks.length != 8) return Left(s"Invalid FEN: board must have 8 ranks, found ${ranks.length}")
 
@@ -136,6 +157,7 @@ object FenParser {
           activeColor,
           castling,
           enPassant,
+          dicePool,
           halfMove,
           fullMove
         )
@@ -198,6 +220,11 @@ object FenParser {
     res.append(state.halfMoveClock.toString)
     res.append(" ")
     res.append(state.fullMoveNumber.toString)
+
+    if (state.dicePool.nonEmpty) {
+      res.append(" ")
+      state.dicePool.sorted.foreach(d => res.append(d.toString))
+    }
 
     res.toString
   }
