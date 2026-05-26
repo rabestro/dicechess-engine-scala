@@ -27,24 +27,17 @@ object SearchScoring:
 
   def scorePath(state: GameState, path: List[Move]): ScoredSequence =
     val score =
-      if isKingCapturePath(state, path) then TerminalWinScore
+      if path.isEmpty then Evaluator.evaluateMaterial(state, state.activeColor)
       else
-        val finalState = if path.isEmpty then state
-        else {
-          val initMoves         = path.init
-          val intermediateState = initMoves.foldLeft(state)((s, m) => s.makeMove(m).copy(activeColor = s.activeColor))
-          intermediateState.makeMove(path.last)
-        }
-        Evaluator.evaluateMaterial(finalState, state.activeColor)
-    ScoredSequence(path, score)
+        val activeColor       = state.activeColor
+        val intermediateState = path.init.foldLeft(state)((s, m) => s.makeMove(m).copy(activeColor = activeColor))
+        val lastMove          = path.last
+        val isKingCapture     = intermediateState.mailbox
+          .get(lastMove.toSquare)
+          .exists(piece => piece.pieceType == PieceType.King && piece.color != activeColor)
 
-  private def isKingCapturePath(initialState: GameState, path: List[Move]): Boolean =
-    if path.isEmpty then false
-    else
-      val activeColor     = initialState.activeColor
-      val stateBeforeLast = path.init.foldLeft(initialState) { (state, move) =>
-        state.makeMove(move).copy(activeColor = activeColor)
-      }
-      stateBeforeLast.mailbox
-        .get(path.last.toSquare)
-        .exists(piece => piece.pieceType == PieceType.King && piece.color != activeColor)
+        if isKingCapture then TerminalWinScore
+        else
+          val finalState = intermediateState.makeMove(lastMove)
+          Evaluator.evaluateMaterial(finalState, activeColor)
+    ScoredSequence(path, score)
