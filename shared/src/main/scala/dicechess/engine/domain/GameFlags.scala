@@ -55,6 +55,10 @@ object GameFlags:
     /** Returns the active player's color flipped. */
     inline def toggleActiveColor: GameFlags = flags ^ 0x1
 
+    /** Sets the active player's color, returning a new [[GameFlags]]. */
+    inline def withActiveColor(c: Color): GameFlags =
+      (flags & ~0x1) | (c.value & 0x1)
+
     /** Returns the 4-bit castling rights integer. */
     inline def castlingRights: Int = (flags >>> 1) & 0xf
 

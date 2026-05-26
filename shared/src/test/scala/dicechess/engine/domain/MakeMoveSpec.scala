@@ -407,7 +407,8 @@ class MakeMoveSpec extends FunSuite:
     )
 
     // Transition state to Black's turn: activeColor = Black, dicePool = Nil
-    val finalState = state3.copy(activeColor = Color.Black)
+    val finalState = state3.withActiveColor(Color.Black)
+    assertEquals(finalState.activeColor, Color.Black)
 
     // Verify enPassant bitboard contains all three targets on rank 3
     val expectedEP = Bitboard.fromSquare(Square('a', 3)) |

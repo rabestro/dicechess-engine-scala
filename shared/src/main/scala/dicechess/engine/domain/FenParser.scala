@@ -37,19 +37,28 @@ object FenParser {
       val parts = fen.split(" ")
       if (parts.length < 4) return Left("Invalid FEN: insufficient parts")
 
-      val board          = parts(0)
-      val activeColor    = if (parts(1) == "w") Color.White else Color.Black
-      val castling       = parts(2)
+      val board       = parts(0)
+      val activeColor = if (parts(1) == "w") Color.White else Color.Black
+      val castling    = parts(2)
+      var castlingInt = 0
+      if (castling.contains('K')) castlingInt |= 1
+      if (castling.contains('Q')) castlingInt |= 2
+      if (castling.contains('k')) castlingInt |= 4
+      if (castling.contains('q')) castlingInt |= 8
+
       val enPassantField = parts(3)
-      var enPassantBB    = Bitboard.empty
+      var epFiles        = 0
+      var enPassantBb    = Bitboard.empty
       if (enPassantField != "-") {
         var idx = 0
         while (idx < enPassantField.length) {
           if (idx + 2 <= enPassantField.length) {
             val notation = enPassantField.substring(idx, idx + 2)
             Square.fromNotation(notation) match {
-              case Some(sq) => enPassantBB = enPassantBB.add(sq)
-              case None     => return Left(s"Invalid en-passant notation '$notation'")
+              case Some(sq) =>
+                epFiles |= (1 << (sq.file - 'a'))
+                enPassantBb = enPassantBb.add(sq)
+              case None => return Left(s"Invalid en-passant notation '$notation'")
             }
           } else {
             return Left(s"Invalid en-passant field '$enPassantField'")
@@ -57,9 +66,8 @@ object FenParser {
           idx += 2
         }
       }
-      val enPassant = enPassantBB
-      val halfMove  = if (parts.length > 4) parts(4).toInt else 0
-      val fullMove  = if (parts.length > 5) parts(5).toInt else 1
+      val halfMove = if (parts.length > 4) parts(4).toInt else 0
+      val fullMove = if (parts.length > 5) parts(5).toInt else 1
 
       val dicePool = if (parts.length >= 7) {
         val poolField = parts(6)
@@ -81,6 +89,8 @@ object FenParser {
       } else {
         Nil
       }
+
+      val flags = GameFlags.fromList(activeColor, castlingInt, epFiles, dicePool, halfMove)
 
       val ranks = board.split("/")
       if (ranks.length != 8) return Left(s"Invalid FEN: board must have 8 ranks, found ${ranks.length}")
@@ -153,13 +163,10 @@ object FenParser {
           rooks,
           queens,
           kings,
-          mailbox.toMap,
-          activeColor,
-          castling,
-          enPassant,
-          dicePool,
-          halfMove,
-          fullMove
+          mailbox = mailbox.toMap,
+          flags = flags,
+          enPassant = enPassantBb,
+          fullMoveNumber = fullMove
         )
       )
     } catch {
@@ -202,28 +209,38 @@ object FenParser {
     }
 
     res.append(" ")
-    res.append(if (state.activeColor.isWhite) "w" else "b")
+    res.append(if (state.flags.activeColor.isWhite) "w" else "b")
     res.append(" ")
-    res.append(state.castlingRights)
+
+    val cr = state.flags.castlingRights
+    if (cr == 0) res.append("-")
+    else {
+      if ((cr & 1) != 0) res.append("K")
+      if ((cr & 2) != 0) res.append("Q")
+      if ((cr & 4) != 0) res.append("k")
+      if ((cr & 8) != 0) res.append("q")
+    }
+
     res.append(" ")
     if (state.enPassant.isEmpty) {
       res.append("-")
     } else {
       var ep = state.enPassant.value
       while (ep != 0) {
-        val sq = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(ep))
-        res.append(sq.toNotation)
+        val sqIdx = java.lang.Long.numberOfTrailingZeros(ep)
+        res.append(Square.fromIndex(sqIdx).toNotation)
         ep &= ep - 1
       }
     }
     res.append(" ")
-    res.append(state.halfMoveClock.toString)
+    res.append(state.flags.halfMoveClock.toString)
     res.append(" ")
     res.append(state.fullMoveNumber.toString)
 
-    if (state.dicePool.nonEmpty) {
+    val pool = state.flags.dicePool
+    if (pool.nonEmpty) {
       res.append(" ")
-      state.dicePool.sorted.foreach(d => res.append(d.toString))
+      pool.sorted.foreach(d => res.append(d.toString))
     }
 
     res.toString
