@@ -377,3 +377,55 @@ class MakeMoveSpec extends FunSuite:
     val state2 = state1.makeMove(MicroMove(Square('a', 1), Square('a', 3)))
     assertEquals(state2.dicePool, List(1)) // The '4' consumed
   }
+
+  test(
+    "Turn: multiple double pawn pushes accumulate en-passant squares and expose en-passant captures to opponent in the next turn"
+  ) {
+    // Custom board position: White pawns on a2, c2, e2; Black pawns on b4, d4.
+    val fen   = "rnbqkbnr/p1p1p1pp/8/8/1p1p4/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 111"
+    val state = parse(fen)
+
+    // White rolls pawn (1), pawn (1), pawn (1)
+    assertEquals(state.dicePool, List(1, 1, 1))
+
+    // 1st micro-move: a2a4
+    val state1 = state.makeMove(MicroMove(Square('a', 2), Square('a', 4)))
+    assertEquals(state1.enPassant, Bitboard.fromSquare(Square('a', 3)))
+
+    // 2nd micro-move: c2c4
+    val state2 = state1.makeMove(MicroMove(Square('c', 2), Square('c', 4)))
+    assertEquals(
+      state2.enPassant,
+      Bitboard.fromSquare(Square('a', 3)) | Bitboard.fromSquare(Square('c', 3))
+    )
+
+    // 3rd micro-move: e2e4
+    val state3 = state2.makeMove(MicroMove(Square('e', 2), Square('e', 4)))
+    assertEquals(
+      state3.enPassant,
+      Bitboard.fromSquare(Square('a', 3)) | Bitboard.fromSquare(Square('c', 3)) | Bitboard.fromSquare(Square('e', 3))
+    )
+
+    // Transition state to Black's turn: activeColor = Black, dicePool = Nil
+    val finalState = state3.copy(activeColor = Color.Black)
+
+    // Verify enPassant bitboard contains all three targets on rank 3
+    val expectedEP = Bitboard.fromSquare(Square('a', 3)) |
+      Bitboard.fromSquare(Square('c', 3)) |
+      Bitboard.fromSquare(Square('e', 3))
+    assertEquals(finalState.enPassant, expectedEP)
+
+    // Generate Black's legal pawn moves for die 1 (Pawn)
+    // Black has a pawn on b4 which can capture en-passant on a3 and c3.
+    // Black has a pawn on d4 which can capture en-passant on c3 and e3.
+    val blackMoves = dicechess.engine.movegen.MoveGenerator.generateMoves(finalState, 1)
+
+    // Verify all four en-passant captures are generated:
+    // b4xa3 (b4 -> a3), b4xc3 (b4 -> c3), d4xc3 (d4 -> c3), d4xe3 (d4 -> e3)
+    val epMoves = blackMoves.filter(_.flags == Move.EnPassantCapture)
+    assertEquals(epMoves.size, 4)
+
+    val epNotations       = epMoves.map(m => s"${m.fromSquare.toNotation}${m.toSquare.toNotation}").toSet
+    val expectedNotations = Set("b4a3", "b4c3", "d4c3", "d4e3")
+    assertEquals(epNotations, expectedNotations)
+  }
