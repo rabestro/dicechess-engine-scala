@@ -11,6 +11,11 @@ package dicechess.engine.domain
   */
 opaque type Move = Int
 
+/** Companion object for [[Move]]: smart constructors, flag constants, and extension methods.
+  *
+  * Flag constants follow the *Chess Programming Wiki* standard 4-bit encoding, extended with higher bits for
+  * promotions. The encoding allows O(1) flag tests using bitwise arithmetic.
+  */
 object Move:
 
   // Shift offsets for bit packing
@@ -22,25 +27,25 @@ object Move:
   private val FromMask: Int  = 0x3f << FromShift
   private val FlagsMask: Int = 0x0f << FlagsShift
 
-  // Standard 4-bit Move Flags
-  val QuietMove: Int        = 0
-  val DoublePawnPush: Int   = 1
-  val KingCastle: Int       = 2
-  val QueenCastle: Int      = 3
-  val Capture: Int          = 4
-  val EnPassantCapture: Int = 5
+  /** Standard 4-bit move flags — quiet and special moves. */
+  val QuietMove: Int        = 0 // Bit pattern: 0000 — simple non-capture move
+  val DoublePawnPush: Int   = 1 // Bit pattern: 0001 — sets the en-passant square
+  val KingCastle: Int       = 2 // Bit pattern: 0010 — O-O (king-side)
+  val QueenCastle: Int      = 3 // Bit pattern: 0011 — O-O-O (queen-side)
+  val Capture: Int          = 4 // Bit pattern: 0100 — standard capture (Bit 2 set)
+  val EnPassantCapture: Int = 5 // Bit pattern: 0101 — captures the pawn behind the destination
 
-  // Promotion flags (Bit 3 is high)
-  val KnightPromotion: Int = 8
-  val BishopPromotion: Int = 9
-  val RookPromotion: Int   = 10
-  val QueenPromotion: Int  = 11
+  /** Promotion flags — Bit 3 is set to distinguish promotions from normal moves. */
+  val KnightPromotion: Int = 8  // Bit pattern: 1000
+  val BishopPromotion: Int = 9  // Bit pattern: 1001
+  val RookPromotion: Int   = 10 // Bit pattern: 1010
+  val QueenPromotion: Int  = 11 // Bit pattern: 1011
 
-  // Promotion Captures (Bits 3 and 2 are high)
-  val KnightPromoCapture: Int = 12
-  val BishopPromoCapture: Int = 13
-  val RookPromoCapture: Int   = 14
-  val QueenPromoCapture: Int  = 15
+  /** Promotion-capture flags — both Bit 3 and Bit 2 are set. */
+  val KnightPromoCapture: Int = 12 // Bit pattern: 1100
+  val BishopPromoCapture: Int = 13 // Bit pattern: 1101
+  val RookPromoCapture: Int   = 14 // Bit pattern: 1110
+  val QueenPromoCapture: Int  = 15 // Bit pattern: 1111
 
   /** Constructs a new encoded Move from origin, destination, and flags. */
   def apply(from: Square, to: Square, flags: Int): Move =
@@ -50,7 +55,7 @@ object Move:
   def apply(from: Square, to: Square): Move =
     apply(from, to, QuietMove)
 
-  /** An empty or uninitialized move (a1 to a1). */
+  /** A sentinel move encoding a1→a1 with no flags. Used as a zero-value placeholder; never a legal move. */
   val empty: Move = 0
 
   extension (move: Move)

@@ -298,8 +298,20 @@ case class GameState(
   inline def dicePool: List[Int] = flags.dicePool
   inline def halfMoveClock: Int  = flags.halfMoveClock
 
+  /** Returns a copy of this state with the active color set to `c`.
+    *
+    * Used during turn execution to keep the active color constant across micro-moves, since [[Position.makeMove]]
+    * normally flips it.
+    */
   def withActiveColor(c: Color): GameState =
     copy(flags = flags.withActiveColor(c))
 
+  /** Returns a copy of this state with the dice pool replaced by `pool`.
+    *
+    * Used to track remaining dice during multi-micro-move turn enumeration.
+    *
+    * @param pool
+    *   up to three die values; excess elements are silently ignored
+    */
   def withDicePool(pool: List[Int]): GameState =
     copy(flags = flags.withDicePool(pool))

@@ -159,12 +159,15 @@ extension (state: GameState)
     * Handles piece movement, captures, and basic bitboard updates. This is a _raw_ move application — higher-level
     * logic such as switching turns after three micro-moves is the responsibility of the Turn manager.
     *
+    * **Dice pool**: The die matching the moving piece type is automatically removed from `state.dicePool`. If the pool
+    * is empty (e.g. when replaying from perft or search without dice context), the pool is left unchanged.
+    *
     * The half-move clock is reset to 0 on pawn moves and captures; otherwise it is increased by 1.
     *
     * @param mv
     *   the micro-move to apply
     * @return
-    *   a new [[GameState]] reflecting the position after the move
+    *   a new [[GameState]] reflecting the position after the move, with active color toggled and dice pool decremented
     */
   def makeMove(mv: MicroMove): GameState = {
     val from        = mv.from

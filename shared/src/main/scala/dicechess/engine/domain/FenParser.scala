@@ -15,6 +15,18 @@ import scala.collection.mutable
   * rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
   * ```
   *
+  * ## Dice Chess Extension (7th field)
+  *
+  * This parser also supports an optional **7th field** that stores the current turn's dice pool:
+  *
+  * ```
+  * rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1 135
+  * ```
+  *
+  * The 7th field is a string of digit characters in `[1, 6]` (e.g. `"135"` = dice pool `[1, 3, 5]`). It is absent
+  * (`"-"`) or omitted when no dice have been rolled yet. [[serialize]] appends it automatically when the pool is
+  * non-empty.
+  *
   * Both [[parse]] and [[serialize]] are inverses of each other for any valid FEN string.
   */
 object FenParser {
