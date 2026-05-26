@@ -69,14 +69,14 @@ object FenParser {
           var idx  = 0
           while (idx < poolField.length) {
             val char = poolField.charAt(idx)
-            if (char.isDigit) {
+            if (char >= '1' && char <= '6') {
               list += char.asDigit
             } else {
               return Left(s"Invalid dice-pool character '$char'")
             }
             idx += 1
           }
-          list.toList
+          list.toList.sorted
         }
       } else {
         Nil

@@ -228,10 +228,11 @@ extension (state: GameState)
     }
 
     val diceVal      = movingPiece.pieceType.diceValue
-    val nextDicePool = if (state.dicePool.contains(diceVal)) {
-      val idx = state.dicePool.indexOf(diceVal)
+    val idx          = state.dicePool.indexOf(diceVal)
+    val nextDicePool = if (idx >= 0) {
       state.dicePool.patch(idx, Nil, 1)
     } else {
+      require(state.dicePool.isEmpty, s"Active dice pool ${state.dicePool} does not contain piece type $diceVal")
       state.dicePool
     }
 
