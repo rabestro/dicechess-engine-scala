@@ -180,7 +180,7 @@ extension (state: GameState)
     * @return
     *   a new [[GameState]] reflecting the position after the move
     */
-  def makeMove(mv: MicroMove): GameState =
+  def makeMove(mv: MicroMove): GameState = {
     val from        = mv.from
     val to          = mv.to
     val movingPiece = state.mailbox(from)
@@ -188,7 +188,21 @@ extension (state: GameState)
     val isWhite     = movingPiece.color.isWhite
     val fromBB      = Bitboard.fromSquare(from)
     val toBB        = Bitboard.fromSquare(to)
+    val rankOffset  = if isWhite then -8 else 8
     val b           = new Position.BitboardMutator(state)
+
+    val isEnPassantCapture = movingPiece.pieceType == PieceType.Pawn &&
+      from.file != to.file &&
+      !state.mailbox.contains(to)
+
+    if (isEnPassantCapture) {
+      val victimSq    = Square.fromIndex(to.index + rankOffset)
+      val victimPiece = state.mailbox.get(victimSq)
+      val victimBB    = Bitboard.fromSquare(victimSq)
+      b.mailbox = b.mailbox - victimSq
+      b.removeCaptured(isWhite, victimBB)
+      victimPiece.foreach(p => b.clearPiece(p.pieceType, victimBB))
+    }
 
     b.mailbox = b.mailbox - from
     b.moveColor(isWhite, fromBB | toBB)
@@ -198,6 +212,13 @@ extension (state: GameState)
     val finalPieceType = mv.promotion.getOrElse(movingPiece.pieceType)
     b.setPiece(finalPieceType, toBB)
     b.mailbox += (to -> Piece(movingPiece.color, finalPieceType))
+
+    val isDoublePush   = movingPiece.pieceType == PieceType.Pawn && math.abs(to.rank - from.rank) == 2
+    val finalEnPassant = if (isDoublePush) {
+      state.enPassant.add(Square.fromIndex(to.index + rankOffset))
+    } else {
+      state.enPassant
+    }
 
     state.copy(
       whitePieces = b.white,
@@ -209,9 +230,12 @@ extension (state: GameState)
       queens = b.queens,
       kings = b.kings,
       mailbox = b.mailbox,
+      enPassant = finalEnPassant,
       halfMoveClock =
-        if movingPiece.pieceType == PieceType.Pawn || targetPiece.isDefined then 0 else state.halfMoveClock + 1
+        if movingPiece.pieceType == PieceType.Pawn || targetPiece.isDefined || isEnPassantCapture then 0
+        else state.halfMoveClock + 1
     )
+  }
 
   /** Applies a [[Move]] (search-optimized) to the current game state.
     *
@@ -250,13 +274,22 @@ extension (state: GameState)
     val target = if mv.isCapture && mv.flags != Move.EnPassantCapture then state.mailbox.get(to) else None
     target.foreach { p => b.removeCaptured(isWhite, toBB); b.clearPiece(p.pieceType, toBB) }
 
-    var newEnPassant: Option[Square] = None
+    var newEnPassant: Bitboard = Bitboard.empty
+    val activeEPRank           = if (isWhite) 3 else 6
+    var ep                     = state.enPassant.value
+    while (ep != 0) {
+      val sq = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(ep))
+      if (sq.rank == activeEPRank) {
+        newEnPassant = newEnPassant.add(sq)
+      }
+      ep &= ep - 1
+    }
 
     mv.flags match {
       case Move.DoublePawnPush =>
         b.pawns |= toBB
         b.mailbox += (to -> Piece(color, PieceType.Pawn))
-        newEnPassant = Some(Square.fromIndex(to.index + rankOffset))
+        newEnPassant = newEnPassant.add(Square.fromIndex(to.index + rankOffset))
 
       case Move.EnPassantCapture =>
         val victimBB = Bitboard.fromSquare(Square.fromIndex(to.index + rankOffset))

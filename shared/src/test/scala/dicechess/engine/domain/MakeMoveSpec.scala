@@ -17,7 +17,7 @@ class MakeMoveSpec extends FunSuite:
     assertEquals(result.mailbox.get(Square('e', 2)), None)
     assertEquals(result.mailbox.get(Square('e', 3)), Some(Piece(Color.White, PieceType.Pawn)))
     assertEquals(result.activeColor, Color.Black)
-    assertEquals(result.enPassant, None)
+    assertEquals(result.enPassant, Bitboard.empty)
   }
 
   // ── Double pawn push & en passant square ─────────────────────────────────
@@ -27,7 +27,7 @@ class MakeMoveSpec extends FunSuite:
     val mv     = Move(Square('e', 2), Square('e', 4), Move.DoublePawnPush)
     val result = state.makeMove(mv)
 
-    assertEquals(result.enPassant, Some(Square('e', 3)))
+    assertEquals(result.enPassant, Bitboard.fromSquare(Square('e', 3)))
     assertEquals(result.mailbox.get(Square('e', 4)), Some(Piece(Color.White, PieceType.Pawn)))
   }
 
@@ -37,7 +37,7 @@ class MakeMoveSpec extends FunSuite:
     val mv     = Move(Square('e', 7), Square('e', 5), Move.DoublePawnPush)
     val result = state.makeMove(mv)
 
-    assertEquals(result.enPassant, Some(Square('e', 6)))
+    assertEquals(result.enPassant, Bitboard.fromSquare(Square('e', 6)))
   }
 
   // ── En passant capture ────────────────────────────────────────────────────
@@ -53,7 +53,7 @@ class MakeMoveSpec extends FunSuite:
     assertEquals(result.mailbox.get(Square('d', 5)), None) // victim removed
     assertEquals(result.mailbox.get(Square('e', 5)), None) // attacker gone
     assertEquals(result.mailbox.get(Square('d', 6)), Some(Piece(Color.White, PieceType.Pawn)))
-    assertEquals(result.enPassant, None)
+    assertEquals(result.enPassant, Bitboard.empty)
   }
 
   // ── Capture ───────────────────────────────────────────────────────────────
@@ -340,4 +340,26 @@ class MakeMoveSpec extends FunSuite:
     val result = state.makeMove(mv)
 
     assertEquals(result.halfMoveClock, 4)
+  }
+
+  test("MicroMove: multiple double pushes accumulate en-passant squares") {
+    val state  = parse(FenParser.InitialPosition)
+    val state1 = state.makeMove(MicroMove(Square('a', 2), Square('a', 4)))
+    val state2 = state1.makeMove(MicroMove(Square('c', 2), Square('c', 4)))
+    val state3 = state2.makeMove(MicroMove(Square('e', 2), Square('e', 4)))
+
+    val expected = Bitboard.fromSquare(Square('a', 3)) |
+      Bitboard.fromSquare(Square('c', 3)) |
+      Bitboard.fromSquare(Square('e', 3))
+    assertEquals(state3.enPassant, expected)
+  }
+
+  test("MicroMove: en-passant capture removes victim") {
+    val fen    = "rnbqkbnr/ppp1pppp/8/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3"
+    val state  = parse(fen)
+    val mv     = MicroMove(Square('e', 5), Square('d', 6))
+    val result = state.makeMove(mv)
+
+    assertEquals(result.mailbox.get(Square('d', 5)), None) // victim removed
+    assertEquals(result.mailbox.get(Square('d', 6)), Some(Piece(Color.White, PieceType.Pawn)))
   }

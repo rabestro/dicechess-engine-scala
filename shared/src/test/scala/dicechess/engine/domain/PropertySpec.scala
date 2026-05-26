@@ -72,11 +72,16 @@ class PropertySpec extends ScalaCheckSuite:
     castlingChars <- Gen.someOf(List('K', 'Q', 'k', 'q'))
     castlingRights = if castlingChars.isEmpty then "-" else castlingChars.mkString("")
 
-    // Generate enPassant square on rank 3 or 6 or None
-    enPassantOpt <- Gen.option(for
-      file <- Gen.choose('a', 'h')
-      rank <- Gen.oneOf(3, 6)
-    yield Square(file, rank))
+    // Generate 0 to 3 enPassant squares on rank 3 or 6
+    numEP     <- Gen.choose(0, 3)
+    epSquares <- Gen.listOfN(
+      numEP,
+      for
+        file <- Gen.choose('a', 'h')
+        rank <- Gen.oneOf(3, 6)
+      yield Square(file, rank)
+    )
+    enPassantBB = epSquares.foldLeft(Bitboard.empty)((bb, sq) => bb.add(sq))
 
     halfMoveClock  <- Gen.choose(0, 100)
     fullMoveNumber <- Gen.choose(1, 500)
@@ -92,7 +97,7 @@ class PropertySpec extends ScalaCheckSuite:
     mailbox = mailbox,
     activeColor = activeColor,
     castlingRights = castlingRights,
-    enPassant = enPassantOpt,
+    enPassant = enPassantBB,
     halfMoveClock = halfMoveClock,
     fullMoveNumber = fullMoveNumber
   )

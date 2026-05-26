@@ -37,12 +37,29 @@ object FenParser {
       val parts = fen.split(" ")
       if (parts.length < 4) return Left("Invalid FEN: insufficient parts")
 
-      val board       = parts(0)
-      val activeColor = if (parts(1) == "w") Color.White else Color.Black
-      val castling    = parts(2)
-      val enPassant   = if (parts(3) == "-") None else Square.fromNotation(parts(3))
-      val halfMove    = if (parts.length > 4) parts(4).toInt else 0
-      val fullMove    = if (parts.length > 5) parts(5).toInt else 1
+      val board          = parts(0)
+      val activeColor    = if (parts(1) == "w") Color.White else Color.Black
+      val castling       = parts(2)
+      val enPassantField = parts(3)
+      var enPassantBB    = Bitboard.empty
+      if (enPassantField != "-") {
+        var idx = 0
+        while (idx < enPassantField.length) {
+          if (idx + 2 <= enPassantField.length) {
+            val notation = enPassantField.substring(idx, idx + 2)
+            Square.fromNotation(notation) match {
+              case Some(sq) => enPassantBB = enPassantBB.add(sq)
+              case None     => return Left(s"Invalid en-passant notation '$notation'")
+            }
+          } else {
+            return Left(s"Invalid en-passant field '$enPassantField'")
+          }
+          idx += 2
+        }
+      }
+      val enPassant = enPassantBB
+      val halfMove  = if (parts.length > 4) parts(4).toInt else 0
+      val fullMove  = if (parts.length > 5) parts(5).toInt else 1
 
       val ranks = board.split("/")
       if (ranks.length != 8) return Left(s"Invalid FEN: board must have 8 ranks, found ${ranks.length}")
@@ -167,7 +184,18 @@ object FenParser {
     res.append(" ")
     res.append(state.castlingRights)
     res.append(" ")
-    res.append(state.enPassant.map(_.toNotation).getOrElse("-"))
+    if (state.enPassant.isEmpty) {
+      res.append("-")
+    } else {
+      val squares = mutable.ListBuffer.empty[Square]
+      var ep      = state.enPassant.value
+      while (ep != 0) {
+        val sq = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(ep))
+        squares += sq
+        ep &= ep - 1
+      }
+      squares.sortBy(_.toNotation).foreach(sq => res.append(sq.toNotation))
+    }
     res.append(" ")
     res.append(state.halfMoveClock.toString)
     res.append(" ")
