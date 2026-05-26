@@ -14,9 +14,33 @@ opaque type GameFlags = Int
   *   - Bits 22-28 (7 bits): Half Move Clock (0-127, for the 50-move rule)
   */
 object GameFlags:
+  /** A [[GameFlags]] with all fields zeroed: White to move, no castling rights, no en-passant, empty dice pool, zero
+    * half-move clock.
+    */
   val empty: GameFlags = 0
 
-  /** Builds a [[GameFlags]] integer from individual components. */
+  /** Builds a [[GameFlags]] integer from individual components.
+    *
+    * Each component is masked to its allocated bit-width before packing; values that exceed their field width are
+    * silently truncated.
+    *
+    * @param color
+    *   the active player color (`0` = White, `1` = Black)
+    * @param castlingRights
+    *   4-bit mask: Bit 0 = K (White king-side), Bit 1 = Q, Bit 2 = k, Bit 3 = q
+    * @param enPassantFiles
+    *   8-bit mask: Bit N is set when file N has an active en-passant target square
+    * @param dice1
+    *   first dice slot value (0 = empty, 1-6 = die face)
+    * @param dice2
+    *   second dice slot value
+    * @param dice3
+    *   third dice slot value
+    * @param halfMoveClock
+    *   7-bit half-move counter for the 50-move rule (`0`–`127`)
+    * @return
+    *   the packed [[GameFlags]] integer
+    */
   def apply(
       color: Color,
       castlingRights: Int,
@@ -35,7 +59,23 @@ object GameFlags:
     val hmc      = (halfMoveClock & 0x7f) << 22
     c | castling | ep | d1 | d2 | d3 | hmc
 
-  /** Helper to build [[GameFlags]] from a list of dice instead of individual slots. */
+  /** Convenience constructor that builds [[GameFlags]] from a dice pool list instead of individual slots.
+    *
+    * Missing slots default to `0` (empty). At most the first three elements of `dicePool` are used.
+    *
+    * @param color
+    *   the active player color
+    * @param castlingRights
+    *   4-bit castling-rights mask (same as [[apply]])
+    * @param enPassantFiles
+    *   8-bit en-passant file mask (same as [[apply]])
+    * @param dicePool
+    *   up to three die values; excess elements are ignored
+    * @param halfMoveClock
+    *   7-bit half-move counter
+    * @return
+    *   the packed [[GameFlags]] integer
+    */
   def fromList(
       color: Color,
       castlingRights: Int,
@@ -73,8 +113,13 @@ object GameFlags:
     inline def withEnPassantFiles(filesMask: Int): GameFlags =
       (flags & ~(0xff << 5)) | ((filesMask & 0xff) << 5)
 
+    /** Returns the raw value of dice slot 1 (`0` = empty, `1`–6 = die face). */
     inline def diceSlot1: Int = (flags >>> 13) & 0x7
+
+    /** Returns the raw value of dice slot 2 (`0` = empty, `1`–6 = die face). */
     inline def diceSlot2: Int = (flags >>> 16) & 0x7
+
+    /** Returns the raw value of dice slot 3 (`0` = empty, `1`–6 = die face). */
     inline def diceSlot3: Int = (flags >>> 19) & 0x7
 
     /** Extracts the available dice into a standard Scala List (useful for UI/FEN boundaries). Avoid using in hot-paths.

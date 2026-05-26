@@ -2,10 +2,21 @@ package dicechess.engine.movegen
 
 import dicechess.engine.domain.{Bitboard, Square}
 
-/** Magic Bitboards implementation for sliding pieces (Bishops and Rooks).
+/** Magic Bitboards implementation for sliding pieces (Bishops, Rooks, and Queens).
   *
-  * Magic Bitboards provide O(1) lookup for sliding piece attacks by hashing the current board occupancy into a
-  * precomputed attack table.
+  * **Magic Bitboards** provide O(1) attack-set lookup for blocking sliding pieces by encoding the current board
+  * occupancy into an index via a precomputed *magic number* multiplier:
+  *
+  * ```
+  * index = ((occupancy & relevantMask) * magic) >>> (64 - relevantBits)
+  * attack = table[offset + index]
+  * ```
+  *
+  * At JVM / Scala.js startup, [[BishopTable]] (5248 entries) and [[RookTable]] (102400 entries) are populated for all
+  * 64 squares using the slow [[bishopAttacksClassic]] / [[rookAttacksClassic]] functions. All subsequent attack lookups
+  * use the fast O(1) hash path.
+  *
+  * The magic constants are a well-known standard set compatible with most chess engine implementations.
   */
 object MagicBitboards:
 
@@ -115,11 +126,21 @@ object MagicBitboards:
 
     Bitboard(attacks)
 
+  /** Number of relevant occupancy bits per square for bishop attack masks.
+    *
+    * Ranges from 5 (corner squares, few diagonals) to 9 (central squares, long diagonals). Used to size the hash table
+    * slice for each square.
+    */
   val BishopRelevantBits: Array[Int] = Array(
     6, 5, 5, 5, 5, 5, 5, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 7, 7, 7, 7, 5, 5, 5, 5, 7, 9, 9, 7, 5, 5, 5, 5, 7, 9, 9, 7, 5,
     5, 5, 5, 7, 7, 7, 7, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 5, 5, 5, 5, 5, 5, 6
   )
 
+  /** Number of relevant occupancy bits per square for rook attack masks.
+    *
+    * Ranges from 10 (non-corner edge squares) to 12 (corner squares, long files/ranks). Used to size the hash table
+    * slice for each square.
+    */
   val RookRelevantBits: Array[Int] = Array(
     12, 11, 11, 11, 11, 11, 11, 12, 11, 10, 10, 10, 10, 10, 10, 11, 11, 10, 10, 10, 10, 10, 10, 11, 11, 10, 10, 10, 10,
     10, 10, 11, 11, 10, 10, 10, 10, 10, 10, 11, 11, 10, 10, 10, 10, 10, 10, 11, 11, 10, 10, 10, 10, 10, 10, 11, 12, 11,
@@ -161,6 +182,21 @@ object MagicBitboards:
       rookOffset += (1 << rBits)
   }
 
+  /** Maps an integer `index` (a subset enumerator) to an occupancy bitboard for the given `mask`.
+    *
+    * Iterates over bits set in `mask` and uses corresponding bits of `index` to decide whether each blocker is
+    * "present" in the generated occupancy. This is used during table initialization to exhaustively enumerate all
+    * possible blocker configurations for a given square.
+    *
+    * @param index
+    *   a value in `[0, 2^bitsInMask)` selecting a subset of the mask bits
+    * @param bitsInMask
+    *   the number of set bits in `mask`
+    * @param mask
+    *   the occupancy mask (relevant squares only, edges excluded)
+    * @return
+    *   a bitboard representing one possible blocker configuration
+    */
   private def setOccupancy(index: Int, bitsInMask: Int, mask: Bitboard): Bitboard =
     var occupancy = 0L
     var m         = mask.value

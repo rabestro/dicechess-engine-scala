@@ -235,12 +235,13 @@ case class Turn(diceRoll: Int, microMoves: List[MicroMove]):
 /** The complete snapshot of a Dice Chess game state.
   *
   * Uses a hybrid architecture combining fast Bitboards for move generation and a Map mailbox for constant-time piece
-  * lookups.
+  * lookups. Game meta-state (active color, castling rights, dice pool, half-move clock) is packed into the [[flags]]
+  * field via [[GameFlags]] to minimise heap allocations on the search hot-path.
   *
   * @param whitePieces
-  *   Bitboard for all White pieces.
+  *   Bitboard with a set bit for every square occupied by a White piece.
   * @param blackPieces
-  *   Bitboard for all Black pieces.
+  *   Bitboard with a set bit for every square occupied by a Black piece.
   * @param pawns
   *   Bitboard for all Pawns (both colors).
   * @param knights
@@ -254,17 +255,15 @@ case class Turn(diceRoll: Int, microMoves: List[MicroMove]):
   * @param kings
   *   Bitboard for all Kings (both colors).
   * @param mailbox
-  *   Map of occupied squares to their respective pieces.
-  * @param activeColor
-  *   The color of the player whose turn it is.
-  * @param castlingRights
-  *   FEN-standard castling string (e.g., "KQkq").
+  *   Map from occupied [[Square]] to the [[Piece]] on that square; used for O(1) piece-type lookup.
+  * @param flags
+  *   Packed 29-bit integer encoding active color, castling rights, en-passant file mask, dice pool (up to 3 dice), and
+  *   the half-move clock. See [[GameFlags]] for the exact bit layout.
   * @param enPassant
-  *   Potential en passant target square.
-  * @param halfMoveClock
-  *   Clock for the 50-move rule.
+  *   Bitboard of active en-passant target squares (one bit per valid EP capture destination). Stored separately from
+  *   [[flags]] because the 8-bit file mask in [[GameFlags]] is lossy for positions with multiple EP targets.
   * @param fullMoveNumber
-  *   The number of the current full move.
+  *   Full-move counter; incremented after each Black move (starts at 1 per FEN convention).
   */
 case class GameState(
     whitePieces: Bitboard,
@@ -298,8 +297,20 @@ case class GameState(
   inline def dicePool: List[Int] = flags.dicePool
   inline def halfMoveClock: Int  = flags.halfMoveClock
 
+  /** Returns a copy of this state with the active color set to `c`.
+    *
+    * Used during turn execution to keep the active color constant across micro-moves, since [[Position.makeMove]]
+    * normally flips it.
+    */
   def withActiveColor(c: Color): GameState =
     copy(flags = flags.withActiveColor(c))
 
+  /** Returns a copy of this state with the dice pool replaced by `pool`.
+    *
+    * Used to track remaining dice during multi-micro-move turn enumeration.
+    *
+    * @param pool
+    *   up to three die values; excess elements are silently ignored
+    */
   def withDicePool(pool: List[Int]): GameState =
     copy(flags = flags.withDicePool(pool))

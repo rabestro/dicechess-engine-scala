@@ -53,6 +53,10 @@ object PawnGeneration:
     *   Bitboard of pawns.
     * @param enemies
     *   Bitboard of enemy pieces (or En Passant target).
+    * @param color
+    *   the color of the attacking pawns (determines the direction of the attack)
+    * @return
+    *   Bitboard of squares where a pawn can capture towards the H-file.
     */
   inline def eastCaptures(pawns: Bitboard, enemies: Bitboard, color: Color): Bitboard =
     val attacks = if color.isWhite then (pawns & NotHFile) << 9 else (pawns & NotHFile) >>> 7
@@ -64,13 +68,26 @@ object PawnGeneration:
     *   Bitboard of pawns.
     * @param enemies
     *   Bitboard of enemy pieces (or En Passant target).
+    * @param color
+    *   the color of the attacking pawns (determines the direction of the attack)
+    * @return
+    *   Bitboard of squares where a pawn can capture towards the A-file.
     */
   inline def westCaptures(pawns: Bitboard, enemies: Bitboard, color: Color): Bitboard =
     val attacks = if color.isWhite then (pawns & NotAFile) << 7 else (pawns & NotAFile) >>> 9
     attacks & enemies
 
-  /** Computes all attacked squares by pawns, regardless of whether there is an enemy there. Used primarily to determine
-    * if the King is in check or squares are unsafe.
+  /** Computes all attacked squares by pawns, regardless of whether there is an enemy there.
+    *
+    * Used primarily to determine if the King is in check or squares are unsafe for king placement. Unlike
+    * [[eastCaptures]] and [[westCaptures]], this does not intersect with any enemy bitboard.
+    *
+    * @param pawns
+    *   Bitboard of pawns to compute attacks for.
+    * @param color
+    *   the color of the attacking pawns (determines shift direction)
+    * @return
+    *   Bitboard of all squares attacked by the given pawns.
     */
   inline def anyAttacks(pawns: Bitboard, color: Color): Bitboard =
     val east = if color.isWhite then (pawns & NotHFile) << 9 else (pawns & NotHFile) >>> 7

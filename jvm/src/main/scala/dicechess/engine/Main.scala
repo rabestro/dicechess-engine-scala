@@ -2,6 +2,12 @@ package dicechess.engine
 
 import dicechess.engine.domain.*
 
+/** JVM entry point for the Dice Chess Engine.
+  *
+  * Used for smoke-testing and development verification. Initialises the engine, exercises basic domain model
+  * construction, and prints a ready-banner to stdout. Not used in production — the actual API is exposed via
+  * [[dicechess.engine.api.JsApi]] (Scala.js) and via [[dicechess.engine.EngineFacade]].
+  */
 object Main:
   private val Separator = "=" * 50
 
