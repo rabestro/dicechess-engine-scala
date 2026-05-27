@@ -31,7 +31,8 @@ object TurnGenerator:
     *   a (possibly empty) list of legal full-turn paths; each path contains 1–3 moves
     */
   def generateAllLegalTurnPaths(state: GameState): List[List[Move]] =
-    val allPaths = generateAllPaths(state).filter(_.nonEmpty)
+    val cleanState = state.clearEnPassant(state.activeColor)
+    val allPaths   = generateAllPaths(cleanState).filter(_.nonEmpty)
     if allPaths.isEmpty then Nil
     else
       val maxLen = allPaths.map(_.size).maxOption.getOrElse(0)
