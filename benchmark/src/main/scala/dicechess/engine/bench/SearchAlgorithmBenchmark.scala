@@ -27,9 +27,12 @@ class SearchAlgorithmBenchmark:
   var seededRandom: ScalaRandom = uninitialized
 
   @Setup(Level.Trial)
-  def setup(): Unit =
+  def setupTrial(): Unit =
     val dice = dicePoolStr.split(",").map(_.toInt).toList
     state = BenchmarkPositions.parse(BenchmarkPositions.AllPositions(position)).withDicePool(dice)
+
+  @Setup(Level.Iteration)
+  def setupIteration(): Unit =
     seededRandom = new ScalaRandom(new JavaRandom(42L))
 
   @Benchmark

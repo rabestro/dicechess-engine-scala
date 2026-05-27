@@ -28,12 +28,16 @@ object RandomSearch extends SearchAlgorithm:
   override def findBestMove(state: GameState): Option[ScoredSequence] =
     findBestMove(state, rand)
 
-  /** Finds a random legal move with an explicit `Random` instance.
+  /** Finds a random legal move with deterministic control.
+    *
+    * This overload of [[RandomSearch.findBestMove(state:GameState)]] accepts an explicit [[scala.util.Random]] instance
+    * to enable reproducible and deterministic sampling. It is primarily used for consistent JMH benchmarking and unit
+    * testing where branch volatility needs to be eliminated.
     *
     * @param state
     *   current [[GameState]]; `state.activeColor` indicates who is moving
     * @param random
-    *   random number generator used for selection
+    *   explicit [[scala.util.Random]] instance used for tie-breaking selection
     * @return
     *   a randomly chosen [[ScoredSequence]], or `None` if no legal move exists (forced pass)
     */
