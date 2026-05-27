@@ -120,4 +120,3 @@ Expectimax search transitions between states using the 7th field:
 
 * When evaluating chance nodes (dice rolls), the engine branches on the 6 possible rolls (`1` to `6`), populating the `dicePool` field in child states.
 * Maximizing/Minimizing players then search through paths matching the `dicePool` combinations, fully aligned with multiple en-passant opportunities.
-

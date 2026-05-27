@@ -42,7 +42,7 @@ reviews:
 
   # ── Tool Configuration ───────────────────────────────────────────────────
   # Only enable tools that are relevant to our Scala + GitHub Actions +
-  # Markdown + Shell stack. 
+  # Markdown + Shell stack.
   tools:
     actionlint:
       enabled: true        # Validate GitHub Actions workflow YAML syntax

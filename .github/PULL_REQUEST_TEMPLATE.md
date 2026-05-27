@@ -18,4 +18,3 @@ Closes #<issue-number>
 - [ ] Branch name follows: (task|feat|bug)/<ID>-<short-desc>
 
 Please do not merge into `main` without passing required CI checks and code review.
-

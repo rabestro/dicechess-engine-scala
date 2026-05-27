@@ -32,4 +32,3 @@ jobs:
               core.setFailed('PR body must include "Closes #<issue-number>", "Fixes #<issue-number>" or "Resolves #<issue-number>" linking to the issue.');
               return;
             }
-

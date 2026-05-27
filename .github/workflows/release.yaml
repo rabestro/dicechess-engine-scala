@@ -106,15 +106,15 @@ jobs:
       - name: Update version in build.sbt
         run: |
           NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
-          
+
           # Update the version field in build.sbt to have the new SNAPSHOT version
           # Matches: ThisBuild / version      := "0.1.0-SNAPSHOT"
           sed -i 's/ThisBuild \/ version      := "[^"]*"/ThisBuild \/ version      := "'"$NEW_VERSION-SNAPSHOT"'"/' build.sbt
-          
+
           # Commit the change
           git add build.sbt
           git commit -m "chore(release): bump version to $NEW_VERSION-SNAPSHOT"
-          
+
           # Push the commit to current branch
           BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
           git push origin "$BRANCH_NAME"
