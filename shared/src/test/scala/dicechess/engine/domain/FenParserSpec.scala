@@ -83,7 +83,7 @@ class FenParserSpec extends FunSuite:
   }
 
   test("FenParser should correctly parse and serialize DFEN with 7th field dice pool") {
-    val fen    = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 111"
+    val fen    = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 PPP"
     val parsed = FenParser.parse(fen)
 
     assert(parsed.isRight)
