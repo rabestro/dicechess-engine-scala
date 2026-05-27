@@ -69,6 +69,21 @@ class MakeMoveSpec extends FunSuite:
     assertEquals(result.blackPieces.contains(Square('d', 5)), false)
   }
 
+  test("regular capture of a pawn removes its en passant target") {
+    // White pawn on d4, EP target is d3. Black knight on f5.
+    val fen   = "rnbqkbnr/pppppppp/8/5n2/3P4/8/PPP1PPPP/RNBQKBNR b KQkq d3 0 1"
+    val state = parse(fen)
+
+    assertEquals(state.enPassant, Bitboard.fromSquare(Square('d', 3)))
+
+    // Black knight captures the white pawn on d4
+    val mv     = Move(Square('f', 5), Square('d', 4), Move.Capture)
+    val result = state.makeMove(mv)
+
+    // The pawn is gone, so the EP target should be removed
+    assertEquals(result.enPassant, Bitboard.empty)
+  }
+
   // ── Castling ──────────────────────────────────────────────────────────────
 
   test("white king-side castling moves king and rook") {
@@ -320,6 +335,21 @@ class MakeMoveSpec extends FunSuite:
     assertEquals(result.mailbox.get(Square('d', 5)), Some(Piece(Color.White, PieceType.Pawn)))
     assertEquals(result.blackPieces.contains(Square('d', 5)), false)
     assertEquals(result.halfMoveClock, 0)
+  }
+
+  test("MicroMove: regular capture of a pawn removes its en passant target") {
+    // White pawn on d4, EP target is d3. Black knight on f5.
+    val fen   = "rnbqkbnr/pppppppp/8/5n2/3P4/8/PPP1PPPP/RNBQKBNR b KQkq d3 0 1"
+    val state = parse(fen)
+
+    assertEquals(state.enPassant, Bitboard.fromSquare(Square('d', 3)))
+
+    // Black knight captures the white pawn on d4
+    val mv     = MicroMove(Square('f', 5), Square('d', 4))
+    val result = state.makeMove(mv)
+
+    // The pawn is gone, so the EP target should be removed
+    assertEquals(result.enPassant, Bitboard.empty)
   }
 
   test("MicroMove: promotion replaces pawn with promoted piece") {
