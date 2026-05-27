@@ -126,3 +126,30 @@ class ModelsSpec extends FunSuite:
     assert(!complement.contains(Square('d', 5)))
     assertEquals(complement.count, 62)
   }
+
+  test("GameState.clearEnPassant should correctly wipe out active player's targets while preserving opponent's") {
+    val state = GameState(
+      whitePieces = Bitboard.empty,
+      blackPieces = Bitboard.empty,
+      pawns = Bitboard.empty,
+      knights = Bitboard.empty,
+      bishops = Bitboard.empty,
+      rooks = Bitboard.empty,
+      queens = Bitboard.empty,
+      kings = Bitboard.empty,
+      mailbox = Map.empty,
+      flags = GameFlags.fromList(Color.White, 0, 0, Nil, 0),
+      enPassant = Bitboard.empty.add(Square.fromNotation("e3").get).add(Square.fromNotation("h6").get),
+      fullMoveNumber = 1
+    )
+
+    // White's turn starts, so White clears White's old targets (rank 3)
+    val stateAfterWhiteClears = state.clearEnPassant(Color.White)
+    assert(!stateAfterWhiteClears.enPassant.contains(Square.fromNotation("e3").get)) // Cleared!
+    assert(stateAfterWhiteClears.enPassant.contains(Square.fromNotation("h6").get))  // Preserved!
+
+    // Black's turn starts, so Black clears Black's old targets (rank 6)
+    val stateAfterBlackClears = state.clearEnPassant(Color.Black)
+    assert(stateAfterBlackClears.enPassant.contains(Square.fromNotation("e3").get))  // Preserved!
+    assert(!stateAfterBlackClears.enPassant.contains(Square.fromNotation("h6").get)) // Cleared!
+  }

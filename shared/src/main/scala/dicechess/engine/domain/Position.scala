@@ -299,17 +299,11 @@ extension (state: GameState)
     b.clearPiece(mover.pieceType, fromBB)
 
     val target = if mv.isCapture && mv.flags != Move.EnPassantCapture then state.mailbox.get(to) else None
-    target.foreach { p => b.removeCaptured(isWhite, toBB); b.clearPiece(p.pieceType, toBB) }
-
-    var newEnPassant: Bitboard = Bitboard.empty
-    val activeEPRank           = if (isWhite) 3 else 6
-    var ep                     = state.enPassant.value
-    while (ep != 0) {
-      val sq = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(ep))
-      if (sq.rank == activeEPRank) {
-        newEnPassant = newEnPassant.add(sq)
-      }
-      ep &= ep - 1
+    var newEnPassant: Bitboard = state.enPassant
+    target.foreach { p =>
+      b.removeCaptured(isWhite, toBB)
+      b.clearPiece(p.pieceType, toBB)
+      if p.pieceType == PieceType.Pawn then newEnPassant = newEnPassant.remove(Square.fromIndex(to.index - rankOffset))
     }
 
     mv.flags match {
@@ -323,6 +317,7 @@ extension (state: GameState)
         b.removeCaptured(isWhite, victimBB)
         b.pawns = (b.pawns & ~victimBB) | toBB
         b.mailbox = b.mailbox - Square.fromIndex(to.index + rankOffset) + (to -> Piece(color, PieceType.Pawn))
+        newEnPassant = newEnPassant.remove(to)
 
       case Move.KingCastle =>
         b.kings |= toBB

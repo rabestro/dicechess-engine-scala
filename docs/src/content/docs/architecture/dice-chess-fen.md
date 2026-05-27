@@ -111,7 +111,8 @@ case class GameState(
 * **Move Application**: If a micro-move is applied:
   - The played die is removed from `dicePool`.
   - If a double pawn push occurs, its target square is added (bitwise OR) to the `enPassant` bitboard.
-  - If the `dicePool` becomes empty or no legal moves remain, the turn ends: `activeColor` is toggled, `dicePool` is cleared to empty (`Nil`), and the old `enPassant` bitboard is cleared.
+  - If a pawn is captured (via regular or en-passant capture), its associated target square is explicitly removed from the bitboard.
+* **Turn Boundaries**: En-passant targets are NOT cleared during individual micro-moves. Instead, when a player's turn formally starts, the engine calls `state.clearEnPassant(activeColor)` to wipe out their own old EP targets from previous turns, while keeping the opponent's EP targets fully intact and available for capture.
 
 ### 3. Bot & Expectimax Engine Alignment
 

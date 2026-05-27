@@ -281,6 +281,23 @@ case class GameState(
 ):
   inline def activeColor: Color = flags.activeColor
 
+  /** Removes all en-passant targets created by the specified color.
+    *
+    * White's double pawn pushes create targets on rank 3. Black's double pawn pushes create targets on rank 6.
+    */
+  def clearEnPassant(color: Color): GameState =
+    val targetRank = if color.isWhite then 3 else 6
+    var ep         = enPassant.value
+    var newEp      = Bitboard.empty
+    while (ep != 0) {
+      val sq = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(ep))
+      if (sq.rank != targetRank) {
+        newEp = newEp.add(sq)
+      }
+      ep &= ep - 1
+    }
+    copy(enPassant = newEp)
+
   def castlingRights: String =
     val cr = flags.castlingRights
     if (cr == 0) "-"
