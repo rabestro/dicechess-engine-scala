@@ -299,9 +299,12 @@ extension (state: GameState)
     b.clearPiece(mover.pieceType, fromBB)
 
     val target = if mv.isCapture && mv.flags != Move.EnPassantCapture then state.mailbox.get(to) else None
-    target.foreach { p => b.removeCaptured(isWhite, toBB); b.clearPiece(p.pieceType, toBB) }
-
     var newEnPassant: Bitboard = state.enPassant
+    target.foreach { p =>
+      b.removeCaptured(isWhite, toBB)
+      b.clearPiece(p.pieceType, toBB)
+      if p.pieceType == PieceType.Pawn then newEnPassant = newEnPassant.remove(Square.fromIndex(to.index - rankOffset))
+    }
 
     mv.flags match {
       case Move.DoublePawnPush =>
