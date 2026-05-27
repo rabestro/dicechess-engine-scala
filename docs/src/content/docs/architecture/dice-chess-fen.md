@@ -57,28 +57,28 @@ Field 7 is an **optional** field that represents the active player's remaining d
 
 The dice values are mapped to piece types:
 
-* `1` = Pawn (♙)
-* `2` = Knight (♘)
-* `3` = Bishop (♗)
-* `4` = Rook (♖)
-* `5` = Queen (♕)
-* `6` = King (♔)
+* `P` or `p` = Pawn (♙) = 1
+* `N` or `n` = Knight (♘) = 2
+* `B` or `b` = Bishop (♗) = 3
+* `R` or `r` = Rook (♖) = 4
+* `Q` or `q` = Queen (♕) = 5
+* `K` or `k` = King (♔) = 6
 
 ### Representation Rules
 
 - **No Dice Rolled / Fresh Turn**: Represented by a single dash `-`. This indicates that the active color has transitioned, and the player must roll the dice before making any moves.
-- **Active Dice Pool**: Represented by a string of digits `1-6`, sorted in ascending order (e.g., `111` or `125`).
+- **Active Dice Pool**: Represented by a string of piece letters (e.g. `PNB` or `pnb`). The case must match the active color (uppercase for White, lowercase for Black). The letters must be sorted by their piece value (P < N < B < R < Q < K).
 
 ### 🔄 Five-Phase Turn State Progression (Example)
 
-Here is how the active color and 7th field progress during a White turn where White rolls three pawns (`1, 1, 1`) and plays three micro-moves:
+Here is how the active color and 7th field progress during a White turn where White rolls three pawns (`P, P, P`) and plays three micro-moves:
 
 | Phase | State Description | Color Field | Dice Field | Meaning |
 | :--- | :--- | :---: | :---: | :--- |
 | **1** | Turn started, waiting for roll | `w` | `-` | White's turn, dice not rolled yet |
-| **2** | White rolls `1, 1, 1` | `w` | `111` | White has 3 pawn moves available |
-| **3** | White plays `a2-a4` | `w` | `11` | White has 2 pawn moves remaining |
-| **4** | White plays `c2-c4` | `w` | `1` | White has 1 pawn move remaining |
+| **2** | White rolls `P, P, P` | `w` | `PPP` | White has 3 pawn moves available |
+| **3** | White plays `a2-a4` | `w` | `PP` | White has 2 pawn moves remaining |
+| **4** | White plays `c2-c4` | `w` | `P` | White has 1 pawn move remaining |
 | **5** | White plays `e2-e4` (turn ends) | `b` | `-` | Black's turn, waiting for roll |
 
 ---
@@ -98,8 +98,9 @@ A new field `dicePool` is introduced to `GameState`:
 ```scala
 case class GameState(
     ...,
+    mailbox: Map[Square, Piece],
+    flags: GameFlags,         // Packed 29-bit int holding activeColor, dicePool (List[Int]), etc.
     enPassant: Bitboard,      // Holds multiple target squares
-    dicePool: List[Int],      // Sorted list of remaining dice rolls (1-6), empty if waiting for roll
     ...
 )
 ```

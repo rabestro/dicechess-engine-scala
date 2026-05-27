@@ -152,7 +152,7 @@ All engine code must follow these Scaladoc conventions:
 * **Formatting:**
   * Use standard triple-quote Scaladoc: `/** ... */`.
   * Leverage Markdown instead of HTML for lists and formatting.
-  * Enclose code snippets and examples in `{{{ ... }}}`.
+  * Enclose code snippets and examples in standard Markdown code fences (e.g., ```scala). Do NOT use legacy `{{{ ... }}}` syntax.
   * Use double brackets `[[Type]]` to reference other classes/objects.
 
 ## Testing Guidelines (Scala Engine)

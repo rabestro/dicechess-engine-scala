@@ -365,7 +365,7 @@ class MakeMoveSpec extends FunSuite:
   }
 
   test("MicroMove: playing a move consumes the matching die from the dicePool") {
-    val fen   = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 114"
+    val fen   = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 PPR"
     val state = parse(fen)
     assertEquals(state.dicePool, List(1, 1, 4))
 
@@ -382,7 +382,7 @@ class MakeMoveSpec extends FunSuite:
     "Turn: multiple double pawn pushes accumulate en-passant squares and expose en-passant captures to opponent in the next turn"
   ) {
     // Custom board position: White pawns on a2, c2, e2; Black pawns on b4, d4.
-    val fen   = "rnbqkbnr/p1p1p1pp/8/8/1p1p4/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 111"
+    val fen   = "rnbqkbnr/p1p1p1pp/8/8/1p1p4/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 PPP"
     val state = parse(fen)
 
     // White rolls pawn (1), pawn (1), pawn (1)

@@ -56,6 +56,14 @@ reviews:
   # ── Domain-Specific Path Instructions ─────────────────────────────────────
   # Provide targeted review context for engine-critical code paths.
   path_instructions:
+    - path: "**/*.scala"
+      instructions: |
+        This project strictly follows modern Scala 3 conventions.
+        When reviewing:
+        - Enforce standard Markdown for Scaladoc code fences (i.e. use ```` ```scala ````). Do NOT suggest or allow the legacy Scala 2 `{{{ ... }}}` syntax.
+        - Ensure comments focus on "Why", not just "What".
+        - Do not document self-evident methods.
+
     - path: "shared/src/main/scala/**/domain/**"
       instructions: |
         This directory contains the core domain model using Scala 3 opaque types.

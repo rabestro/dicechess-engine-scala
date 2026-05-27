@@ -1,6 +1,6 @@
 [
   {
-    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 123",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 PNB",
     "expectedMoves": [
       "b2b3",
       "b2b4",
@@ -19,7 +19,7 @@
     "description": "Starting position with all three dice rolled: Pawn (1), Knight (2), and Bishop (3). According to the Dice Chess maximum micro-moves rules, quiet a/c/f/h pawn moves are completely filtered out because they do not form or enable a valid 3-move sequence (e.g. Pawn -> Bishop -> Knight)."
   },
   {
-    "fen": "k2n1q2/1p2Pp2/4r3/2pP4/8/8/1PK5/8 w - c6 0 1 111",
+    "fen": "k2n1q2/1p2Pp2/4r3/2pP4/8/8/1PK5/8 w - c6 0 1 PPP",
     "expectedMoves": [
       "b2b3",
       "b2b4",
@@ -43,7 +43,7 @@
     "description": "In this position, the white pawn on d5 can move to c6, d6, or e6 using one of the '1' dice. The white pawn on e7 can promote to a knight, bishop, queen, or rook on d8, e8, or f8 using the remaining two '1' dice."
   },
   {
-    "fen": "r1bqk2r/ppppbppp/2n1pn2/1B6/3PP3/2N5/PPP2PPP/R1BQK1NR b KQkq - 0 1 634",
+    "fen": "r1bqk2r/ppppbppp/2n1pn2/1B6/3PP3/2N5/PPP2PPP/R1BQK1NR b KQkq - 0 1 brk",
     "expectedMoves": [
       "e8f8",
       "e8g8",
@@ -60,7 +60,7 @@
     "description": "In this position, the black king on e8 can castle kingside to g8, or move to f8. The black bishop on e7 can move to f8, d6, c5, b4, or a3. The black rook on a8 can move to b8"
   },
   {
-    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 213",
+    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 PNB",
     "expectedMoves": [
       "e7e8n",
       "e7e8b"
@@ -69,7 +69,7 @@
     "description": "Forcing a pawn to promote to a knight or bishop. Maximum two micro moves in this position."
   },
   {
-    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 214",
+    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 PNR",
     "expectedMoves": [
       "e7e8n",
       "e7e8r"
@@ -78,7 +78,7 @@
     "description": "Forcing a pawn to promote to a knight or rook. Maximum two micro moves in this position."
   },
   {
-    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 215",
+    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 PNQ",
     "expectedMoves": [
       "e7e8n",
       "e7e8q"
@@ -87,7 +87,7 @@
     "description": "Forcing a pawn to promote to a knight or queen. Maximum two micro moves in this position."
   },
   {
-    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 216",
+    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 PNK",
     "expectedMoves": [
       "e7e8n",
       "f6f7",
@@ -102,7 +102,7 @@
     "description": "Forcing a pawn to promote to a knight only."
   },
   {
-    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 211",
+    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 PPN",
     "expectedMoves": [
       "e7e8n",
       "b2b3",

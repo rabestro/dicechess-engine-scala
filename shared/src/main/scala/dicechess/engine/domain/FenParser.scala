@@ -20,12 +20,12 @@ import scala.collection.mutable
   * This parser also supports an optional **7th field** that stores the current turn's dice pool:
   *
   * ```
-  * rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1 135
+  * rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1 pnb
   * ```
   *
-  * The 7th field is a string of digit characters in `[1, 6]` (e.g. `"135"` = dice pool `[1, 3, 5]`). It is absent
-  * (`"-"`) or omitted when no dice have been rolled yet. [[serialize]] appends it automatically when the pool is
-  * non-empty.
+  * The 7th field is a string of piece letters (e.g. `"PNB"` for White or `"pnb"` for Black = dice pool `[1, 2, 3]`). It
+  * is absent (`"-"`) or omitted when no dice have been rolled yet. [[serialize]] appends it automatically when the pool
+  * is non-empty.
   *
   * Both [[parse]] and [[serialize]] are inverses of each other for any valid FEN string.
   */
@@ -88,11 +88,20 @@ object FenParser {
           val list = mutable.ListBuffer.empty[Int]
           var idx  = 0
           while (idx < poolField.length) {
-            val char = poolField.charAt(idx)
-            if (char >= '1' && char <= '6') {
-              list += char.asDigit
+            val char  = poolField.charAt(idx).toLower
+            val digit = char match {
+              case 'p' => 1
+              case 'n' => 2
+              case 'b' => 3
+              case 'r' => 4
+              case 'q' => 5
+              case 'k' => 6
+              case _   => 0
+            }
+            if (digit > 0) {
+              list += digit
             } else {
-              return Left(s"Invalid dice-pool character '$char'")
+              return Left(s"Invalid dice-pool character '${poolField.charAt(idx)}'")
             }
             idx += 1
           }
@@ -188,8 +197,9 @@ object FenParser {
 
   /** Serialises a [[GameState]] back to a FEN string.
     *
-    * Produces all six FEN fields. Piece placement is written rank-8-first (as required by the standard). This method is
-    * the inverse of [[parse]]: `parse(serialize(s))` always yields `Right(s)` for a valid state.
+    * Produces all six standard FEN fields, plus an optional 7th field if the dice pool is non-empty. Piece placement is
+    * written rank-8-first (as required by the standard). This method is the inverse of [[parse]]: `parse(serialize(s))`
+    * always yields `Right(s)` for a valid state.
     *
     * @param state
     *   the game state to encode
@@ -252,7 +262,18 @@ object FenParser {
     val pool = state.flags.dicePool
     if (pool.nonEmpty) {
       res.append(" ")
-      pool.sorted.foreach(d => res.append(d.toString))
+      pool.sorted.foreach { d =>
+        val char = d match {
+          case 1 => 'p'
+          case 2 => 'n'
+          case 3 => 'b'
+          case 4 => 'r'
+          case 5 => 'q'
+          case 6 => 'k'
+          case _ => '?'
+        }
+        res.append(if (state.flags.activeColor.isWhite) char.toUpper else char)
+      }
     }
 
     res.toString

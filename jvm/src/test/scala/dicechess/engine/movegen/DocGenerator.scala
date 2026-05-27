@@ -117,7 +117,7 @@ object DocGenerator:
               var result = List.empty[String]
               while (bb != 0) {
                 val idx = java.lang.Long.numberOfTrailingZeros(bb)
-                result = Square.fromIndex(idx.toInt).toNotation :: result
+                result = Square.fromIndex(idx).toNotation :: result
                 bb &= bb - 1
               }
               result.sorted
