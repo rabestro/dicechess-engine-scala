@@ -54,7 +54,15 @@ object MagicBitboards:
     0x1101000250880005L, 0x0281000804000201L, 0x0681000401a20001L, 0x0800040040810022L
   )
 
-  /** Generates the occupancy mask for a bishop on a given square. Excludes the edges of the board.
+  /** Generates the candidate blocker mask for a Bishop on a given square.
+    *
+    * In Magic Bitboards, the edges of the board are excluded from the mask because blockers on the border cannot
+    * prevent a sliding piece from reaching the border itself.
+    *
+    * @param sq
+    *   the [[Square]] position of the Bishop
+    * @return
+    *   a [[Bitboard]] containing all candidate blocker squares (edges excluded)
     */
   def bishopMask(sq: Square): Bitboard =
     var mask = 0L
@@ -72,7 +80,15 @@ object MagicBitboards:
 
     Bitboard(mask)
 
-  /** Generates the occupancy mask for a rook on a given square. Excludes the relevant board edges.
+  /** Generates the candidate blocker mask for a Rook on a given square.
+    *
+    * Excludes the outermost rank or file in each direction because a Rook's path cannot be blocked *beyond* the first
+    * blocker, and a blocker on the final edge square cannot change what squares the Rook can reach.
+    *
+    * @param sq
+    *   the [[Square]] position of the Rook
+    * @return
+    *   a [[Bitboard]] containing all candidate blocker squares (edges excluded)
     */
   def rookMask(sq: Square): Bitboard =
     var mask = 0L
@@ -86,7 +102,18 @@ object MagicBitboards:
 
     Bitboard(mask)
 
-  /** Generates bishop attacks using a slow classical approach. */
+  /** Computes Bishop attacks step-by-step along its four diagonals.
+    *
+    * This slow, non-optimized method is used exclusively during engine startup to populate the [[BishopTable]]. It
+    * slides in each direction, adding squares to the attack bitboard until it hits the board edge or another piece.
+    *
+    * @param sq
+    *   the source [[Square]] of the Bishop
+    * @param occupancy
+    *   the full board piece occupancy [[Bitboard]]
+    * @return
+    *   a [[Bitboard]] containing all squares the Bishop can attack or reach
+    */
   def bishopAttacksClassic(sq: Square, occupancy: Bitboard): Bitboard =
     var attacks = 0L
     val r       = sq.index / 8
@@ -106,7 +133,18 @@ object MagicBitboards:
 
     Bitboard(attacks)
 
-  /** Generates rook attacks using a slow classical approach. */
+  /** Computes Rook attacks step-by-step along its ranks and files.
+    *
+    * This slow, non-optimized method is used exclusively during engine startup to populate the [[RookTable]]. It slides
+    * horizontally and vertically, adding squares until it hits the board edge or another piece.
+    *
+    * @param sq
+    *   the source [[Square]] of the Rook
+    * @param occupancy
+    *   the full board piece occupancy [[Bitboard]]
+    * @return
+    *   a [[Bitboard]] containing all squares the Rook can attack or reach
+    */
   def rookAttacksClassic(sq: Square, occupancy: Bitboard): Bitboard =
     var attacks = 0L
     val r       = sq.index / 8
@@ -206,20 +244,50 @@ object MagicBitboards:
       if (index & (1 << i)) != 0 then occupancy |= (1L << square)
     Bitboard(occupancy)
 
-  /** Returns bishop attacks given a square and board occupancy. */
+  /** Performs an O(1) Magic lookup for all squares attacked or reachable by a Bishop.
+    *
+    * Masks the board `occupancy`, hashes it to an index using [[BishopMagics]], and returns the precomputed attack
+    * bitboard from [[BishopTable]].
+    *
+    * @param sq
+    *   the source [[Square]] of the Bishop
+    * @param occupancy
+    *   the full board piece occupancy [[Bitboard]]
+    * @return
+    *   a [[Bitboard]] of all attacked or reachable squares
+    */
   def bishopAttacks(sq: Square, occupancy: Bitboard): Bitboard =
     val i     = sq.index
     val occ   = occupancy & BishopMasks(i)
     val index = ((occ.value * BishopMagics(i)) >>> (64 - BishopRelevantBits(i))).toInt
     BishopTable(BishopOffsets(i) + index)
 
-  /** Returns rook attacks given a square and board occupancy. */
+  /** Performs an O(1) Magic lookup for all squares attacked or reachable by a Rook.
+    *
+    * Masks the board `occupancy`, hashes it to an index using [[RookMagics]], and returns the precomputed attack
+    * bitboard from [[RookTable]].
+    *
+    * @param sq
+    *   the source [[Square]] of the Rook
+    * @param occupancy
+    *   the full board piece occupancy [[Bitboard]]
+    * @return
+    *   a [[Bitboard]] of all attacked or reachable squares
+    */
   def rookAttacks(sq: Square, occupancy: Bitboard): Bitboard =
     val i     = sq.index
     val occ   = occupancy & RookMasks(i)
     val index = ((occ.value * RookMagics(i)) >>> (64 - RookRelevantBits(i))).toInt
     RookTable(RookOffsets(i) + index)
 
-  /** Returns queen attacks given a square and board occupancy. */
+  /** Returns all squares attacked or reachable by a Queen by combining Rook and Bishop attacks.
+    *
+    * @param sq
+    *   the source [[Square]] of the Queen
+    * @param occupancy
+    *   the full board piece occupancy [[Bitboard]]
+    * @return
+    *   a [[Bitboard]] containing the union of Bishop and Rook attack paths
+    */
   def queenAttacks(sq: Square, occupancy: Bitboard): Bitboard =
     bishopAttacks(sq, occupancy) | rookAttacks(sq, occupancy)
