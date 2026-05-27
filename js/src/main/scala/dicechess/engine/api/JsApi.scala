@@ -19,22 +19,19 @@ object JsApi:
     *
     * Useful for pawn promotion logic on the frontend to know exactly which pieces are allowed.
     *
-    * @param fen
-    *   The position in Forsyth-Edwards Notation.
-    * @param dice
-    *   An array of available dice roll results (1-6).
+    * @param dfen
+    *   The position in DiceChess Forsyth-Edwards Notation (including the dice pool).
     * @return
     *   An array of full UCI move strings.
     */
   @JSExport
-  def getLegalUciMoves(fen: String, dice: js.Array[Int]): js.Array[String] =
-    if fen == null || dice == null then js.Array()
+  def getLegalUciMoves(dfen: String): js.Array[String] =
+    if dfen == null then js.Array()
     else
-      FenParser.parse(fen) match
+      FenParser.parse(dfen) match
         case Left(_)      => js.Array()
         case Right(state) =>
-          val stateWithDice = state.withDicePool(dice.toList)
-          val allMoves      = LegalMovesFilter.filterMaximalMoves(stateWithDice)
+          val allMoves = LegalMovesFilter.filterMaximalMoves(state)
           allMoves.map { m =>
             val base = m.fromSquare.toNotation + m.toSquare.toNotation
             m.promotionPieceType.map(pt => base + pt.asNotation).getOrElse(base)
@@ -51,20 +48,22 @@ object JsApi:
   def getPieceFromDice(dice: Int): String =
     PieceType.fromDice(dice).map(_.asNotation).getOrElse(null)
 
-  /** Computes the best sequence of micro-moves for the given position and dice.
+  /** Computes the best sequence of micro-moves for the given position.
     *
-    * @param fen
-    *   The position in Forsyth-Edwards Notation.
-    * @param dice
-    *   An array of available dice roll results (1-6).
+    * @param dfen
+    *   The position in DiceChess Forsyth-Edwards Notation.
     * @param options
-    *   Optional configuration (e.g. `{{{ { algorithm: "greedy" } }}}`).
+    *   Optional configuration (e.g.
+    *   ```json
+    *   { "algorithm": "greedy" }
+    *   ```
+    *   ).
     * @return
     *   An object containing the array of moves, score, and time taken.
     */
   @JSExport
-  def getBestMove(fen: String, dice: js.Array[Int], options: js.UndefOr[js.Dynamic]): js.Dynamic =
-    if fen == null || dice == null then js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
+  def getBestMove(dfen: String, options: js.UndefOr[js.Dynamic]): js.Dynamic =
+    if dfen == null then js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
     else
       val algoName = options.toOption
         .filter(_ != null)
@@ -79,11 +78,11 @@ object JsApi:
         case "random" => RandomSearch
         case _        => GreedySearch
 
-      FenParser.parse(fen) match
+      FenParser.parse(dfen) match
         case Left(_)      => js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
         case Right(state) =>
           val start = System.currentTimeMillis()
-          searchAlgo.findBestMove(state.withDicePool(dice.toList)) match
+          searchAlgo.findBestMove(state) match
             case None =>
               js.Dynamic.literal(
                 moves = js.Array(),
@@ -104,10 +103,10 @@ object JsApi:
                 timeTakenMs = (System.currentTimeMillis() - start).toInt
               )
 
-  /** Applies a move to the given FEN and returns the resulting state.
+  /** Applies a move to the given DFEN and returns the resulting state.
     *
-    * @param fen
-    *   The starting board state in FEN notation.
+    * @param dfen
+    *   The starting board state in DiceChess Forsyth-Edwards Notation (DFEN).
     * @param from
     *   The algebraic notation of the starting square.
     * @param to
@@ -115,8 +114,8 @@ object JsApi:
     * @param promotion
     *   The optional piece type to promote to (e.g. "q").
     * @return
-    *   The updated FEN string after applying the move, or `undefined` if the move is pseudo-illegal.
+    *   The updated DFEN string after applying the move, or `undefined` if the move is pseudo-illegal.
     */
   @JSExport
-  def applyMove(fen: String, from: String, to: String, promotion: js.UndefOr[String]): js.UndefOr[String] =
-    dicechess.engine.EngineFacade.applyMove(fen, from, to, promotion)
+  def applyMove(dfen: String, from: String, to: String, promotion: js.UndefOr[String]): js.UndefOr[String] =
+    dicechess.engine.EngineFacade.applyMove(dfen, from, to, promotion)

@@ -80,8 +80,7 @@ Dice Chess is a stochastic variant of chess where players must roll a 6-sided di
 #### Request
 ```json
 {
-  "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-  "dice_roll": 1,
+  "dfen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 P",
   "depth": 3
 }
 ```
@@ -90,7 +89,7 @@ Dice Chess is a stochastic variant of chess where players must roll a 6-sided di
 ```json
 {
   "suggested_turn": {
-    "dice_roll": 1,
+    "dfen_after_turn": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1 P",
     "micro_moves": [
       { "from": "e2", "to": "e4" },
       { "from": "d2", "to": "d4" }

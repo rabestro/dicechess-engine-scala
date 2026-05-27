@@ -14,33 +14,30 @@ import scala.util.Random
 @JSExportTopLevel("EngineFacade")
 object EngineFacade {
 
-  /** Computes a bot move for the given FEN and dice roll.
+  /** Computes a bot move for the given DFEN.
     *
-    * @param fen
-    *   The current board state in FEN notation.
-    * @param diceRoll
-    *   The dice value (1-6) available for the move.
+    * @param dfen
+    *   The current board state in DiceChess FEN notation (includes the dice pool).
     * @param seed
     *   Optional random seed for deterministic move selection.
     * @return
     *   A dictionary containing `from` and `to` square notations, and an optional `promotion` piece, or `undefined` if
     *   no legal moves exist.
     * @example
-    *   {{{
-    *   const move = EngineFacade.getBotMove("rnbqkbnr/... w - - 0 1", 3, 12345);
-    *   if (move) console.log(move.from, move.to);
-    *   }}}
+    *   ```scala
+    *   val move = EngineFacade.getBotMove("rnbqkbnr/... w - - 0 1 r", 12345)
+    *   // Returns js.Dictionary("from" -> "e2", "to" -> "e4", ...)
+    *   ```
     */
   @JSExport
   def getBotMove(
-      fen: String,
-      diceRoll: Int,
+      dfen: String,
       seed: js.UndefOr[Int] = js.undefined
   ): js.UndefOr[js.Dictionary[String]] = {
-    if (fen == null) return js.undefined
-    FenParser.parse(fen) match {
+    if (dfen == null) return js.undefined
+    FenParser.parse(dfen) match {
       case Right(state) =>
-        val moves = MoveGenerator.generateMoves(state.withDicePool(List(diceRoll)))
+        val moves = MoveGenerator.generateMoves(state)
         if (moves.isEmpty) {
           js.undefined
         } else {
@@ -79,22 +76,22 @@ object EngineFacade {
 
   /** Retrieves the dice value (1-6) of the piece at the specified square.
     *
-    * @param fen
-    *   The current board state in FEN notation.
+    * @param dfen
+    *   The current board state in DiceChess FEN notation.
     * @param square
     *   The algebraic notation of the square (e.g. "e2").
     * @return
     *   The integer dice value corresponding to the piece type (1=Pawn..6=King), or `undefined` if the square is empty
     *   or invalid.
     * @example
-    *   {{{
-    *   const pt = EngineFacade.getPieceTypeAt(fen, "e2"); // returns 1 for a pawn
-    *   }}}
+    *   ```scala
+    *   val pt = EngineFacade.getPieceTypeAt(dfen, "e2") // returns 1 for a pawn
+    *   ```
     */
   @JSExport
-  def getPieceTypeAt(fen: String, square: String): js.UndefOr[Int] = {
-    if (fen == null || square == null) return js.undefined
-    FenParser.parse(fen) match {
+  def getPieceTypeAt(dfen: String, square: String): js.UndefOr[Int] = {
+    if (dfen == null || square == null) return js.undefined
+    FenParser.parse(dfen) match {
       case Right(state) =>
         Square.fromNotation(square) match {
           case Some(sq) =>
@@ -108,10 +105,10 @@ object EngineFacade {
     }
   }
 
-  /** Applies a move to the given FEN and returns the resulting state.
+  /** Applies a move to the given DFEN and returns the resulting state.
     *
-    * @param fen
-    *   The starting board state in FEN notation.
+    * @param dfen
+    *   The starting board state in DiceChess FEN notation.
     * @param from
     *   The algebraic notation of the starting square.
     * @param to
@@ -119,16 +116,16 @@ object EngineFacade {
     * @param promotion
     *   The optional piece type to promote to (e.g. "q").
     * @return
-    *   The updated FEN string after applying the move, or `undefined` if the move is pseudo-illegal.
+    *   The updated DFEN string after applying the move, or `undefined` if the move is pseudo-illegal.
     * @example
-    *   {{{
-    *   const newFen = EngineFacade.applyMove(fen, "e2", "e4", undefined);
-    *   }}}
+    *   ```scala
+    *   val newDfen = EngineFacade.applyMove(dfen, "e2", "e4", js.undefined)
+    *   ```
     */
   @JSExport
-  def applyMove(fen: String, from: String, to: String, promotion: js.UndefOr[String]): js.UndefOr[String] = {
-    if (fen == null || from == null || to == null) return js.undefined
-    FenParser.parse(fen) match {
+  def applyMove(dfen: String, from: String, to: String, promotion: js.UndefOr[String]): js.UndefOr[String] = {
+    if (dfen == null || from == null || to == null) return js.undefined
+    FenParser.parse(dfen) match {
       case Right(state) =>
         (Square.fromNotation(from), Square.fromNotation(to)) match {
           case (Some(fromSq), Some(toSq)) =>
