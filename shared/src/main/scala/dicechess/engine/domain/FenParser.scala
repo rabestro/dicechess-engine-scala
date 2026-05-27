@@ -197,8 +197,9 @@ object FenParser {
 
   /** Serialises a [[GameState]] back to a FEN string.
     *
-    * Produces all six FEN fields. Piece placement is written rank-8-first (as required by the standard). This method is
-    * the inverse of [[parse]]: `parse(serialize(s))` always yields `Right(s)` for a valid state.
+    * Produces all six standard FEN fields, plus an optional 7th field if the dice pool is non-empty. Piece placement is
+    * written rank-8-first (as required by the standard). This method is the inverse of [[parse]]: `parse(serialize(s))`
+    * always yields `Right(s)` for a valid state.
     *
     * @param state
     *   the game state to encode
