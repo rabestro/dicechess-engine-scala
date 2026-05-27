@@ -23,20 +23,24 @@ The package is distributed as a standard ES Module (`type: "module"`).
 ```javascript
 import { DiceChess } from '@rabestro/dicechess-engine';
 
-// 1. Get all legal moves as a flat array of UCI strings for the rolled dice
-const fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-const dice = [1, 2]; // 1 = Pawn, 2 = Knight
-const legalMoves = DiceChess.getLegalUciMoves(fen, dice);
+// Dice Chess FEN (DFEN) encodes the board state and the current dice pool as the 7th field
+// (e.g. "PN" represents a rolled Pawn (P) and Knight (N))
+const dfen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 PN";
+
+// 1. Get all legal moves as a flat array of UCI strings for the DFEN position
+const legalMoves = DiceChess.getLegalUciMoves(dfen);
 
 console.log("Legal moves in this turn:", legalMoves);
 // e.g. ["e2e3", "e2e4", "b1c3", "b1a3", ...]
 
-// 2. Apply a move to get the updated FEN
-const nextFen = DiceChess.applyMove(fen, "e2", "e4");
-console.log("Next FEN:", nextFen);
+// 2. Apply a move to get the updated DFEN
+// Arguments: (dfen, fromSquare, toSquare, optionalPromotionPiece)
+const nextDfen = DiceChess.applyMove(dfen, "e2", "e4");
+console.log("Next DFEN:", nextDfen);
 
 // 3. Compute the best sequence of micro-moves using the greedy bot search
-const botResult = DiceChess.getBestMove(nextFen, [3, 4], { algorithm: "greedy" });
+// Arguments: (dfen, optionalOptions)
+const botResult = DiceChess.getBestMove(nextDfen, { algorithm: "greedy" });
 console.log("Bot moves:", botResult.moves);
 // e.g. [ { from: "g1", to: "f3", promotion: null } ]
 ```
