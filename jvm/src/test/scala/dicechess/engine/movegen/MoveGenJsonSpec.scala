@@ -8,8 +8,8 @@ import scala.io.Source
 
 class MoveGenJsonSpec extends FunSuite:
 
-  private def filterMoves(state: GameState, dice: List[Int]): List[Move] =
-    LegalMovesFilter.filterMaximalMoves(state.withDicePool(dice))
+  private def filterMoves(state: GameState): List[Move] =
+    LegalMovesFilter.filterMaximalMoves(state)
 
   private def loadTestCases(resourceName: String): List[MoveGenTestCase] =
     val source = Option(getClass.getClassLoader.getResourceAsStream(resourceName))
@@ -39,14 +39,13 @@ class MoveGenJsonSpec extends FunSuite:
         Nil
 
     for tc <- cases do
-      val diceStr = tc.dice.mkString(", ")
-      val tcName  = (tc.title, tc.description) match
+      val tcName = (tc.title, tc.description) match
         case (Some(t), Some(d)) => s"$t ($d)"
         case (Some(t), None)    => t
         case (None, Some(d))    => d
         case (None, None)       => "Unnamed Scenario"
 
-      val testName                   = s"$suiteName: $tcName | Dice: [$diceStr]"
+      val testName                   = s"$suiteName: $tcName"
       val options: munit.TestOptions = testName
 
       test(options) {
@@ -54,7 +53,7 @@ class MoveGenJsonSpec extends FunSuite:
           case Right(s)  => s
           case Left(err) => fail(s"Failed to parse FEN '${tc.fen}': $err")
 
-        val actualMoves = filterMoves(state, tc.dice)
+        val actualMoves = filterMoves(state)
 
         import ChessDsl.toNotation
         val actualNotations   = actualMoves.map(_.toNotation).sorted

@@ -5,6 +5,7 @@ import io.circe.parser.decode
 import java.io.{File, PrintWriter}
 import java.net.URLEncoder
 import scala.io.Source
+import dicechess.engine.domain.FenParser
 
 /** Executable task to dynamically generate visual documentation for all move generator test cases.
   */
@@ -83,7 +84,8 @@ object DocGenerator:
         for (tc, index) <- cases.zipWithIndex do
           val caseNum     = index + 1
           val caseTitle   = tc.title.getOrElse(s"Scenario $caseNum")
-          val diceStr     = tc.dice.map(diceToSymbol).mkString(", ")
+          val dicePool    = FenParser.parse(tc.fen).map(_.dicePool).getOrElse(Nil)
+          val diceStr     = if dicePool.isEmpty then "—" else dicePool.map(diceToSymbol).mkString(", ")
           val description = tc.description.getOrElse("")
 
           val movesStr =
@@ -134,10 +136,11 @@ object DocGenerator:
             )
             .getOrElse("")
 
-          // Generate Lichess FEN image URL using standard export format
-          val cleanFen   = tc.fen.replace(' ', '_')
-          val encodedFen = URLEncoder.encode(cleanFen, "UTF-8")
-          val imgUrl     =
+          // Generate Lichess FEN image URL — strip the 7th dice field (not part of standard FEN)
+          val standardFen = tc.fen.split(" ").take(6).mkString(" ")
+          val cleanFen    = standardFen.replace(' ', '_')
+          val encodedFen  = URLEncoder.encode(cleanFen, "UTF-8")
+          val imgUrl      =
             s"https://lichess1.org/export/fen.gif?fen=$encodedFen&color=$boardColor&theme=brown&piece=cburnett"
 
           sb.append(s"### $caseNum. $caseTitle\n\n")

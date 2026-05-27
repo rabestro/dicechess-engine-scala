@@ -4,18 +4,20 @@ import dicechess.engine.domain.*
 
 /** Data structure representing a single Chess move generator test case.
   *
+  * The dice pool is embedded in the 7th field of `fen` (e.g., `"... w KQkq - 0 1 16"` for dice `[1, 6]`) and parsed
+  * automatically by [[dicechess.engine.domain.FenParser]].
+  *
   * @param fen
-  *   The position in Forsyth-Edwards Notation.
-  * @param dice
-  *   The list of available dice rolls (1-6).
+  *   The position in Forsyth-Edwards Notation, with an optional 7th field encoding the dice pool.
   * @param expectedMoves
-  *   The expected legal moves in standard algebraic notation (e.g., "e2e4", "e7e8q").
+  *   The expected legal moves in UCI notation (e.g., `"e2e4"`, `"e7e8q"`).
+  * @param title
+  *   An optional short title for the test scenario.
   * @param description
-  *   An optional description of the test scenario.
+  *   An optional longer description of the test scenario.
   */
 case class MoveGenTestCase(
     fen: String,
-    dice: List[Int],
     expectedMoves: List[String],
     title: Option[String] = None,
     description: Option[String] = None
@@ -40,69 +42,73 @@ object ChessDsl:
       s"${move.fromSquare.toNotation}${move.toSquare.toNotation}$promStr"
 
   extension (fen: String)
-    // 1-die roll (Int or PieceType)
+    /** Appends a single die value as the 7th FEN field, returning a [[FenWithDice]] builder.
+      *
+      * Example: `"rnbqkbnr/... w KQkq - 0 1".withDice(1)` → FEN `"rnbqkbnr/... w KQkq - 0 1 1"`
+      */
     def withDice(die: Int): FenWithDice =
-      FenWithDice(fen, List(die))
+      FenWithDice(s"$fen $die")
 
     @scala.annotation.targetName("withDicePiece")
     def withDice(die: PieceType): FenWithDice =
-      FenWithDice(fen, List(die.diceValue))
+      FenWithDice(s"$fen ${die.diceValue}")
 
     // 2-dice roll
     def withDice(dice: (Int, Int)): FenWithDice =
-      FenWithDice(fen, List(dice._1, dice._2))
+      FenWithDice(s"$fen ${dice._1}${dice._2}")
 
     @scala.annotation.targetName("withDicePiece2")
     def withDice(dice: (PieceType, PieceType)): FenWithDice =
-      FenWithDice(fen, List(dice._1.diceValue, dice._2.diceValue))
+      FenWithDice(s"$fen ${dice._1.diceValue}${dice._2.diceValue}")
 
     // 3-dice roll
     def withDice(dice: (Int, Int, Int)): FenWithDice =
-      FenWithDice(fen, List(dice._1, dice._2, dice._3))
+      FenWithDice(s"$fen ${dice._1}${dice._2}${dice._3}")
 
     @scala.annotation.targetName("withDicePiece3")
     def withDice(dice: (PieceType, PieceType, PieceType)): FenWithDice =
-      FenWithDice(fen, List(dice._1.diceValue, dice._2.diceValue, dice._3.diceValue))
+      FenWithDice(s"$fen ${dice._1.diceValue}${dice._2.diceValue}${dice._3.diceValue}")
 
     // General list fallback
     def withDice(diceList: List[Int]): FenWithDice =
-      FenWithDice(fen, diceList)
+      FenWithDice(s"$fen ${diceList.mkString}")
 
-  case class FenWithDice(fen: String, dice: List[Int]):
+  /** Intermediate builder that holds an FEN string (with dice in the 7th field) before the expected moves are given. */
+  case class FenWithDice(fen: String):
     /** Assigns a title to this test case.
       */
     def titled(title: String): FenWithDiceAndTitle =
-      FenWithDiceAndTitle(fen, dice, title)
+      FenWithDiceAndTitle(fen, title)
 
     /** Assigns a description to this test case.
       */
     def describedAs(desc: String): FenWithDiceAndDesc =
-      FenWithDiceAndDesc(fen, dice, desc)
+      FenWithDiceAndDesc(fen, desc)
 
     /** Specifies the expected legal moves that the generator should produce.
       */
     def shouldYield(moves: String*): MoveGenTestCase =
-      MoveGenTestCase(fen, dice, moves.toList, None, None)
+      MoveGenTestCase(fen, moves.toList, None, None)
 
-  case class FenWithDiceAndTitle(fen: String, dice: List[Int], title: String):
+  case class FenWithDiceAndTitle(fen: String, title: String):
     /** Assigns a description to this test case.
       */
     def describedAs(desc: String): FenWithDiceAndTitleAndDesc =
-      FenWithDiceAndTitleAndDesc(fen, dice, title, desc)
+      FenWithDiceAndTitleAndDesc(fen, title, desc)
 
     /** Specifies the expected legal moves that the generator should produce.
       */
     def shouldYield(moves: String*): MoveGenTestCase =
-      MoveGenTestCase(fen, dice, moves.toList, Some(title), None)
+      MoveGenTestCase(fen, moves.toList, Some(title), None)
 
-  case class FenWithDiceAndDesc(fen: String, dice: List[Int], desc: String):
+  case class FenWithDiceAndDesc(fen: String, desc: String):
     /** Specifies the expected legal moves that the generator should produce.
       */
     def shouldYield(moves: String*): MoveGenTestCase =
-      MoveGenTestCase(fen, dice, moves.toList, None, Some(desc))
+      MoveGenTestCase(fen, moves.toList, None, Some(desc))
 
-  case class FenWithDiceAndTitleAndDesc(fen: String, dice: List[Int], title: String, desc: String):
+  case class FenWithDiceAndTitleAndDesc(fen: String, title: String, desc: String):
     /** Specifies the expected legal moves that the generator should produce.
       */
     def shouldYield(moves: String*): MoveGenTestCase =
-      MoveGenTestCase(fen, dice, moves.toList, Some(title), Some(desc))
+      MoveGenTestCase(fen, moves.toList, Some(title), Some(desc))
