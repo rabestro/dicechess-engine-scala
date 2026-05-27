@@ -53,7 +53,7 @@
     "description": "Long castling is possible in this position"
   },
   {
-    "fen": "3k4/5P2/2P5/8/5K2/8/8/8 w - - 0 1 NP",
+    "fen": "3k4/5P2/2P5/8/5K2/8/8/8 w - - 0 1 PN",
     "expectedMoves": [
       "f7f8n"
     ],
@@ -61,7 +61,7 @@
     "description": "Forcing a pawn to promote to a knight in this position"
   },
   {
-    "fen": "3k4/5P2/2P5/8/5K2/8/8/8 w - - 0 1 BP",
+    "fen": "3k4/5P2/2P5/8/5K2/8/8/8 w - - 0 1 PB",
     "expectedMoves": [
       "f7f8b"
     ],
@@ -85,7 +85,7 @@
     "description": "Forcing a pawn to promote to a queen in this position"
   },
   {
-    "fen": "8/3k1P2/2P5/8/5K2/8/8/8 w - - 0 1 NP",
+    "fen": "8/3k1P2/2P5/8/5K2/8/8/8 w - - 0 1 PN",
     "expectedMoves": [
       "c6d7",
       "f7f8n"
@@ -94,7 +94,7 @@
     "description": "Beat the King (1 micro move) or forcing a pawn to promote to a knight in this position (2 micro moves). Both options are legal and the player can choose which one to execute."
   },
   {
-    "fen": "8/3k1P2/2P5/8/5K2/8/8/8 w - - 0 1 BP",
+    "fen": "8/3k1P2/2P5/8/5K2/8/8/8 w - - 0 1 PB",
     "expectedMoves": [
       "c6d7",
       "f7f8b"
@@ -103,7 +103,7 @@
     "description": "Beat the King (1 micro move) or forcing a pawn to promote to a bishop in this position (2 micro moves). Both options are legal and the player can choose which one to execute."
   },
   {
-    "fen": "8/3k1P2/2P5/8/5K2/8/8/8 w - - 0 1 RP",
+    "fen": "8/3k1P2/2P5/8/5K2/8/8/8 w - - 0 1 PR",
     "expectedMoves": [
       "c6d7",
       "f7f8r"
@@ -112,7 +112,7 @@
     "description": "Beat the King (1 micro move) or forcing a pawn to promote to a rook in this position (2 micro moves). Both options are legal and the player can choose which one to execute."
   },
   {
-    "fen": "8/3k1P2/2P5/8/5K2/8/8/8 w - - 0 1 QP",
+    "fen": "8/3k1P2/2P5/8/5K2/8/8/8 w - - 0 1 PQ",
     "expectedMoves": [
       "c6d7",
       "f7f8q"
@@ -121,7 +121,7 @@
     "description": "Beat the King (1 micro move) or forcing a pawn to promote to a queen in this position (2 micro moves). Both options are legal and the player can choose which one to execute."
   },
   {
-    "fen": "4k3/8/8/8/8/6b1/8/4K2R w K - 0 1 KR",
+    "fen": "4k3/8/8/8/8/6b1/8/4K2R w K - 0 1 RK",
     "expectedMoves": [
       "e1d1",
       "e1d2",
@@ -143,7 +143,7 @@
     "description": "In this position, the white king is in check from the black bishop on g3. However, the king can still castle to escape the check. The legal moves include both the king's possible moves and the castling move, which allows the king to move two squares towards the rook and the rook to move to the square next to the king on the opposite side."
   },
   {
-    "fen": "4k3/8/8/8/1b6/8/8/R3K3 w Q - 0 1 KR",
+    "fen": "4k3/8/8/8/1b6/8/8/R3K3 w Q - 0 1 RK",
     "expectedMoves": [
       "e1d1",
       "e1d2",
@@ -166,7 +166,7 @@
     "description": "In this position, the white king is in check from the black bishop on b4. However, the king can still castle to escape the check. The legal moves include both the king's possible moves and the castling move, which allows the king to move two squares towards the rook and the rook to move to the square next to the king on the opposite side."
   },
   {
-    "fen": "4k3/8/8/2b5/8/8/8/4K2R w K - 0 1 KR",
+    "fen": "4k3/8/8/2b5/8/8/8/4K2R w K - 0 1 RK",
     "expectedMoves": [
       "e1d1",
       "e1d2",
@@ -188,7 +188,7 @@
     "description": "In Dice Chess, after a short castling, the king can end up in check and this will be considered a legal move."
   },
   {
-    "fen": "4k3/8/8/6b1/8/8/8/R3K3 w Q - 0 1 KR",
+    "fen": "4k3/8/8/6b1/8/8/8/R3K3 w Q - 0 1 RK",
     "expectedMoves": [
       "e1d1",
       "e1d2",
@@ -211,7 +211,7 @@
     "description": "In Dice Chess, after a long castling, the king can end up in check and this will be considered a legal move."
   },
   {
-    "fen": "4k3/8/8/8/8/8/8/R3K2R w K - 0 1 KR",
+    "fen": "4k3/8/8/8/8/8/8/R3K2R w K - 0 1 RK",
     "expectedMoves": [
       "e1d1",
       "e1d2",
@@ -243,7 +243,7 @@
     "description": "In this position the rook on square A1 has already made a move and therefore only short castling is possible."
   },
   {
-    "fen": "4k3/8/8/8/8/8/8/R3K2R w Q - 0 1 KR",
+    "fen": "4k3/8/8/8/8/8/8/R3K2R w Q - 0 1 RK",
     "expectedMoves": [
       "e1d1",
       "e1d2",
@@ -275,7 +275,7 @@
     "description": "In this position the rook on square H1 has already made a move and therefore only long castling is possible."
   },
   {
-    "fen": "4k3/8/8/8/8/8/8/R3K2R w KQ - 0 1 KR",
+    "fen": "4k3/8/8/8/8/8/8/R3K2R w KQ - 0 1 RK",
     "expectedMoves": [
       "e1d1",
       "e1d2",

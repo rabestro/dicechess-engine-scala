@@ -43,7 +43,7 @@
     "description": "In this position, the white pawn on d5 can move to c6, d6, or e6 using one of the '1' dice. The white pawn on e7 can promote to a knight, bishop, queen, or rook on d8, e8, or f8 using the remaining two '1' dice."
   },
   {
-    "fen": "r1bqk2r/ppppbppp/2n1pn2/1B6/3PP3/2N5/PPP2PPP/R1BQK1NR b KQkq - 0 1 kbr",
+    "fen": "r1bqk2r/ppppbppp/2n1pn2/1B6/3PP3/2N5/PPP2PPP/R1BQK1NR b KQkq - 0 1 brk",
     "expectedMoves": [
       "e8f8",
       "e8g8",
@@ -60,7 +60,7 @@
     "description": "In this position, the black king on e8 can castle kingside to g8, or move to f8. The black bishop on e7 can move to f8, d6, c5, b4, or a3. The black rook on a8 can move to b8"
   },
   {
-    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 NPB",
+    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 PNB",
     "expectedMoves": [
       "e7e8n",
       "e7e8b"
@@ -69,7 +69,7 @@
     "description": "Forcing a pawn to promote to a knight or bishop. Maximum two micro moves in this position."
   },
   {
-    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 NPR",
+    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 PNR",
     "expectedMoves": [
       "e7e8n",
       "e7e8r"
@@ -78,7 +78,7 @@
     "description": "Forcing a pawn to promote to a knight or rook. Maximum two micro moves in this position."
   },
   {
-    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 NPQ",
+    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 PNQ",
     "expectedMoves": [
       "e7e8n",
       "e7e8q"
@@ -87,7 +87,7 @@
     "description": "Forcing a pawn to promote to a knight or queen. Maximum two micro moves in this position."
   },
   {
-    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 NPK",
+    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 PNK",
     "expectedMoves": [
       "e7e8n",
       "f6f7",
@@ -102,7 +102,7 @@
     "description": "Forcing a pawn to promote to a knight only."
   },
   {
-    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 NPP",
+    "fen": "8/4P3/5K2/8/2k5/8/1P6/8 w - - 0 1 PPN",
     "expectedMoves": [
       "e7e8n",
       "b2b3",

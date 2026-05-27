@@ -6,22 +6,22 @@ import scala.collection.mutable
   *
   * FEN encodes a complete chess position in a single ASCII string consisting of six space-separated fields:
   *
-  * ```
+  * {{{
   * <piece placement> <active color> <castling rights> <en-passant square> <half-move clock> <full-move number>
-  * ```
+  * }}}
   *
   * Example (starting position):
-  * ```
+  * {{{
   * rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
-  * ```
+  * }}}
   *
   * ## Dice Chess Extension (7th field)
   *
   * This parser also supports an optional **7th field** that stores the current turn's dice pool:
   *
-  * ```
+  * {{{
   * rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1 pnb
-  * ```
+  * }}}
   *
   * The 7th field is a string of piece letters (e.g. `"PNB"` for White or `"pnb"` for Black = dice pool `[1, 2, 3]`). It
   * is absent (`"-"`) or omitted when no dice have been rolled yet. [[serialize]] appends it automatically when the pool
