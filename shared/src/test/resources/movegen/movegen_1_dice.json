@@ -135,5 +135,20 @@
     ],
     "title": "Pawn promotion or capture",
     "description": "With a roll of Pawn (1), the pawn on d7 can promote to any piece on d8, or capture the black king on e8."
+  },
+  {
+    "fen": "rnbqkbnr/1p1p1ppp/8/pPpPp3/P3P3/2N2Q1N/2P2PPP/1RB1KB1R w Kkq a6c6e6 0 1 P",
+    "expectedMoves": [
+      "b5b6",
+      "b5a6",
+      "b5c6",
+      "d5c6",
+      "d5d6",
+      "d5e6",
+      "g2g3",
+      "g2g4"
+    ],
+    "title": "Three en passant targets",
+    "description": "In this position, there are three en passant targets: a6, c6, and e6. The pawn on b5 can capture the pawn on a5 en passant (b5a6), or the pawn on c5 en passant (b5c6). The pawn on d5 can capture the pawn on c5 en passant (d5c6), or the pawn on e5 en passant (d5e6). Additionally, both pawns can move forward one square, and the g2 pawn can move one or two squares forward."
   }
 ]
