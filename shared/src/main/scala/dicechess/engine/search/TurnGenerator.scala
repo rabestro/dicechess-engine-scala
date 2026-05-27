@@ -83,10 +83,8 @@ object TurnGenerator:
     else
       val activeColor = state.activeColor
       val branches    = List.newBuilder[List[Move]]
-      var hasAnyMove  = false
 
       for move <- MoveGenerator.generateMoves(state) do
-        hasAnyMove = true
         val moverType = state.mailbox(move.fromSquare).pieceType
         if isKingCapture(state, move) then branches += List(move)
         else if move.isCastling then
@@ -105,4 +103,4 @@ object TurnGenerator:
           else for p <- subPaths if p.nonEmpty do branches += (move :: p)
 
       val res = branches.result()
-      if !hasAnyMove then List(Nil) else res
+      if res.isEmpty then List(Nil) else res

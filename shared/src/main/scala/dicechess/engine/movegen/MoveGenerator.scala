@@ -188,9 +188,10 @@ object MoveGenerator {
 
   /** Appends castling moves (king-side and queen-side) for `color` to `moves`.
     *
-    * Checks if both King and Rook dice are available in the dice pool. If they are, it delegates each side to
-    * [[tryCastle]], which checks castling rights and path clearance. In Dice Chess, attacked transit/destination
-    * squares do not block castling.
+    * Unconditionally attempts castling for the King, delegating each side to [[tryCastle]], which checks castling
+    * rights and path clearance. Note: Dice validation (checking that both King and Rook dice are available) is the
+    * responsibility of the caller (e.g. [[TurnGenerator]] or [[LegalMovesFilter]]). In Dice Chess, attacked
+    * transit/destination squares do not block castling.
     */
   private def generateCastlingMoves(state: GameState, color: Color, moves: mutable.Builder[Move, List[Move]]): Unit = {
 
