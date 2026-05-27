@@ -41,10 +41,9 @@ class JsApiSpec extends FunSuite:
 
   test("getLegalUciMoves: pawn promotion generates UCI moves with promotion pieces") {
     // White pawn on e7, can promote to e8. Dice: [1] (Pawn)
-    val fen  = "k7/4P3/8/8/8/8/8/4K3 w - - 0 1"
-    val dice = js.Array(1)
+    val dfen = "k7/4P3/8/8/8/8/8/4K3 w - - 0 1 P"
 
-    val moves = JsApi.getLegalUciMoves(fen, dice).toList
+    val moves = JsApi.getLegalUciMoves(dfen).toList
 
     // Should generate all 4 promotions for e7e8
     assert(moves.contains("e7e8q"))
@@ -71,19 +70,16 @@ class JsApiSpec extends FunSuite:
   }
 
   test("getLegalUciMoves: handles null parameters gracefully by returning empty array") {
-    val fen  = "k7/4P3/8/8/8/8/8/4K3 w - - 0 1"
-    val dice = js.Array(1)
-    assertEquals(JsApi.getLegalUciMoves(null, dice).length, 0)
-    assertEquals(JsApi.getLegalUciMoves(fen, null).length, 0)
+    assertEquals(JsApi.getLegalUciMoves(null).length, 0)
   }
 
-  test("getLegalUciMoves: handles empty dice array by returning empty array") {
-    val fen = "k7/4P3/8/8/8/8/8/4K3 w - - 0 1"
-    assertEquals(JsApi.getLegalUciMoves(fen, js.Array()).length, 0)
+  test("getLegalUciMoves: handles FEN without dice by returning empty array if no moves possible") {
+    val dfen = "k7/4P3/8/8/8/8/8/4K3 w - - 0 1"
+    assertEquals(JsApi.getLegalUciMoves(dfen).length, 0)
   }
 
   test("getLegalUciMoves: handles invalid FEN by returning empty array") {
-    assertEquals(JsApi.getLegalUciMoves("invalid-fen", js.Array(1)).length, 0)
+    assertEquals(JsApi.getLegalUciMoves("invalid-fen").length, 0)
   }
 
   test("getPieceFromDice: returns null for invalid dice values") {
@@ -92,20 +88,13 @@ class JsApiSpec extends FunSuite:
   }
 
   test("getBestMove: handles null parameters gracefully by returning zero structure") {
-    val fen  = "k7/4P3/8/8/8/8/8/4K3 w - - 0 1"
-    val dice = js.Array(1)
-
-    val res1 = JsApi.getBestMove(null, dice, js.undefined)
+    val res1 = JsApi.getBestMove(null, js.undefined)
     assertEquals(res1.moves.length.asInstanceOf[Int], 0)
     assertEquals(res1.score.asInstanceOf[Int], 0)
-
-    val res2 = JsApi.getBestMove(fen, null, js.undefined)
-    assertEquals(res2.moves.length.asInstanceOf[Int], 0)
-    assertEquals(res2.score.asInstanceOf[Int], 0)
   }
 
   test("getBestMove: handles invalid FEN gracefully by returning zero structure") {
-    val res = JsApi.getBestMove("invalid-fen", js.Array(1), js.undefined)
+    val res = JsApi.getBestMove("invalid-fen", js.undefined)
     assertEquals(res.moves.length.asInstanceOf[Int], 0)
     assertEquals(res.score.asInstanceOf[Int], 0)
   }
