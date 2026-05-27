@@ -98,8 +98,9 @@ A new field `dicePool` is introduced to `GameState`:
 ```scala
 case class GameState(
     ...,
+    mailbox: Map[Square, Piece],
+    flags: GameFlags,         // Packed 29-bit int holding activeColor, dicePool (List[Int]), etc.
     enPassant: Bitboard,      // Holds multiple target squares
-    dicePool: List[Int],      // Sorted list of remaining dice rolls (1-6), empty if waiting for roll
     ...
 )
 ```
