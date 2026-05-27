@@ -66,4 +66,3 @@ For every square in the `promotionSquares` bitboard, the engine emits **four dis
 - Knight Promotion
 
 This ensures the move search algorithm can evaluate the trade-offs of different promotion choices. Since these are separate `MicroMove` objects, they are treated as unique options in the game tree.
-

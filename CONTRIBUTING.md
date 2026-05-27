@@ -95,4 +95,3 @@ GitHub Actions publish.yml       ← Auto-publishes to npm
     ↓
 Release published! 🎉
 ```
-
