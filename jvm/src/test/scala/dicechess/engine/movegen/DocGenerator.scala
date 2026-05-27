@@ -5,6 +5,7 @@ import io.circe.parser.decode
 import java.io.{File, PrintWriter}
 import java.net.URLEncoder
 import scala.io.Source
+import dicechess.engine.domain.{FenParser, Square}
 
 /** Executable task to dynamically generate visual documentation for all move generator test cases.
   */
@@ -83,61 +84,60 @@ object DocGenerator:
         for (tc, index) <- cases.zipWithIndex do
           val caseNum     = index + 1
           val caseTitle   = tc.title.getOrElse(s"Scenario $caseNum")
-          val diceStr     = tc.dice.map(diceToSymbol).mkString(", ")
+          val dicePool    = FenParser.parse(tc.fen).map(_.dicePool).getOrElse(Nil)
+          val diceStr     = if dicePool.isEmpty then "—" else dicePool.map(diceToSymbol).mkString(", ")
           val description = tc.description.getOrElse("")
 
           val movesStr =
             if tc.expectedMoves.isEmpty then "<em>None (no legal moves)</em>"
             else tc.expectedMoves.map(m => s"<code>$m</code>").mkString(", ")
 
-          // Parse FEN metadata dynamically
-          val fenParts                                      = tc.fen.split(" ")
-          val (activeColor, boardColor, castlingStr, epStr) = if (fenParts.length >= 4) {
-            val color = fenParts(1) match
-              case "w"   => "White"
-              case "b"   => "Black"
-              case other => other
+          // Parse FEN metadata via FenParser — handles multi-target EP and 7th-field dice
+          val parsedState = FenParser.parse(tc.fen).toOption
+          val fenParts    = tc.fen.split(" ")
 
-            val isWhite  = fenParts(1) == "w"
-            val boardCol = if (isWhite) "white" else "black"
+          val isWhite     = fenParts.lift(1).contains("w")
+          val boardColor  = if (isWhite) "white" else "black"
+          val activeColor = if (isWhite) "White" else "Black"
 
-            val castlingRaw = fenParts(2)
-            val castling    = if (isWhite) {
-              val canKingside  = castlingRaw.contains('K')
-              val canQueenside = castlingRaw.contains('Q')
-              (canKingside, canQueenside)
-            } else {
-              val canKingside  = castlingRaw.contains('k')
-              val canQueenside = castlingRaw.contains('q')
-              (canKingside, canQueenside)
-            }
-            val castlingText = castling match
-              case (true, true)   => Some("Kingside & Queenside")
-              case (true, false)  => Some("Kingside only")
-              case (false, true)  => Some("Queenside only")
-              case (false, false) => None
+          val castlingRaw = fenParts.lift(2).getOrElse("-")
+          val castlingStr =
+            if (isWhite) (castlingRaw.contains('K'), castlingRaw.contains('Q'))
+            else (castlingRaw.contains('k'), castlingRaw.contains('q'))
+          val castlingText: Option[String] = castlingStr match
+            case (true, true)  => Some("Kingside & Queenside")
+            case (true, false) => Some("Kingside only")
+            case (false, true) => Some("Queenside only")
+            case _             => None
 
-            val epRaw  = fenParts(3)
-            val epText = if (epRaw != "-") Some(epRaw) else None
+          // Extract individual EP target squares from the bitboard
+          val epSquares: List[String] = parsedState match
+            case Some(state) =>
+              var bb     = state.enPassant.value
+              var result = List.empty[String]
+              while (bb != 0) {
+                val idx = java.lang.Long.numberOfTrailingZeros(bb)
+                result = Square.fromIndex(idx.toInt).toNotation :: result
+                bb &= bb - 1
+              }
+              result.sorted
+            case None => Nil
 
-            (color, boardCol, castlingText, epText)
-          } else {
-            ("White", "white", None, None)
-          }
-
-          val castlingLi = castlingStr
+          val castlingLi = castlingText
             .map(c => s"""\n      <li style="margin-bottom: 8px;"><strong>Castling Rights:</strong> $c</li>""")
             .getOrElse("")
-          val epLi = epStr
-            .map(e =>
-              s"""\n      <li style="margin-bottom: 8px;"><strong>En Passant Target:</strong> <code>$e</code></li>"""
-            )
-            .getOrElse("")
+          val epLi =
+            if (epSquares.isEmpty) ""
+            else
+              val label        = if (epSquares.size == 1) "En Passant Target" else "En Passant Targets"
+              val squaresCodes = epSquares.map(s => s"<code>$s</code>").mkString(", ")
+              s"""\n      <li style="margin-bottom: 8px;"><strong>$label:</strong> $squaresCodes</li>"""
 
-          // Generate Lichess FEN image URL using standard export format
-          val cleanFen   = tc.fen.replace(' ', '_')
-          val encodedFen = URLEncoder.encode(cleanFen, "UTF-8")
-          val imgUrl     =
+          // Generate Lichess FEN image URL — strip the 7th dice field (not part of standard FEN)
+          val standardFen = tc.fen.split(" ").take(6).mkString(" ")
+          val cleanFen    = standardFen.replace(' ', '_')
+          val encodedFen  = URLEncoder.encode(cleanFen, "UTF-8")
+          val imgUrl      =
             s"https://lichess1.org/export/fen.gif?fen=$encodedFen&color=$boardColor&theme=brown&piece=cburnett"
 
           sb.append(s"### $caseNum. $caseTitle\n\n")
