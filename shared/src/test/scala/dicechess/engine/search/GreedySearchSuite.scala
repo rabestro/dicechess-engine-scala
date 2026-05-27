@@ -194,3 +194,22 @@ class GreedySearchSuite extends FunSuite:
     // Both c5 and e5 must eventually be chosen
     assertEquals(chosenTargets, Set("c5", "e5"))
   }
+
+  test("GreedySearch should not choose castling when Rook die is missing from the pool") {
+    // Black king on e8, Black rook on h8, King has castling rights ('k')
+    // Dice pool: [3, 6, 6] (Bishop, King, King). Rook (4) is missing.
+    val state = FenParser
+      .parse("rnq1k2r/pppbpp1p/3p2pQ/8/2BPP3/2N2N2/PPPK1PPP/1R5R b kq - 0 1")
+      .fold(
+        err => fail(s"Failed to parse FEN: $err"),
+        state => state
+      )
+      .withDicePool(List(3, 6, 6))
+
+    val bestMoveOpt = GreedySearch.findBestMove(state)
+    // The bot should NOT return a castling move (e8g8 / quiet castle)
+    bestMoveOpt.foreach { scoredSeq =>
+      val hasCastling = scoredSeq.moves.exists(m => m.fromSquare.toNotation == "e8" && m.toSquare.toNotation == "g8")
+      assert(!hasCastling, s"Bot castled illegally without a Rook die: ${scoredSeq.moves.map(m => m.fromSquare.toNotation + m.toSquare.toNotation)}")
+    }
+  }

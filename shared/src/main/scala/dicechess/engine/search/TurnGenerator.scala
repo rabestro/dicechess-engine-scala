@@ -89,7 +89,10 @@ object TurnGenerator:
         hasAnyMove = true
         val moverType = state.mailbox(move.fromSquare).pieceType
         if isKingCapture(state, move) then branches += List(move)
-        else if move.isCastling then
+        else if move.isCastling && state.dicePool.contains(PieceType.King.diceValue) && state.dicePool.contains(
+            PieceType.Rook.diceValue
+          )
+        then
           // Castling consumes both King and Rook dice
           val afterCastle = state.dicePool.diff(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
           val next        = state.makeMove(move).withActiveColor(activeColor).withDicePool(afterCastle)
