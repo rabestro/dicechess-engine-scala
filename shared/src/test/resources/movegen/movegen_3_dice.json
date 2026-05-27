@@ -110,5 +110,21 @@
     ],
     "title": "Beat the king or promote to a knight",
     "description": "We can beat the king or promote to a knight. Two or three micro moves in this position."
+  },
+  {
+    "fen": "rnq1k2r/pppbpp1p/3p2pQ/8/2BPP3/2N2N2/PPPK1PPP/1R5R b kq - 0 1 BKK",
+    "expectedMoves": [
+      "e8f8",
+      "e8d8",
+      "d7c6",
+      "d7b5",
+      "d7a4",
+      "d7e6",
+      "d7f5",
+      "d7g4",
+      "d7h3"
+    ],
+    "title": "Bishop and king moves with three dice",
+    "description": "In this position, the black king on e8 can move to f8 or d8. The black bishop on d7 can move to c6, b5, a4, e6, f5, g4, or h3."
   }
 ]
