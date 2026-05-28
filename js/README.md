@@ -33,16 +33,23 @@ const legalMoves = DiceChess.getLegalUciMoves(dfen);
 console.log("Legal moves in this turn:", legalMoves);
 // e.g. ["e2e3", "e2e4", "b1c3", "b1a3", ...]
 
-// 2. Apply a move to get the updated DFEN
+// 2. Apply a micro-move. Note that applyMove preserves the active color
+// (White) since a Dice Chess turn may consist of multiple micro-moves.
 // Arguments: (dfen, fromSquare, toSquare, optionalPromotionPiece)
 const nextDfen = DiceChess.applyMove(dfen, "e2", "e4");
-console.log("Next DFEN:", nextDfen);
+console.log("DFEN after micro-move:", nextDfen);
 
-// 3. Compute the best sequence of micro-moves using the greedy bot search
+// 3. Explicitly end the turn when the player has exhausted their dice.
+// This toggles the active color to Black, increments the move counter,
+// and clears any stale en-passant targets from the previous turn.
+const finalDfen = DiceChess.endTurn(nextDfen);
+console.log("DFEN after ending turn:", finalDfen);
+
+// 4. Compute the best sequence of micro-moves using the greedy bot search
 // Arguments: (dfen, optionalOptions)
-const botResult = DiceChess.getBestMove(nextDfen, { algorithm: "greedy" });
+const botResult = DiceChess.getBestMove(finalDfen, { algorithm: "greedy" });
 console.log("Bot moves:", botResult.moves);
-// e.g. [ { from: "g1", to: "f3", promotion: null } ]
+// e.g. [ { from: "g8", to: "f6", promotion: null } ]
 ```
 
 ---

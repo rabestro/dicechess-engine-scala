@@ -23,14 +23,32 @@ function getLegalUciMoves(fen: string, dice: number[]): string[]
 
 ### `applyMove`
 
-Applies a move to the given FEN and returns the resulting board state. 
+Applies a **micro-move** to the given FEN and returns the resulting board state. 
 This function acts as the **Single Source of Truth** for chess rules, ensuring correct handling of castling rights, en passant, and pawn promotions.
+
+> [!NOTE]  
+> Because a Dice Chess turn consists of multiple micro-moves, `applyMove` **does not** transition the turn to the opponent. The active color and full-move number remain unchanged. To formally end a turn, you must call `endTurn`.
 
 ```typescript
 function applyMove(fen: string, from: string, to: string, promotion?: string): string | undefined
 ```
 
 **Returns:** The updated FEN string after the move is applied, or `undefined` if the move is pseudo-illegal.
+
+---
+
+### `endTurn`
+
+Explicitly ends the current player's turn. This function is critical for the micro-move architecture. It performs three vital operations:
+1. Toggles the active color to the opponent.
+2. Increments the full-move number (if the current player was Black).
+3. Clears any stale *en-passant* targets from the previous turn, preventing illegal captures.
+
+```typescript
+function endTurn(fen: string): string | undefined
+```
+
+**Returns:** The updated FEN string for the next player's turn, or `undefined` if the FEN is invalid.
 
 ---
 
