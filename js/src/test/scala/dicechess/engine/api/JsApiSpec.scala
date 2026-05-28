@@ -43,7 +43,8 @@ class JsApiSpec extends FunSuite:
     // White's turn ends. Black had created an EP on c6 previously.
     // White also created an EP on e3.
     // When White ends turn, c6 must be cleared (White missed the chance). e3 must remain (for Black to capture).
-    val beforeFen = "rnbqkbnr/p1pppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6e3 0 1"
+    // The FEN also has 'PN' in the 7th field, simulating leftover dice. endTurn should clear them.
+    val beforeFen = "rnbqkbnr/p1pppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6e3 0 1 PN"
     val expected  = "rnbqkbnr/p1pppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
     val result    = JsApi.endTurn(beforeFen)
     assertEquals(result.toOption, Some(expected))

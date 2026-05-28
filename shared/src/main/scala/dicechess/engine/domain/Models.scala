@@ -330,7 +330,7 @@ case class GameState(
     val cleanedState = clearEnPassant(nextColor)
 
     cleanedState.copy(
-      flags = cleanedState.flags.withActiveColor(nextColor),
+      flags = cleanedState.flags.withActiveColor(nextColor).withDicePool(Nil),
       fullMoveNumber = nextFullMove
     )
 
