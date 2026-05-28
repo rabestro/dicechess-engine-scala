@@ -62,7 +62,7 @@ object SearchScoring:
       else
         val activeColor       = state.activeColor
         val cleanState        = state.clearEnPassant(state.activeColor)
-        val intermediateState = path.init.foldLeft(cleanState)((s, m) => s.makeMove(m).withActiveColor(activeColor))
+        val intermediateState = path.init.foldLeft(cleanState)((s, m) => s.makeMove(m))
         val lastMove          = path.last
         val isKingCapture     = intermediateState.mailbox
           .get(lastMove.toSquare)
@@ -70,6 +70,6 @@ object SearchScoring:
 
         if isKingCapture then TerminalWinScore
         else
-          val finalState = intermediateState.makeMove(lastMove)
+          val finalState = intermediateState.makeMove(lastMove).endTurn()
           Evaluator.evaluateMaterial(finalState, activeColor)
     ScoredSequence(path, score)

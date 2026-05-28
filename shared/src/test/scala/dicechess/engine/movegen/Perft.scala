@@ -15,7 +15,7 @@ object Perft:
 
     var nodes = 0L
     for mv <- moves do
-      val nextState = state.makeMove(mv).withDicePool(state.dicePool) // Maintain dice roll
+      val nextState = state.makeMove(mv).endTurn().withDicePool(state.dicePool) // Maintain dice roll
       nodes += countNodes(nextState, depth - 1)
 
     nodes
@@ -26,7 +26,7 @@ object Perft:
     val moves = MoveGenerator.generateMoves(state)
     moves.map { mv =>
       val notation  = s"${mv.fromSquare}${mv.toSquare}" // Simple notation for now
-      val nextState = state.makeMove(mv).withDicePool(state.dicePool)
+      val nextState = state.makeMove(mv).endTurn().withDicePool(state.dicePool)
       val count     = if depth > 1 then countNodes(nextState, depth - 1) else 1L
       notation -> count
     }.toMap
