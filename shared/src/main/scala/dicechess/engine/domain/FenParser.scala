@@ -124,7 +124,7 @@ object FenParser {
       var rooks       = Bitboard.empty
       var queens      = Bitboard.empty
       var kings       = Bitboard.empty
-      val mailbox     = mutable.Map.empty[Square, Piece]
+      val mailbox     = new Array[Piece](64)
 
       var r = 0
       while (r < ranks.length) {
@@ -151,7 +151,7 @@ object FenParser {
             }
 
             val piece = Piece(color, pt)
-            mailbox.put(sq, piece)
+            mailbox(sq.index) = piece
 
             val bb = Bitboard.fromSquare(sq)
             if (color.isWhite) whitePieces |= bb else blackPieces |= bb
@@ -184,7 +184,7 @@ object FenParser {
           rooks,
           queens,
           kings,
-          mailbox = mailbox.toMap,
+          mailbox = Mailbox.fromBuilder(mailbox),
           flags = flags,
           enPassant = enPassantBb,
           fullMoveNumber = fullMove
@@ -213,15 +213,15 @@ object FenParser {
       var empty = 0
       var f     = 0
       while (f < 8) {
-        val sq = Square.fromIndex(r * 8 + f)
-        state.mailbox.get(sq) match {
-          case Some(piece) =>
-            if (empty > 0) res.append(empty.toString)
-            empty = 0
-            val char = piece.pieceType.asNotation
-            res.append(if (piece.color.isWhite) char.toUpperCase else char.toLowerCase)
-          case None =>
-            empty += 1
+        val sq    = Square.fromIndex(r * 8 + f)
+        val piece = state.mailbox(sq)
+        if (!piece.isEmpty) {
+          if (empty > 0) res.append(empty.toString)
+          empty = 0
+          val char = piece.pieceType.asNotation
+          res.append(if (piece.color.isWhite) char.toUpperCase else char.toLowerCase)
+        } else {
+          empty += 1
         }
         f += 1
       }

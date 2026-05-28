@@ -78,12 +78,15 @@ opaque type Piece = Int
   *   - Bits 0-2: PieceType (1-6)
   */
 object Piece:
+  val Empty: Piece = 0
+
   def apply(color: Color, pieceType: PieceType): Piece =
     (color << 3) | pieceType
 
   extension (piece: Piece)
     inline def color: Color         = piece >>> 3
     inline def pieceType: PieceType = piece & 7
+    inline def isEmpty: Boolean     = piece == Piece.Empty
 
 opaque type Square = Int
 
@@ -164,6 +167,38 @@ object MicroMove:
       import PieceType.asNotation
       val promStr = promotion.map(_.asNotation).getOrElse("")
       s"${Square.toNotation(from)}${Square.toNotation(to)}$promStr"
+
+opaque type Mailbox = IArray[Piece]
+
+/** A fast, flat array representation of the 64 squares on the board.
+  *
+  * Gives O(1) piece lookup and near-instant cloning via System.arraycopy without GC allocations.
+  */
+object Mailbox:
+  import Square.*
+  import Piece.*
+
+  /** Returns a completely empty mailbox. */
+  def empty: Mailbox = IArray.fill(64)(Piece.Empty)
+
+  /** Creates a mailbox directly from a mutated builder array.
+    *
+    * @note
+    *   Mutating the `builder` after calling this method breaks the immutability guarantee.
+    */
+  inline def fromBuilder(builder: Array[Piece]): Mailbox = IArray.unsafeFromArray(builder)
+
+  extension (mb: Mailbox)
+    /** Fast O(1) retrieval of the piece at `sq`. Returns `Piece.Empty` if square is unoccupied. */
+    inline def apply(sq: Square): Piece = mb.asInstanceOf[Array[Piece]](sq.index)
+
+    /** Optional retrieval of the piece at `sq` (for legacy compatibility). */
+    inline def get(sq: Square): Option[Piece] =
+      val p = mb.asInstanceOf[Array[Piece]](sq.index)
+      if p.isEmpty then None else Some(p)
+
+    /** Exposes the underlying immutable array for cloning. */
+    inline def toArray: Array[Piece] = mb.asInstanceOf[Array[Piece]].clone()
 
 opaque type Bitboard = Long
 
@@ -255,7 +290,7 @@ case class Turn(diceRoll: Int, microMoves: List[MicroMove]):
   * @param kings
   *   Bitboard for all Kings (both colors).
   * @param mailbox
-  *   Map from occupied [[Square]] to the [[Piece]] on that square; used for O(1) piece-type lookup.
+  *   Fast O(1) flat array from [[Square]] to [[Piece]].
   * @param flags
   *   Packed 29-bit integer encoding active color, castling rights, en-passant file mask, dice pool (up to 3 dice), and
   *   the half-move clock. See [[GameFlags]] for the exact bit layout.
@@ -274,7 +309,7 @@ case class GameState(
     rooks: Bitboard,
     queens: Bitboard,
     kings: Bitboard,
-    mailbox: Map[Square, Piece],
+    mailbox: Mailbox,
     flags: GameFlags,
     enPassant: Bitboard,
     fullMoveNumber: Int
@@ -313,6 +348,38 @@ case class GameState(
 
   inline def dicePool: List[Int] = flags.dicePool
   inline def halfMoveClock: Int  = flags.halfMoveClock
+
+  override def equals(obj: Any): Boolean = obj match
+    case that: GameState =>
+      this.whitePieces == that.whitePieces &&
+      this.blackPieces == that.blackPieces &&
+      this.pawns == that.pawns &&
+      this.knights == that.knights &&
+      this.bishops == that.bishops &&
+      this.rooks == that.rooks &&
+      this.queens == that.queens &&
+      this.kings == that.kings &&
+      java.util.Arrays.equals(this.mailbox.asInstanceOf[Array[Int]], that.mailbox.asInstanceOf[Array[Int]]) &&
+      this.flags == that.flags &&
+      this.enPassant == that.enPassant &&
+      this.fullMoveNumber == that.fullMoveNumber
+    case _ => false
+
+  override def hashCode(): Int =
+    var h = 17
+    h = h * 31 + whitePieces.##
+    h = h * 31 + blackPieces.##
+    h = h * 31 + pawns.##
+    h = h * 31 + knights.##
+    h = h * 31 + bishops.##
+    h = h * 31 + rooks.##
+    h = h * 31 + queens.##
+    h = h * 31 + kings.##
+    h = h * 31 + java.util.Arrays.hashCode(mailbox.asInstanceOf[Array[Int]])
+    h = h * 31 + flags.##
+    h = h * 31 + enPassant.##
+    h = h * 31 + fullMoveNumber.##
+    h
 
   /** Explicitly ends the current player's turn.
     *

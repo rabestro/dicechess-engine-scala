@@ -98,15 +98,15 @@ private object Position:
     *   the position from which initial bitboard values are copied
     */
   class BitboardMutator(state: GameState):
-    var white: Bitboard             = state.whitePieces
-    var black: Bitboard             = state.blackPieces
-    var pawns: Bitboard             = state.pawns
-    var knights: Bitboard           = state.knights
-    var bishops: Bitboard           = state.bishops
-    var rooks: Bitboard             = state.rooks
-    var queens: Bitboard            = state.queens
-    var kings: Bitboard             = state.kings
-    var mailbox: Map[Square, Piece] = state.mailbox
+    var white: Bitboard       = state.whitePieces
+    var black: Bitboard       = state.blackPieces
+    var pawns: Bitboard       = state.pawns
+    var knights: Bitboard     = state.knights
+    var bishops: Bitboard     = state.bishops
+    var rooks: Bitboard       = state.rooks
+    var queens: Bitboard      = state.queens
+    var kings: Bitboard       = state.kings
+    val mailbox: Array[Piece] = state.mailbox.toArray
 
     /** Clears the bit for `sqBB` from the type-specific bitboard of `pt`. */
     def clearPiece(pt: PieceType, sqBB: Bitboard): Unit = pt match
@@ -151,7 +151,8 @@ private object Position:
       val rookBB = Bitboard.fromSquare(rookFrom) | Bitboard.fromSquare(rookTo)
       if isWhite then white ^= rookBB else black ^= rookBB
       rooks ^= rookBB
-      mailbox = mailbox - rookFrom + (rookTo -> Piece(color, PieceType.Rook))
+      mailbox(rookFrom.index) = Piece.Empty
+      mailbox(rookTo.index) = Piece(color, PieceType.Rook)
 
 extension (state: GameState)
   /** Applies a [[MicroMove]] (turn-based) to the current game state.
@@ -183,25 +184,25 @@ extension (state: GameState)
 
     val isEnPassantCapture = movingPiece.pieceType == PieceType.Pawn &&
       from.file != to.file &&
-      !state.mailbox.contains(to)
+      state.mailbox(to).isEmpty
 
     if (isEnPassantCapture) {
       val victimSq    = Square.fromIndex(to.index + rankOffset)
       val victimPiece = state.mailbox.get(victimSq)
       val victimBB    = Bitboard.fromSquare(victimSq)
-      b.mailbox = b.mailbox - victimSq
+      b.mailbox(victimSq.index) = Piece.Empty
       b.removeCaptured(isWhite, victimBB)
       victimPiece.foreach(p => b.clearPiece(p.pieceType, victimBB))
     }
 
-    b.mailbox = b.mailbox - from
+    b.mailbox(from.index) = Piece.Empty
     b.moveColor(isWhite, fromBB | toBB)
     targetPiece.foreach(_ => b.removeCaptured(isWhite, toBB))
     b.clearPiece(movingPiece.pieceType, fromBB)
     targetPiece.foreach(p => b.clearPiece(p.pieceType, toBB))
     val finalPieceType = mv.promotion.getOrElse(movingPiece.pieceType)
     b.setPiece(finalPieceType, toBB)
-    b.mailbox += (to -> Piece(movingPiece.color, finalPieceType))
+    b.mailbox(to.index) = Piece(movingPiece.color, finalPieceType)
 
     val isDoublePush   = movingPiece.pieceType == PieceType.Pawn && math.abs(to.rank - from.rank) == 2
     var finalEnPassant = state.enPassant
@@ -257,7 +258,7 @@ extension (state: GameState)
       rooks = b.rooks,
       queens = b.queens,
       kings = b.kings,
-      mailbox = b.mailbox,
+      mailbox = Mailbox.fromBuilder(b.mailbox),
       flags = newFlags,
       enPassant = finalEnPassant
     )
@@ -294,7 +295,7 @@ extension (state: GameState)
     val rankOffset = if isWhite then -8 else 8
     val b          = new Position.BitboardMutator(state)
 
-    b.mailbox = b.mailbox - from
+    b.mailbox(from.index) = Piece.Empty
     b.moveColor(isWhite, fromBB | toBB)
     b.clearPiece(mover.pieceType, fromBB)
 
@@ -309,36 +310,38 @@ extension (state: GameState)
     mv.flags match {
       case Move.DoublePawnPush =>
         b.pawns |= toBB
-        b.mailbox += (to -> Piece(color, PieceType.Pawn))
+        b.mailbox(to.index) = Piece(color, PieceType.Pawn)
         newEnPassant = newEnPassant.add(Square.fromIndex(to.index + rankOffset))
 
       case Move.EnPassantCapture =>
-        val victimBB = Bitboard.fromSquare(Square.fromIndex(to.index + rankOffset))
+        val victimSq = Square.fromIndex(to.index + rankOffset)
+        val victimBB = Bitboard.fromSquare(victimSq)
         b.removeCaptured(isWhite, victimBB)
         b.pawns = (b.pawns & ~victimBB) | toBB
-        b.mailbox = b.mailbox - Square.fromIndex(to.index + rankOffset) + (to -> Piece(color, PieceType.Pawn))
+        b.mailbox(victimSq.index) = Piece.Empty
+        b.mailbox(to.index) = Piece(color, PieceType.Pawn)
         newEnPassant = newEnPassant.remove(to)
 
       case Move.KingCastle =>
         b.kings |= toBB
-        b.mailbox += (to -> Piece(color, PieceType.King))
+        b.mailbox(to.index) = Piece(color, PieceType.King)
         val (rFrom, rTo) = if isWhite then (Square('h', 1), Square('f', 1)) else (Square('h', 8), Square('f', 8))
         b.moveRook(isWhite, rFrom, rTo, color)
 
       case Move.QueenCastle =>
         b.kings |= toBB
-        b.mailbox += (to -> Piece(color, PieceType.King))
+        b.mailbox(to.index) = Piece(color, PieceType.King)
         val (rFrom, rTo) = if isWhite then (Square('a', 1), Square('d', 1)) else (Square('a', 8), Square('d', 8))
         b.moveRook(isWhite, rFrom, rTo, color)
 
       case _ if mv.isPromotion =>
         val promType = Position.promotionPieceType(mv.flags)
         b.setPiece(promType, toBB)
-        b.mailbox += (to -> Piece(color, promType))
+        b.mailbox(to.index) = Piece(color, promType)
 
       case _ =>
         b.setPiece(mover.pieceType, toBB)
-        b.mailbox += (to -> Piece(color, mover.pieceType))
+        b.mailbox(to.index) = Piece(color, mover.pieceType)
     }
 
     val newCastlingRights = Position.updatedCastlingRights(state.flags.castlingRights, mover, from, target, to, isWhite)
@@ -370,7 +373,7 @@ extension (state: GameState)
       rooks = b.rooks,
       queens = b.queens,
       kings = b.kings,
-      mailbox = b.mailbox,
+      mailbox = Mailbox.fromBuilder(b.mailbox),
       flags = newFlags,
       enPassant = newEnPassant
     )

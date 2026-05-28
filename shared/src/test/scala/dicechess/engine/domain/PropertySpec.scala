@@ -35,7 +35,7 @@ class PropertySpec extends ScalaCheckSuite:
     // Generate pieces for these squares
     pieces <- Gen.listOfN(numPieces, pieceGen)
 
-    mailbox = squaresIndices
+    mailboxMap = squaresIndices
       .zip(pieces)
       .map { case (idx, piece) =>
         Square.fromIndex(idx) -> piece
@@ -43,28 +43,28 @@ class PropertySpec extends ScalaCheckSuite:
       .toMap
 
     // Build Bitboards from Mailbox
-    whitePieces = mailbox
+    whitePieces = mailboxMap
       .collect { case (sq, p) if p.color.isWhite => sq }
       .foldLeft(Bitboard.empty)((bb, sq) => bb | Bitboard.fromSquare(sq))
-    blackPieces = mailbox
+    blackPieces = mailboxMap
       .collect { case (sq, p) if p.color.isBlack => sq }
       .foldLeft(Bitboard.empty)((bb, sq) => bb | Bitboard.fromSquare(sq))
-    pawns = mailbox
+    pawns = mailboxMap
       .collect { case (sq, p) if p.pieceType == PieceType.Pawn => sq }
       .foldLeft(Bitboard.empty)((bb, sq) => bb | Bitboard.fromSquare(sq))
-    knights = mailbox
+    knights = mailboxMap
       .collect { case (sq, p) if p.pieceType == PieceType.Knight => sq }
       .foldLeft(Bitboard.empty)((bb, sq) => bb | Bitboard.fromSquare(sq))
-    bishops = mailbox
+    bishops = mailboxMap
       .collect { case (sq, p) if p.pieceType == PieceType.Bishop => sq }
       .foldLeft(Bitboard.empty)((bb, sq) => bb | Bitboard.fromSquare(sq))
-    rooks = mailbox
+    rooks = mailboxMap
       .collect { case (sq, p) if p.pieceType == PieceType.Rook => sq }
       .foldLeft(Bitboard.empty)((bb, sq) => bb | Bitboard.fromSquare(sq))
-    queens = mailbox
+    queens = mailboxMap
       .collect { case (sq, p) if p.pieceType == PieceType.Queen => sq }
       .foldLeft(Bitboard.empty)((bb, sq) => bb | Bitboard.fromSquare(sq))
-    kings = mailbox
+    kings = mailboxMap
       .collect { case (sq, p) if p.pieceType == PieceType.King => sq }
       .foldLeft(Bitboard.empty)((bb, sq) => bb | Bitboard.fromSquare(sq))
 
@@ -103,6 +103,10 @@ class PropertySpec extends ScalaCheckSuite:
       epFiles |= (1 << fileIdx)
       epV &= epV - 1
     }
+
+    val mbBuilder = Array.fill(64)(Piece.Empty)
+    mailboxMap.foreach { case (sq, p) => mbBuilder(sq.index) = p }
+    val mailbox = Mailbox.fromBuilder(mbBuilder)
 
     val flags = GameFlags.fromList(
       color = activeColor,
