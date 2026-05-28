@@ -153,3 +153,37 @@ class ModelsSpec extends FunSuite:
     assert(stateAfterBlackClears.enPassant.contains(Square.fromNotation("e3").get))  // Preserved!
     assert(!stateAfterBlackClears.enPassant.contains(Square.fromNotation("h6").get)) // Cleared!
   }
+
+  test("GameState.endTurn should toggle color, increment full-move for Black, and clean stale EP targets") {
+    val state = GameState(
+      whitePieces = Bitboard.empty,
+      blackPieces = Bitboard.empty,
+      pawns = Bitboard.empty,
+      knights = Bitboard.empty,
+      bishops = Bitboard.empty,
+      rooks = Bitboard.empty,
+      queens = Bitboard.empty,
+      kings = Bitboard.empty,
+      mailbox = Map.empty,
+      flags = GameFlags.fromList(Color.White, 0, 0, Nil, 0),
+      enPassant = Bitboard.empty.add(Square.fromNotation("e3").get).add(Square.fromNotation("h6").get),
+      fullMoveNumber = 1
+    )
+
+    // End of White's turn
+    val stateAfterWhite = state.endTurn()
+    assertEquals(stateAfterWhite.activeColor, Color.Black)
+    assertEquals(stateAfterWhite.fullMoveNumber, 1) // Doesn't increment yet
+    assert(
+      !stateAfterWhite.enPassant.contains(Square.fromNotation("h6").get)
+    ) // Black's old EP targets (rank 6) are cleared!
+    assert(
+      stateAfterWhite.enPassant.contains(Square.fromNotation("e3").get)
+    ) // White's new EP targets (rank 3) remain for Black to capture
+
+    // End of Black's turn
+    val stateAfterBlack = stateAfterWhite.endTurn()
+    assertEquals(stateAfterBlack.activeColor, Color.White)
+    assertEquals(stateAfterBlack.fullMoveNumber, 2)                            // Increments after Black's turn
+    assert(!stateAfterBlack.enPassant.contains(Square.fromNotation("e3").get)) // White's old EP targets are cleared!
+  }

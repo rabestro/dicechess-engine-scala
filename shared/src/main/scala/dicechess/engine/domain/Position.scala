@@ -156,8 +156,9 @@ private object Position:
 extension (state: GameState)
   /** Applies a [[MicroMove]] (turn-based) to the current game state.
     *
-    * Handles piece movement, captures, and basic bitboard updates. This is a _raw_ move application — higher-level
-    * logic such as switching turns after three micro-moves is the responsibility of the Turn manager.
+    * Handles piece movement, captures, and basic bitboard updates. This is a _raw_ micro-move application. According to
+    * Dice Chess micro-move semantics, this method **does not** flip the active color or increment the full-move number.
+    * Turn transitions must be explicitly managed via [[GameState.endTurn()]].
     *
     * **Dice pool**: The die matching the moving piece type is automatically removed from `state.dicePool`. If the pool
     * is empty (e.g. when replaying from perft or search without dice context), the pool is left unchanged.
@@ -167,7 +168,7 @@ extension (state: GameState)
     * @param mv
     *   the micro-move to apply
     * @return
-    *   a new [[GameState]] reflecting the position after the move, with active color toggled and dice pool decremented
+    *   a new [[GameState]] reflecting the position after the micro-move, with dice pool decremented
     */
   def makeMove(mv: MicroMove): GameState = {
     val from        = mv.from
@@ -230,7 +231,6 @@ extension (state: GameState)
     val newHalfMoveClock =
       if movingPiece.pieceType == PieceType.Pawn || targetPiece.isDefined || isEnPassantCapture then 0
       else state.flags.halfMoveClock + 1
-    val newFullMoveNumber = if state.activeColor.isBlack then state.fullMoveNumber + 1 else state.fullMoveNumber
 
     var epFiles = 0
     var ep      = finalEnPassant.value
@@ -241,7 +241,7 @@ extension (state: GameState)
     }
 
     val newFlags = GameFlags.fromList(
-      color = state.activeColor.opponent,
+      color = state.activeColor,
       castlingRights = newCastlingRights,
       enPassantFiles = epFiles,
       dicePool = nextDicePool,
@@ -259,8 +259,7 @@ extension (state: GameState)
       kings = b.kings,
       mailbox = b.mailbox,
       flags = newFlags,
-      enPassant = finalEnPassant,
-      fullMoveNumber = newFullMoveNumber
+      enPassant = finalEnPassant
     )
   }
 
@@ -274,13 +273,14 @@ extension (state: GameState)
     *   - **Promotions** — replaces the pawn with the promoted piece type.
     *   - **Quiet / capture** — standard piece relocation.
     *
-    * Side effects on the returned state: active color is flipped, en-passant is cleared (unless a double push just
-    * occurred), castling rights are updated, and the half-move / full-move clocks are maintained.
+    * According to Dice Chess micro-move semantics, this method **does not** flip the active color or increment the
+    * full-move number. Turn transitions must be explicitly managed via [[GameState.endTurn()]]. En-passant is cleared
+    * (unless a double push just occurred), castling rights are updated, and the half-move clock is maintained.
     *
     * @param mv
     *   the move to apply (must be pseudo-legal; legality is enforced by the search layer)
     * @return
-    *   a new [[GameState]] reflecting the position after the move
+    *   a new [[GameState]] reflecting the position after the micro-move
     */
   @targetName("makeMove_Move")
   def makeMove(mv: Move): GameState = {
@@ -344,7 +344,6 @@ extension (state: GameState)
     val newCastlingRights = Position.updatedCastlingRights(state.flags.castlingRights, mover, from, target, to, isWhite)
     val newHalfMoveClock  =
       if mover.pieceType == PieceType.Pawn || mv.isCapture then 0 else state.flags.halfMoveClock + 1
-    val newFullMoveNumber = if state.activeColor.isBlack then state.fullMoveNumber + 1 else state.fullMoveNumber
 
     var epFiles = 0
     var epV     = newEnPassant.value
@@ -355,7 +354,7 @@ extension (state: GameState)
     }
 
     val newFlags = GameFlags.fromList(
-      color = state.activeColor.opponent,
+      color = state.activeColor,
       castlingRights = newCastlingRights,
       enPassantFiles = epFiles,
       dicePool = Nil,
@@ -373,7 +372,6 @@ extension (state: GameState)
       kings = b.kings,
       mailbox = b.mailbox,
       flags = newFlags,
-      enPassant = newEnPassant,
-      fullMoveNumber = newFullMoveNumber
+      enPassant = newEnPassant
     )
   }

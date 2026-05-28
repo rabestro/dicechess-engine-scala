@@ -33,15 +33,16 @@ object LegalMovesFilter:
 
   /** Recursively computes the maximum achievable micro-move sequence length from `state` with `remainingDice`.
     *
-    * The search is bounded by the depth of `remainingDice` (at most 3), so it always terminates. The active color is
-    * intentionally kept fixed — `makeMove` normally toggles it, so we restore it with `.copy` after each step.
+    * The search is bounded by the depth of `remainingDice` (at most 3), so it always terminates. The `makeMove` method
+    * preserves the active color for micro-moves, meaning no color flipping occurs during the recursion. Callers can
+    * safely apply sequential micro-moves.
     *
     * A King-Capture move terminates its branch at depth 1 (the game ends). However, the search continues exploring all
     * other branches — King captures do **not** short-circuit the entire computation. This ensures that `maxLen`
     * reflects the true global maximum, including paths of length 2 or 3 that exist alongside a 1-move King capture.
     *
     * @param state
-    *   the board position to evaluate (active color unchanged throughout the turn)
+    *   the board position to evaluate
     * @param remainingDice
     *   the dice still available to spend in this turn (multiset)
     * @return
@@ -50,8 +51,7 @@ object LegalMovesFilter:
   private def maxSequenceLength(state: GameState): Int =
     if state.dicePool.isEmpty then 0
     else
-      val activeColor = state.activeColor
-      var best        = 0
+      var best = 0
 
       for move <- MoveGenerator.generateMoves(state) do
         val moverType = state.mailbox(move.fromSquare).pieceType
@@ -63,12 +63,12 @@ object LegalMovesFilter:
           // Castling requires BOTH King (6) and Rook (4) dice to be present
           if state.dicePool.contains(PieceType.King.diceValue) && state.dicePool.contains(PieceType.Rook.diceValue) then
             val afterCastle = state.dicePool.diff(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
-            val next        = state.makeMove(move).withActiveColor(activeColor).withDicePool(afterCastle)
+            val next        = state.makeMove(move).withDicePool(afterCastle)
             val depth       = 2 + maxSequenceLength(next)
             if depth > best then best = depth
         else
           val afterMove = state.dicePool.diff(List(moverType.diceValue))
-          val next      = state.makeMove(move).withActiveColor(activeColor).withDicePool(afterMove)
+          val next      = state.makeMove(move).withDicePool(afterMove)
           val depth     = 1 + maxSequenceLength(next)
           if depth > best then best = depth
 
@@ -97,8 +97,6 @@ object LegalMovesFilter:
   def filterMaximalMoves(state: GameState): List[Move] =
     if state.dicePool.isEmpty then Nil
     else
-      val activeColor = state.activeColor
-
       // Pass 1: determine the globally optimal sequence length from this position.
       // This considers ALL branches including King-capture paths.
       val maxLen = maxSequenceLength(state)
@@ -120,12 +118,12 @@ object LegalMovesFilter:
             if state.dicePool.contains(PieceType.King.diceValue) && state.dicePool.contains(PieceType.Rook.diceValue)
             then
               val afterCastle = state.dicePool.diff(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
-              val next        = state.makeMove(move).withActiveColor(activeColor).withDicePool(afterCastle)
+              val next        = state.makeMove(move).withDicePool(afterCastle)
               val reachable   = 2 + maxSequenceLength(next)
               if reachable == maxLen then result += move
           else
             val afterMove = state.dicePool.diff(List(moverType.diceValue))
-            val next      = state.makeMove(move).withActiveColor(activeColor).withDicePool(afterMove)
+            val next      = state.makeMove(move).withDicePool(afterMove)
             val reachable = 1 + maxSequenceLength(next)
             if reachable == maxLen then result += move
 

@@ -314,10 +314,29 @@ case class GameState(
   inline def dicePool: List[Int] = flags.dicePool
   inline def halfMoveClock: Int  = flags.halfMoveClock
 
+  /** Explicitly ends the current player's turn.
+    *
+    * Toggles the active color to the opponent, increments the full-move number if the current player is Black, and
+    * clears any stale en-passant targets left by the player whose turn is starting. Must be called manually by the
+    * orchestrator after applying a sequence of micro-moves.
+    *
+    * @return
+    *   a new [[GameState]] with the active color flipped, EP targets cleaned, and full-move number updated
+    */
+  def endTurn(): GameState =
+    val nextColor    = flags.activeColor.opponent
+    val nextFullMove = if flags.activeColor.isBlack then fullMoveNumber + 1 else fullMoveNumber
+
+    val cleanedState = clearEnPassant(nextColor)
+
+    cleanedState.copy(
+      flags = cleanedState.flags.withActiveColor(nextColor),
+      fullMoveNumber = nextFullMove
+    )
+
   /** Returns a copy of this state with the active color set to `c`.
     *
-    * Used during turn execution to keep the active color constant across micro-moves, since [[Position.makeMove]]
-    * normally flips it.
+    * Used during move generation to explicitly override the active color.
     */
   def withActiveColor(c: Color): GameState =
     copy(flags = flags.withActiveColor(c))
