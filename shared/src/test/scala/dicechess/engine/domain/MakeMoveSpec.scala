@@ -180,7 +180,7 @@ class MakeMoveSpec extends FunSuite:
 
   // ── Full-move number ──────────────────────────────────────────────────────
 
-  test("full-move number increments after black moves") {
+  test("makeMove leaves full-move number unchanged after a black micro-move") {
     val fen    = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
     val state  = parse(fen)
     val mv     = Move(Square('e', 7), Square('e', 6), Move.QuietMove)

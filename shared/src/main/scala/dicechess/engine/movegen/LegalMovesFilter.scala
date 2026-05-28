@@ -33,15 +33,16 @@ object LegalMovesFilter:
 
   /** Recursively computes the maximum achievable micro-move sequence length from `state` with `remainingDice`.
     *
-    * The search is bounded by the depth of `remainingDice` (at most 3), so it always terminates. The active color is
-    * intentionally kept fixed — `makeMove` normally toggles it, so we restore it with `.copy` after each step.
+    * The search is bounded by the depth of `remainingDice` (at most 3), so it always terminates. The `makeMove` method
+    * preserves the active color for micro-moves, meaning no color flipping occurs during the recursion. Callers can
+    * safely apply sequential micro-moves.
     *
     * A King-Capture move terminates its branch at depth 1 (the game ends). However, the search continues exploring all
     * other branches — King captures do **not** short-circuit the entire computation. This ensures that `maxLen`
     * reflects the true global maximum, including paths of length 2 or 3 that exist alongside a 1-move King capture.
     *
     * @param state
-    *   the board position to evaluate (active color unchanged throughout the turn)
+    *   the board position to evaluate
     * @param remainingDice
     *   the dice still available to spend in this turn (multiset)
     * @return

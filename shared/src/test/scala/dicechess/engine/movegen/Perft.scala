@@ -4,8 +4,11 @@ import dicechess.engine.domain.*
 
 object Perft:
 
-  /** Counts the number of leaf nodes at a given depth for a fixed dice roll sequence. In this simplified version for
-    * testing move generation, we assume the same dice roll applies to all micro-moves in the sequence.
+  /** Counts the number of leaf nodes at a given depth for a fixed dice roll sequence.
+    *
+    * In this simplified classical-chess version for testing move generation, recursion models turn-ending after each
+    * individual micro-move. We explicitly call `.endTurn()` to simulate a full turn transition, and explicitly carry
+    * over the dice pool to the next player.
     */
   def countNodes(state: GameState, depth: Int): Long =
     if depth == 0 then return 1

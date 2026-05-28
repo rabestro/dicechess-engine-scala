@@ -14,8 +14,8 @@ import dicechess.engine.movegen.MoveGenerator
   * This object is used by [[SearchAlgorithm]] implementations to obtain the candidate set before scoring.
   *
   * @note
-  *   Active color is kept constant throughout the turn — it is *not* toggled between micro-moves. `makeMove` normally
-  *   flips the side; we restore it explicitly after each step.
+  *   Active color is kept constant throughout the turn — it is *not* toggled between micro-moves. `makeMove` preserves
+  *   the side, so we can chain micro-moves directly. The turn is only flipped explicitly at the end by the caller.
   */
 object TurnGenerator:
 
@@ -74,7 +74,7 @@ object TurnGenerator:
     * this branch is a forced pass.
     *
     * @param state
-    *   the position to explore; active color is kept fixed throughout the recursion
+    *   the position to explore; active color is preserved by makeMove throughout the recursion
     * @return
     *   all reachable paths from this position, each encoded as a `List[Move]` (may include `Nil` for pass)
     */
