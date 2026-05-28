@@ -119,3 +119,15 @@ object JsApi:
   @JSExport
   def applyMove(dfen: String, from: String, to: String, promotion: js.UndefOr[String]): js.UndefOr[String] =
     dicechess.engine.EngineFacade.applyMove(dfen, from, to, promotion)
+
+  /** Explicitly ends the current turn, toggling the active color, incrementing full moves (for Black), and clearing any
+    * stale en-passant targets.
+    *
+    * @param dfen
+    *   The current board state in DiceChess Forsyth-Edwards Notation.
+    * @return
+    *   The updated DFEN string after ending the turn, or `undefined` if invalid.
+    */
+  @JSExport
+  def endTurn(dfen: String): js.UndefOr[String] =
+    dicechess.engine.EngineFacade.endTurn(dfen)

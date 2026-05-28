@@ -159,4 +159,21 @@ object EngineFacade {
         js.undefined
     }
   }
+
+  /** Explicitly ends the current turn, toggling the active color, incrementing full moves (for Black), and clearing any
+    * stale en-passant targets.
+    *
+    * @param dfen
+    *   The current board state in DiceChess FEN notation.
+    * @return
+    *   The updated DFEN string after ending the turn, or `undefined` if invalid.
+    */
+  @JSExport
+  def endTurn(dfen: String): js.UndefOr[String] = {
+    if (dfen == null) return js.undefined
+    FenParser.parse(dfen) match {
+      case Right(state) => FenParser.serialize(state.endTurn())
+      case Left(_)      => js.undefined
+    }
+  }
 }

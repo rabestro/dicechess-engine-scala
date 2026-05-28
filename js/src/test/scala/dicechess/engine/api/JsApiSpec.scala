@@ -39,6 +39,23 @@ class JsApiSpec extends FunSuite:
     assertEquals(result.toOption, None)
   }
 
+  test("endTurn: explicitly transitions turn, toggles color, increments full-move for Black, and clears stale EP") {
+    // White's turn ends. Black had created an EP on c6 previously.
+    // White also created an EP on e3.
+    // When White ends turn, c6 must be cleared (White missed the chance). e3 must remain (for Black to capture).
+    val beforeFen = "rnbqkbnr/p1pppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6e3 0 1"
+    val expected  = "rnbqkbnr/p1pppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+    val result    = JsApi.endTurn(beforeFen)
+    assertEquals(result.toOption, Some(expected))
+  }
+
+  test("endTurn: increments full-move when transitioning from Black to White") {
+    val beforeFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1"
+    val expected  = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 2"
+    val result    = JsApi.endTurn(beforeFen)
+    assertEquals(result.toOption, Some(expected))
+  }
+
   test("getLegalUciMoves: pawn promotion generates UCI moves with promotion pieces") {
     // White pawn on e7, can promote to e8. Dice: [1] (Pawn)
     val dfen = "k7/4P3/8/8/8/8/8/4K3 w - - 0 1 P"
@@ -67,6 +84,14 @@ class JsApiSpec extends FunSuite:
     assertEquals(JsApi.applyMove(initialFen, "e9", "e4", js.undefined).toOption, None)
     assertEquals(JsApi.applyMove(initialFen, "e2", "z4", js.undefined).toOption, None)
     assertEquals(JsApi.applyMove(initialFen, "foo", "bar", js.undefined).toOption, None)
+  }
+
+  test("endTurn: handles null parameter gracefully by returning undefined") {
+    assertEquals(JsApi.endTurn(null).toOption, None)
+  }
+
+  test("endTurn: handles malformed FEN gracefully by returning undefined") {
+    assertEquals(JsApi.endTurn("invalid-fen").toOption, None)
   }
 
   test("getLegalUciMoves: handles null parameters gracefully by returning empty array") {

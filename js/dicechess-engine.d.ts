@@ -16,6 +16,13 @@ export interface EngineFacadeApi {
      * Applies a move to the given DFEN and returns the resulting state.
      */
     applyMove(dfen: string, from: string, to: string, promotion?: string): string | undefined;
+
+    /**
+     * Explicitly ends the current turn, toggling the active color, incrementing full moves,
+     * and clearing any stale en-passant targets.
+     * @param dfen The current board state in DiceChess FEN notation.
+     */
+    endTurn(dfen: string): string | undefined;
 }
 
 export const EngineFacade: EngineFacadeApi;
@@ -44,6 +51,13 @@ export interface DiceChessApi {
      * @param promotion The optional piece type to promote to (e.g. "q").
      */
     applyMove(dfen: string, from: string, to: string, promotion?: string): string | undefined;
+
+    /**
+     * Explicitly ends the current turn, toggling the active color, incrementing full moves,
+     * and clearing any stale en-passant targets.
+     * @param dfen The current board state in DiceChess FEN notation.
+     */
+    endTurn(dfen: string): string | undefined;
 }
 
 export const DiceChess: DiceChessApi;
