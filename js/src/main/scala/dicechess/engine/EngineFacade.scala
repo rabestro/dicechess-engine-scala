@@ -159,4 +159,25 @@ object EngineFacade {
         js.undefined
     }
   }
+
+  /** Explicitly ends the current turn to mark a clear boundary between players in a multi-micro-move sequence.
+    *
+    * Frontend consumers should call this when a player has exhausted their dice or finished their sequence. This
+    * function guarantees the game state is correctly finalized for the next player by cleaning up stale en-passant
+    * targets from the previous turn, clearing the dice pool, and advancing the turn markers (color toggle, move
+    * counts). It serves as the single entrypoint for advancing the DFEN state between player turns.
+    *
+    * @param dfen
+    *   The current board state in DiceChess FEN notation.
+    * @return
+    *   The updated DFEN string finalized for the next player, or `undefined` if invalid.
+    */
+  @JSExport
+  def endTurn(dfen: String): js.UndefOr[String] = {
+    if (dfen == null) return js.undefined
+    FenParser.parse(dfen) match {
+      case Right(state) => FenParser.serialize(state.endTurn())
+      case Left(_)      => js.undefined
+    }
+  }
 }

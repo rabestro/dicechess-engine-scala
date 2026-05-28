@@ -16,6 +16,34 @@ hero:
 
 import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
+## 🏗️ High-Level Architecture
+
+```mermaid
+graph TD
+    subgraph Frontend & Orchestration
+        JS[JavaScript API / PWA]
+        JS -- "endTurn(dfen)" --> Trans[State Transition]
+        JS -- "applyMove(dfen, move)" --> Move[Micro-Move]
+    end
+
+    subgraph Search Layer
+        Bot[Expectimax / Greedy Bot]
+        Bot -- "Evaluate Nodes" --> Eval[Static Evaluator]
+    end
+
+    subgraph Core Engine
+        MoveGen[Move Generator]
+        Filter[Max Micro-moves Filter]
+        State[GameState & Bitboards]
+        
+        Move --> State
+        State --> MoveGen
+        MoveGen --> Filter
+        Filter --> JS
+        Filter --> Bot
+    end
+```
+
 ## ♟️ Engineering Core
 
 <CardGrid stagger>
