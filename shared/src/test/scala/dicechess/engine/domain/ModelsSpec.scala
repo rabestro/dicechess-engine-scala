@@ -137,7 +137,7 @@ class ModelsSpec extends FunSuite:
       rooks = Bitboard.empty,
       queens = Bitboard.empty,
       kings = Bitboard.empty,
-      mailbox = Map.empty,
+      mailbox = Mailbox.empty,
       flags = GameFlags.fromList(Color.White, 0, 0, Nil, 0),
       enPassant = Bitboard.empty.add(Square.fromNotation("e3").get).add(Square.fromNotation("h6").get),
       fullMoveNumber = 1
@@ -164,7 +164,7 @@ class ModelsSpec extends FunSuite:
       rooks = Bitboard.empty,
       queens = Bitboard.empty,
       kings = Bitboard.empty,
-      mailbox = Map.empty,
+      mailbox = Mailbox.empty,
       flags = GameFlags.fromList(Color.White, 0, 0, Nil, 0),
       enPassant = Bitboard.empty.add(Square.fromNotation("e3").get).add(Square.fromNotation("h6").get),
       fullMoveNumber = 1
@@ -174,16 +174,69 @@ class ModelsSpec extends FunSuite:
     val stateAfterWhite = state.endTurn()
     assertEquals(stateAfterWhite.activeColor, Color.Black)
     assertEquals(stateAfterWhite.fullMoveNumber, 1) // Doesn't increment yet
-    assert(
-      !stateAfterWhite.enPassant.contains(Square.fromNotation("h6").get)
-    ) // Black's old EP targets (rank 6) are cleared!
-    assert(
-      stateAfterWhite.enPassant.contains(Square.fromNotation("e3").get)
-    ) // White's new EP targets (rank 3) remain for Black to capture
+    assert(!stateAfterWhite.enPassant.contains(Square.fromNotation("h6").get))
+    assert(stateAfterWhite.enPassant.contains(Square.fromNotation("e3").get))
 
     // End of Black's turn
     val stateAfterBlack = stateAfterWhite.endTurn()
     assertEquals(stateAfterBlack.activeColor, Color.White)
     assertEquals(stateAfterBlack.fullMoveNumber, 2)                            // Increments after Black's turn
     assert(!stateAfterBlack.enPassant.contains(Square.fromNotation("e3").get)) // White's old EP targets are cleared!
+  }
+
+  private def emptyState(color: Color = Color.White): GameState =
+    GameState(
+      whitePieces = Bitboard.empty,
+      blackPieces = Bitboard.empty,
+      pawns = Bitboard.empty,
+      knights = Bitboard.empty,
+      bishops = Bitboard.empty,
+      rooks = Bitboard.empty,
+      queens = Bitboard.empty,
+      kings = Bitboard.empty,
+      mailbox = Mailbox.empty,
+      flags = GameFlags.fromList(color, 0, 0, Nil, 0),
+      enPassant = Bitboard.empty,
+      fullMoveNumber = 1
+    )
+
+  test("GameState.equals should return true for two states with identical mailboxes") {
+    val s1 = emptyState()
+    val s2 = emptyState()
+    assertEquals(s1, s2)
+  }
+
+  test("GameState.equals should return false when mailboxes differ") {
+    val s1      = emptyState()
+    val builder = Array.fill(64)(Piece.Empty)
+    builder(Square('e', 4).index) = Piece(Color.White, PieceType.Pawn)
+    val s2 = s1.copy(mailbox = Mailbox.fromBuilder(builder))
+    assertNotEquals(s1, s2)
+  }
+
+  test("GameState.equals should return false for non-GameState object") {
+    val s: Any = emptyState()
+    assert(!s.equals("not a game state"))
+  }
+
+  test("GameState.hashCode should be equal for two structurally identical states") {
+    val s1 = emptyState()
+    val s2 = emptyState()
+    assertEquals(s1.hashCode(), s2.hashCode())
+  }
+
+  test("GameState.hashCode should differ for states with different mailboxes") {
+    val s1      = emptyState()
+    val builder = Array.fill(64)(Piece.Empty)
+    builder(Square('a', 1).index) = Piece(Color.Black, PieceType.Rook)
+    val s2 = s1.copy(mailbox = Mailbox.fromBuilder(builder))
+    assertNotEquals(s1.hashCode(), s2.hashCode())
+  }
+
+  test("GameState parsed from FEN should satisfy equals and hashCode contract") {
+    val fen   = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    val state = FenParser.parse(fen).toOption.get
+    val copy  = FenParser.parse(fen).toOption.get
+    assertEquals(state, copy)
+    assertEquals(state.hashCode(), copy.hashCode())
   }

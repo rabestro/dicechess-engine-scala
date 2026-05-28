@@ -22,7 +22,7 @@ class FenParserSpec extends FunSuite:
     assertEquals(state.blackPieces.count, 16)
     assertEquals(state.pawns.count, 16) // 8 white + 8 black
     assertEquals(state.kings.count, 2)
-    assertEquals(state.mailbox.size, 32)
+    assertEquals(state.mailbox.toArray.count(!_.isEmpty), 32)
   }
 
   test("FenParser should serialize the initial position back to identical FEN") {
