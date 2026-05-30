@@ -2,7 +2,7 @@ package dicechess.engine.api
 
 import dicechess.engine.domain.*
 import dicechess.engine.movegen.LegalMovesFilter
-import dicechess.engine.search.{GreedySearch, RandomSearch}
+import dicechess.engine.search.BotRegistry
 import scala.scalajs.js
 import scala.scalajs.js.annotation.*
 import scala.scalajs.js.JSConverters.*
@@ -14,6 +14,23 @@ import scala.scalajs.js.JSConverters.*
   */
 @JSExportTopLevel("DiceChess")
 object JsApi:
+
+  /** Returns all available bots (search algorithms) supported by the engine.
+    *
+    * @return
+    *   An array of bot metadata objects.
+    */
+  @JSExport
+  def getAvailableBots(): js.Array[js.Dynamic] =
+    BotRegistry.availableBots.map { bot =>
+      js.Dynamic.literal(
+        id = bot.id,
+        name = bot.name,
+        description = bot.description,
+        difficulty = bot.difficulty,
+        isExperimental = bot.isExperimental
+      )
+    }.toJSArray
 
   /** Returns all legal moves as an array of UCI strings (e.g., ["e2e4", "e7e8q"]).
     *
@@ -74,9 +91,7 @@ object JsApi:
         }
         .getOrElse("greedy")
 
-      val searchAlgo = algoName.toLowerCase match
-        case "random" => RandomSearch
-        case _        => GreedySearch
+      val searchAlgo = BotRegistry.getAlgorithm(algoName).getOrElse(BotRegistry.defaultAlgorithm)
 
       FenParser.parse(dfen) match
         case Left(_)      => js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
@@ -135,3 +150,4 @@ object JsApi:
   @JSExport
   def endTurn(dfen: String): js.UndefOr[String] =
     dicechess.engine.EngineFacade.endTurn(dfen)
+
