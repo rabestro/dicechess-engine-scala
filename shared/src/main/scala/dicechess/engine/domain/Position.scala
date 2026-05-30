@@ -205,15 +205,24 @@ extension (state: GameState)
     b.mailbox(to.index) = Piece(movingPiece.color, finalPieceType)
 
     val isDoublePush   = movingPiece.pieceType == PieceType.Pawn && math.abs(to.rank - from.rank) == 2
-    var finalEnPassant = state.enPassant
+    var finalEnPassant = state.enPassant.remove(to)
     if (isDoublePush) {
       finalEnPassant = finalEnPassant.add(Square.fromIndex(to.index + rankOffset))
-    } else if (isEnPassantCapture) {
-      finalEnPassant = finalEnPassant.remove(to)
     } else {
-      targetPiece.foreach { p =>
-        if (p.pieceType == PieceType.Pawn) {
-          finalEnPassant = finalEnPassant.remove(Square.fromIndex(to.index - rankOffset))
+      val epRank = if isWhite then 3 else 6
+      var ep     = finalEnPassant.value
+      while ep != 0L do
+        val sq = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(ep))
+        if sq.rank == epRank then finalEnPassant = finalEnPassant.remove(sq)
+        ep &= ep - 1L
+
+      if (isEnPassantCapture) {
+        finalEnPassant = finalEnPassant.remove(to)
+      } else {
+        targetPiece.foreach { p =>
+          if (p.pieceType == PieceType.Pawn) {
+            finalEnPassant = finalEnPassant.remove(Square.fromIndex(to.index - rankOffset))
+          }
         }
       }
     }
@@ -299,8 +308,15 @@ extension (state: GameState)
     b.moveColor(isWhite, fromBB | toBB)
     b.clearPiece(mover.pieceType, fromBB)
 
-    val target = if mv.isCapture && mv.flags != Move.EnPassantCapture then state.mailbox.get(to) else None
-    var newEnPassant: Bitboard = state.enPassant
+    val target                 = if mv.flags != Move.EnPassantCapture then state.mailbox.get(to) else None
+    var newEnPassant: Bitboard = state.enPassant.remove(to)
+    if mv.flags != Move.DoublePawnPush then
+      val epRank = if isWhite then 3 else 6
+      var ep     = newEnPassant.value
+      while ep != 0L do
+        val sq = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(ep))
+        if sq.rank == epRank then newEnPassant = newEnPassant.remove(sq)
+        ep &= ep - 1L
     target.foreach { p =>
       b.removeCaptured(isWhite, toBB)
       b.clearPiece(p.pieceType, toBB)
@@ -345,8 +361,9 @@ extension (state: GameState)
     }
 
     val newCastlingRights = Position.updatedCastlingRights(state.flags.castlingRights, mover, from, target, to, isWhite)
+    val isCap             = target.isDefined || mv.flags == Move.EnPassantCapture
     val newHalfMoveClock  =
-      if mover.pieceType == PieceType.Pawn || mv.isCapture then 0 else state.flags.halfMoveClock + 1
+      if mover.pieceType == PieceType.Pawn || isCap then 0 else state.flags.halfMoveClock + 1
 
     var epFiles = 0
     var epV     = newEnPassant.value

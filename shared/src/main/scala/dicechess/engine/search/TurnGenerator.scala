@@ -95,8 +95,12 @@ object TurnGenerator:
             else for p <- subPaths if p.nonEmpty do branches += (move :: p)
         else
           val afterMove = state.dicePool.diff(List(moverType.diceValue))
-          val next      = state.makeMove(move).withDicePool(afterMove)
-          val subPaths  = generateAllPaths(next)
+          if afterMove.size >= state.dicePool.size then
+            throw new RuntimeException(
+              s"CRITICAL: Dice pool ${state.dicePool} does not decrease! moverType=$moverType, moverType.diceValue=${moverType.diceValue}, move=${move.fromSquare.toNotation}${move.toSquare.toNotation}, state.activeColor=${state.activeColor}, state.mailbox(move.fromSquare)=${state.mailbox(move.fromSquare)}"
+            )
+          val next     = state.makeMove(move).withDicePool(afterMove)
+          val subPaths = generateAllPaths(next)
           if subPaths.isEmpty || subPaths == List(Nil) then branches += List(move)
           else for p <- subPaths if p.nonEmpty do branches += (move :: p)
 
