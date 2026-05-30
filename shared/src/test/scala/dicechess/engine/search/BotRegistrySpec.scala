@@ -23,8 +23,8 @@ class BotRegistrySpec extends FunSuite:
     assertEquals(BotRegistry.getAlgorithm("GrEeDy"), Some(GreedySearch))
 
     assertEquals(BotRegistry.getAlgorithm("unknown"), None)
+    assertEquals(BotRegistry.getAlgorithm(null), None)
   }
-
   test("defaultAlgorithm returns GreedySearch") {
     assertEquals(BotRegistry.defaultAlgorithm, GreedySearch)
   }

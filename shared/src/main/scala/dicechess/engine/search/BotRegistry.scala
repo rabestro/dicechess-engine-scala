@@ -49,7 +49,7 @@ object BotRegistry:
   )
 
   /** Returns all available bots sorted by difficulty. */
-  def availableBots: List[BotInfo] = bots.values.map(_._1).toList.sortBy(_.difficulty)
+  val availableBots: List[BotInfo] = bots.values.map(_._1).toList.sortBy(_.difficulty)
 
   /** Looks up a search algorithm by its bot ID.
     *
@@ -58,7 +58,8 @@ object BotRegistry:
     * @return
     *   The algorithm if found, or None.
     */
-  def getAlgorithm(id: String): Option[SearchAlgorithm] = bots.get(id.toLowerCase).map(_._2)
+  def getAlgorithm(id: String): Option[SearchAlgorithm] =
+    if id == null then None else bots.get(id.toLowerCase).map(_._2)
 
   /** Returns the default algorithm (Greedy). */
   def defaultAlgorithm: SearchAlgorithm = GreedySearch

@@ -6,7 +6,7 @@ import munit.FunSuite
 class JsApiSpec extends FunSuite:
 
   test("getAvailableBots: returns a list of supported bots") {
-    val bots = JsApi.getAvailableBots.toList
+    val bots = JsApi.getAvailableBots().toList
     assert(bots.nonEmpty)
 
     val randomBot = bots.find(_.id.asInstanceOf[String] == "random").get

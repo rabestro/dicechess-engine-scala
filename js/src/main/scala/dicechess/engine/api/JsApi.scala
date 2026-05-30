@@ -21,7 +21,7 @@ object JsApi:
     *   An array of bot metadata objects.
     */
   @JSExport
-  def getAvailableBots: js.Array[js.Dynamic] =
+  def getAvailableBots(): js.Array[js.Dynamic] =
     BotRegistry.availableBots.map { bot =>
       js.Dynamic.literal(
         id = bot.id,
