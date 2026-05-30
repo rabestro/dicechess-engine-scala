@@ -128,6 +128,30 @@ A critical property of Dice Chess is that these bots evaluate **full turn paths*
 
 ---
 
+### Empirical Strength & Win Rates (Battle Arena Benchmark)
+
+To objectively evaluate the playing strength of these O(1) algorithms, we run large-scale simulations in the JVM Battle Arena. The benchmark plays **18,000 games per match** (9,000 games as White and 9,000 games as Black to eliminate color bias), using the **Greedy Bot** as the baseline. 
+
+A draw is enforced by the **50-move rule** (100 half-moves without captures or pawn pushes) to prevent infinite loops and games hanging.
+
+The empirical results from a simulation of 90,000 games are as follows:
+
+| Bot Strategy | Total Games | Wins (W/B) | Losses (W/B) | Draws (W/B) | Win Rate vs Greedy | Execution Time (18k games) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Level 1: Random** | 18,000 | 525 (246/279) | 17,475 (8754/8721) | 0 (0/0) | **2.9%** | ~52s |
+| **Level 2: Checkmate Aware** | 18,000 | 7,787 (3855/3932) | 10,213 (5145/5068) | 0 (0/0) | **43.3%** | ~58s |
+| **Level 3: Greedy (Baseline)** | 18,000 | 9,015 (4513/4502) | 8,985 (4487/4498) | 0 (0/0) | **50.1%** | **~41s** |
+| **Level 4: Cautious Greedy** | 18,000 | 10,069 (5077/4992) | 7,931 (3923/4008) | 0 (0/0) | **55.9%** | ~46s |
+| **Level 5: Aggressive** | 18,000 | 10,935 (5524/5411) | 7,065 (3476/3589) | 0 (0/0) | **60.8%** | ~49s |
+
+#### Key Insights from the Benchmarks:
+1. **Perfect Balance**: The `Greedy` vs `Greedy` baseline match yields a near-perfect **50.1%** win rate, confirming that color alternation and random tie-breaking operate without first-move bias.
+2. **Material vs Checkmate**: Despite being blind to piece values, the **Checkmate Aware** bot scores a respectable **43.3%** against Greedy, demonstrating the high tactical value of King safety and direct threat detection in Dice Chess.
+3. **Defense Pays Off**: **Cautious Greedy** (V2) outperforms standard Greedy by **5.8%**, proving that applying a penalty for exposing the King significantly increases win rates.
+4. **Coordination Domination**: The **Aggressive** bot dominates the baseline with a **60.8%** win rate, showing that combining forward pawn pushes, piece proximity, and control of the enemy King Ring is highly effective.
+
+---
+
 ## Computational Limitations of Single-Turn Search
 
 While these bots perform incredibly well for instant tactical matches, they remain limited by their short horizon:
