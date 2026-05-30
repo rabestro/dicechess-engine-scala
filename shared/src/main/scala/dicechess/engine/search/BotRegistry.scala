@@ -66,6 +66,16 @@ object BotRegistry:
         isExperimental = false
       ),
       GreedySearchV2
+    ),
+    "aggressive" -> (
+      BotInfo(
+        id = "aggressive",
+        name = "Aggressive",
+        description = "Actively hunts your pieces and targets your king, pushing pawns forward aggressively.",
+        difficulty = 5,
+        isExperimental = false
+      ),
+      AggressiveSearch
     )
   )
 
