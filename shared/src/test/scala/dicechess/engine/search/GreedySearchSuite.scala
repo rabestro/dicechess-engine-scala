@@ -214,7 +214,7 @@ class GreedySearchSuite extends FunSuite:
     }
   }
 
-  test("Evaluator should apply king exposure penalty symmetrically") {
+  test("Evaluator should apply king exposure penalty only to the moving side (asymmetric)") {
     // White king on e1 is safe. Black king on e8 is attacked by White rook on e5.
     val fen   = "4k3/8/8/4R3/8/8/8/4K3 w - - 0 1"
     val state = FenParser
@@ -226,9 +226,17 @@ class GreedySearchSuite extends FunSuite:
 
     // Evaluate from White's perspective.
     // Material is White: Rook(500) vs Black: 0 => +500
-    // King safety: White is safe (0). Black is exposed (-2000).
-    // evaluate = evaluateMaterial + evaluateKingSafety(white) - evaluateKingSafety(black)
-    //          = 500 + 0 - (-2000) = 2500
+    // King safety: White is safe (0). Black is exposed but we don't count it for White's turn evaluation.
+    // evaluate = evaluateMaterial + evaluateKingSafety(white)
+    //          = 500 + 0 = 500
     val score = Evaluator.evaluate(state, Color.White)
-    assertEquals(score, 2500)
+    assertEquals(score, 500)
+
+    // Evaluate from Black's perspective.
+    // Material is Black: 0 vs White: Rook(500) => -500
+    // King safety: Black is exposed (-2000).
+    // evaluate = evaluateMaterial + evaluateKingSafety(black)
+    //          = -500 + (-2000) = -2500
+    val scoreBlack = Evaluator.evaluate(state, Color.Black)
+    assertEquals(scoreBlack, -2500)
   }

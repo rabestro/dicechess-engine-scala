@@ -2,11 +2,10 @@ package dicechess.engine.search
 
 import dicechess.engine.domain.{Color, GameState, Bitboard}
 
-/** Pure material-balance evaluator for Dice Chess positions.
+/** Evaluator for Dice Chess positions combining material balance and king safety.
   *
-  * Assigns piece values (in centipawns) and returns the difference between the active side's material and the
-  * opponent's. This is a simple but effective heuristic for greedy search and forms the base layer for any future
-  * positional or probability-weighted evaluation.
+  * Assigns piece values (in centipawns) and applies a significant penalty if the side's king is exposed to immediate
+  * capture. This helps greedy strategies avoid "material-greedy" blunders that lead to instant loss.
   *
   * ## Piece values
   *
@@ -36,7 +35,7 @@ object Evaluator:
     *   signed centipawn score: positive means `color` is ahead, negative means behind
     */
   def evaluate(state: GameState, color: Color): Int =
-    evaluateMaterial(state, color) + evaluateKingSafety(state, color) - evaluateKingSafety(state, color.opponent)
+    evaluateMaterial(state, color) + evaluateKingSafety(state, color)
 
   /** Evaluates king safety for the given `color`.
     *
@@ -58,7 +57,7 @@ object Evaluator:
 
     var isAttacked = false
     var p          = myKings.value
-    while (p != 0L) {
+    while (p != 0L && !isAttacked) {
       val sqIdx = java.lang.Long.numberOfTrailingZeros(p)
       val sq    = Square.fromIndex(sqIdx)
       if !MoveGenerator.isSquareAttacked(state, sq, oppColor).isEmpty then isAttacked = true
