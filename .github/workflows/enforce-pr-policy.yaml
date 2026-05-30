@@ -22,7 +22,7 @@ jobs:
             }
             const headRef = context.payload.pull_request.head.ref;
             const body = context.payload.pull_request.body || "";
-            const pattern = /^(task|feat|bug)\/\d+-[a-z0-9-]+$/;
+            const pattern = /^(task|feat|bug|feature)\/\d+-[a-z0-9-]+$/;
             if (!pattern.test(headRef)) {
               core.setFailed(`Branch name "${headRef}" does not match required pattern: (task|feat|bug)/<ID>-<short-desc>`);
               return;
