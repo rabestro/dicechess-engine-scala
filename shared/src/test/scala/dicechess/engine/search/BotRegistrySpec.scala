@@ -7,20 +7,26 @@ class BotRegistrySpec extends FunSuite:
   test("availableBots returns a list of configured bots sorted by difficulty") {
     val bots = BotRegistry.availableBots
 
-    assertEquals(bots.size, 3)
+    assertEquals(bots.size, 4)
     assertEquals(bots.head.id, "random")
     assertEquals(bots.head.difficulty, 1)
 
-    assertEquals(bots(1).id, "greedy")
-    assertEquals(bots(1).difficulty, 3)
+    assertEquals(bots(1).id, "checkmate-aware")
+    assertEquals(bots(1).difficulty, 2)
 
-    assertEquals(bots(2).id, "greedy-v2")
-    assertEquals(bots(2).difficulty, 4)
+    assertEquals(bots(2).id, "greedy")
+    assertEquals(bots(2).difficulty, 3)
+
+    assertEquals(bots(3).id, "greedy-v2")
+    assertEquals(bots(3).difficulty, 4)
   }
 
   test("getAlgorithm returns the correct algorithm for a given id (case-insensitive)") {
     assertEquals(BotRegistry.getAlgorithm("random"), Some(RandomSearch))
     assertEquals(BotRegistry.getAlgorithm("RANDOM"), Some(RandomSearch))
+
+    assertEquals(BotRegistry.getAlgorithm("checkmate-aware"), Some(CheckmateAwareSearch))
+    assertEquals(BotRegistry.getAlgorithm("CHECKMATE-AWARE"), Some(CheckmateAwareSearch))
 
     assertEquals(BotRegistry.getAlgorithm("greedy"), Some(GreedySearch))
     assertEquals(BotRegistry.getAlgorithm("GrEeDy"), Some(GreedySearch))

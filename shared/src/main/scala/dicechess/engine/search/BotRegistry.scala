@@ -36,6 +36,16 @@ object BotRegistry:
       ),
       RandomSearch
     ),
+    "checkmate-aware" -> (
+      BotInfo(
+        id = "checkmate-aware",
+        name = "Checkmate Aware",
+        description = "Prioritizes immediate checkmate and king safety, but remains material-blind.",
+        difficulty = 2,
+        isExperimental = false
+      ),
+      CheckmateAwareSearch
+    ),
     "greedy" -> (
       BotInfo(
         id = "greedy",
