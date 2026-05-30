@@ -14,7 +14,7 @@ To address these requirements, we specify **Dice Chess FEN (DFEN)**.
 
 ---
 
-## 🗺️ The DFEN Structure
+## The DFEN Structure
 
 DFEN extends the standard FEN to **seven space-separated fields**:
 
@@ -26,7 +26,7 @@ Fields 1, 2, 3, 5, and 6 remain fully compatible with standard chess. Fields 4 a
 
 ---
 
-## ♟️ Field 4: Multiple En Passant Target Squares
+## Field 4: Multiple En Passant Target Squares
 
 In standard FEN, Field 4 is either a single square (e.g. `e3`) or `-`.
 In DFEN, Field 4 supports **multiple en-passant squares** through **Alphabetical Concatenation**:
@@ -51,7 +51,7 @@ If White plays `a2-a4`, `c2-c4`, and `e2-e4` in one turn:
 
 ---
 
-## 🎲 Field 7: The Dice Pool (Turn State)
+## Field 7: The Dice Pool (Turn State)
 
 Field 7 is an **optional** field that represents the active player's remaining dice pool for their current turn.
 
@@ -83,7 +83,7 @@ Here is how the active color and 7th field progress during a White turn where Wh
 
 ---
 
-## 🚀 Impact on Engine Domain & Search
+## Impact on Engine Domain & Search
 
 ### 1. `GameState` Updates
 

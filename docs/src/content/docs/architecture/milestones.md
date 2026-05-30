@@ -17,24 +17,27 @@ Assign tasks to these milestones logically. Each milestone must be fully tested 
   * Implementation of basic Opaque Types (`Bitboard`, `Square`, `Piece`, `Color`).
   * Basic FEN parsing and serialization.
 
-### ⚔️ v0.2 - Move Generation (Classic)
+### ✅ v0.2 - Move Generation (Classic)
 
+* **Status**: Completed 🏆
 * **Scope**: Fast legal and pseudo-legal move computation.
 * **Key Deliverables**:
   * Bitwise operations and precomputed attack tables (Magic Bitboards).
   * Pawn, knight, king, and sliding piece move generation.
   * Perft (Performance Test) framework integration to verify move correctness.
 
-### 🎲 v0.3 - Dice Chess Mechanics
+### ✅ v0.3 - Dice Chess Mechanics
 
+* **Status**: Completed 🏆
 * **Scope**: Integrating physical probability layers of Dice Chess.
 * **Key Deliverables**:
   * Dice roll representations.
   * Filtering pseudo-legal moves based on dice outcomes.
   * Game state management with random events.
 
-### 🤖 v0.4 - Basic Bot & Gameplay
+### ✅ v0.4 - Basic Bot & Gameplay
 
+* **Status**: Completed 🏆
 * **Scope**: Validating game mechanics and state transitions with a simple test harness.
 * **Key Deliverables**:
   * Implementation of a simple random or greedy bot.
