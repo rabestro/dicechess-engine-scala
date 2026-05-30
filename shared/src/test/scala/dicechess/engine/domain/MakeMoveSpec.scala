@@ -460,3 +460,30 @@ class MakeMoveSpec extends FunSuite:
     val expectedNotations = Set("b4a3", "b4c3", "d4c3", "d4e3")
     assertEquals(epNotations, expectedNotations)
   }
+
+  test(
+    "Turn: multiple double pawn pushes followed by a quiet micro-move preserves newly created en-passant squares"
+  ) {
+    val fen   = "rnbqkbnr/pppppppp/8/8/8/8/P3P3/RNBQKBNR w KQkq - 0 1 PPN"
+    val state = parse(fen)
+
+    assertEquals(state.dicePool, List(1, 1, 2))
+
+    // 1st micro-move: a2a4 (double pawn push, creates a3)
+    val state1 = state.makeMove(MicroMove(Square('a', 2), Square('a', 4)))
+    assertEquals(state1.enPassant, Bitboard.fromSquare(Square('a', 3)))
+
+    // 2nd micro-move: e2e4 (double pawn push, creates e3)
+    val state2 = state1.makeMove(MicroMove(Square('e', 2), Square('e', 4)))
+    assertEquals(
+      state2.enPassant,
+      Bitboard.fromSquare(Square('a', 3)) | Bitboard.fromSquare(Square('e', 3))
+    )
+
+    // 3rd micro-move: g1f3 (quiet knight move)
+    val state3 = state2.makeMove(MicroMove(Square('g', 1), Square('f', 3)))
+
+    // Both a3 and e3 must be preserved
+    val expectedEP = Bitboard.fromSquare(Square('a', 3)) | Bitboard.fromSquare(Square('e', 3))
+    assertEquals(state3.enPassant, expectedEP)
+  }

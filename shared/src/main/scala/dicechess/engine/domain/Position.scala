@@ -209,7 +209,26 @@ extension (state: GameState)
     if (isDoublePush) {
       finalEnPassant = finalEnPassant.add(Square.fromIndex(to.index + rankOffset))
     } else {
-      finalEnPassant = Bitboard.empty
+      val epRank = if isWhite then 6 else 3
+      var ep     = finalEnPassant.value
+      while ep != 0L do
+        val sq = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(ep))
+        if sq.rank == epRank then finalEnPassant = finalEnPassant.remove(sq)
+        ep &= ep - 1L
+
+      if (movingPiece.pieceType == PieceType.Pawn) {
+        finalEnPassant = finalEnPassant.remove(Square.fromIndex(from.index + rankOffset))
+      }
+
+      if (isEnPassantCapture) {
+        finalEnPassant = finalEnPassant.remove(to)
+      } else {
+        targetPiece.foreach { p =>
+          if (p.pieceType == PieceType.Pawn) {
+            finalEnPassant = finalEnPassant.remove(Square.fromIndex(to.index - rankOffset))
+          }
+        }
+      }
     }
 
     val diceVal      = movingPiece.pieceType.diceValue
@@ -295,10 +314,20 @@ extension (state: GameState)
 
     val target                 = if mv.flags != Move.EnPassantCapture then state.mailbox.get(to) else None
     var newEnPassant: Bitboard = state.enPassant.remove(to)
-    if mv.flags != Move.DoublePawnPush then newEnPassant = Bitboard.empty
+    if mv.flags != Move.DoublePawnPush then
+      val epRank = if isWhite then 6 else 3
+      var ep     = newEnPassant.value
+      while ep != 0L do
+        val sq = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(ep))
+        if sq.rank == epRank then newEnPassant = newEnPassant.remove(sq)
+        ep &= ep - 1L
+
+      if mover.pieceType == PieceType.Pawn then
+        newEnPassant = newEnPassant.remove(Square.fromIndex(from.index + rankOffset))
     target.foreach { p =>
       b.removeCaptured(isWhite, toBB)
       b.clearPiece(p.pieceType, toBB)
+      if p.pieceType == PieceType.Pawn then newEnPassant = newEnPassant.remove(Square.fromIndex(to.index - rankOffset))
     }
 
     mv.flags match {
