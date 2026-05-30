@@ -63,6 +63,10 @@ run = "sbt 'benchmark/Jmh/run -wi 3 -i 5 -f 1'"
 description = "⚡ Run JMH benchmarks matching a regex pattern"
 run = "sbt \"benchmark/Jmh/run {{arg(name=\\\"pattern\\\")}}\""
 
+[tasks.arena]
+description = "⚔️ Run the Bot Battle Arena match runner (JVM)"
+run = "sbt 'rootJVM/runMain dicechess.engine.bench.BotMatchRunner {{arg(name=\"base\", default=\"greedy\")}} {{arg(name=\"games\", default=\"50\")}}'"
+
 [tasks.clean]
 description = "🧹 Remove build artifacts"
 run = "sbt clean"
