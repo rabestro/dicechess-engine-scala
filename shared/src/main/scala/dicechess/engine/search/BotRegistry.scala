@@ -45,6 +45,17 @@ object BotRegistry:
         isExperimental = false
       ),
       GreedySearch
+    ),
+    "greedy-v2" -> (
+      BotInfo(
+        id = "greedy-v2",
+        name = "Cautious Greedy",
+        description =
+          "Tries to capture the highest value piece, but avoids leaving the King exposed to immediate capture.",
+        difficulty = 4,
+        isExperimental = false
+      ),
+      GreedySearchV2
     )
   )
 

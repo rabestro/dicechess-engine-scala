@@ -45,20 +45,26 @@ object SearchScoring:
   /** Evaluates a full-turn path and returns a [[ScoredSequence]].
     *
     * The path is replayed move by move, preserving the active color between micro-moves (Dice Chess rule). If the final
-    * move captures the opponent's King, the score is set to [[TerminalWinScore]]; otherwise
-    * [[Evaluator.evaluateMaterial]] is called on the resulting position from the perspective of the side that played
-    * the turn.
+    * move captures the opponent's King, the score is set to [[TerminalWinScore]]; otherwise the final position is
+    * scored using the provided `evalFn` (which defaults to [[Evaluator.evaluateMaterial]]) from the perspective of the
+    * side that played the turn.
     *
     * @param state
     *   the position *before* the turn is played; `state.activeColor` is the side to move
     * @param path
     *   the sequence of moves to evaluate; may be empty (yields material score of the current position)
+    * @param evalFn
+    *   function used to evaluate the final position (e.g. [[Evaluator.evaluateMaterial]] or [[Evaluator.evaluate]])
     * @return
     *   a [[ScoredSequence]] bundling `path` and its computed score
     */
-  def scorePath(state: GameState, path: List[Move]): ScoredSequence =
+  def scorePath(
+      state: GameState,
+      path: List[Move],
+      evalFn: (GameState, Color) => Int = Evaluator.evaluateMaterial
+  ): ScoredSequence =
     val score =
-      if path.isEmpty then Evaluator.evaluateMaterial(state, state.activeColor)
+      if path.isEmpty then evalFn(state, state.activeColor)
       else
         val activeColor       = state.activeColor
         val intermediateState = path.init.foldLeft(state)((s, m) => s.makeMove(m))
@@ -70,5 +76,5 @@ object SearchScoring:
         if isKingCapture then TerminalWinScore
         else
           val finalState = intermediateState.makeMove(lastMove).endTurn()
-          Evaluator.evaluateMaterial(finalState, activeColor)
+          evalFn(finalState, activeColor)
     ScoredSequence(path, score)
