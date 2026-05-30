@@ -128,7 +128,9 @@ object BotMatchRunner:
             var kingCaptured = false
             val moves        = scoredSeq.moves
 
-            for m <- moves if !kingCaptured do
+            val iterator = moves.iterator
+            while iterator.hasNext && !kingCaptured do
+              val m      = iterator.next()
               val target = tempState.mailbox(m.toSquare)
               if !target.isEmpty && target.pieceType == PieceType.King && target.color != tempState.activeColor then
                 kingCaptured = true
@@ -144,7 +146,13 @@ object BotMatchRunner:
 
     outcome
 
+  private val enableVerifySync =
+    sys.props.getOrElse("dicechess.bench.verifySync", "false").toBooleanOption.getOrElse(false)
+
   private def verifySync(state: GameState, lastMove: String): Unit =
+    if enableVerifySync then verifySyncInternal(state, lastMove)
+
+  private def verifySyncInternal(state: GameState, lastMove: String): Unit =
     for i <- 0 until 64 do
       val sq    = Square.fromIndex(i)
       val piece = state.mailbox(sq)
