@@ -1,231 +1,138 @@
 ---
-title: Primitive Best-Move Search
-description: How the current RandomSearch and GreedySearch algorithms enumerate legal full turns and select a bot move.
+title: Single-Turn Bot Strategies (Levels 1-5)
+description: Detailed guide to the five single-turn bot search algorithms implemented in the Dice Chess engine.
 sidebar:
   order: 6
 ---
 
-The current bot layer is intentionally small. It does not yet build a deep adversarial tree, estimate dice probabilities, or cache transpositions. Instead, it solves a narrower problem:
+The engine's initial bot layer consists of five **single-turn (primitive) search algorithms**. Unlike deep tree-search algorithms (like the upcoming Expectimax), these bots do not search the opponent's reply tree. Instead, they solve a narrower tactical optimization problem:
 
-1. Enumerate every legal full-turn path for the rolled dice.
+1. Enumerate every legal full-turn path for the rolled dice using `TurnGenerator.generateAllLegalTurnPaths`.
 2. Score each resulting position from the active player's perspective.
-3. Pick either a random legal path or the highest-scoring path.
+3. Select either a random legal path or the optimal path according to a specialized heuristic.
 
-This page documents the exact behavior implemented today in `shared/src/main/scala/dicechess/engine/search/`.
+This page documents the exact behavior and equations for all 5 bots implemented in `shared/src/main/scala/dicechess/engine/search/`.
 
 ---
 
-## Shared Search Pipeline
+## The Shared Evaluation Pipeline
 
-Both `RandomSearch` and `GreedySearch` use the same three-stage pipeline:
+All single-turn bots share the same core execution pipeline:
 
 ```mermaid
 graph TD
     A["Input: GameState + dice list"] --> B["TurnGenerator.generateAllLegalTurnPaths"]
     B --> C{"Any legal paths?"}
-    C -- No --> D["Return None"]
-    C -- Yes --> E["SearchScoring.scorePath"]
-    E --> F["Apply full move path while keeping activeColor fixed"]
-    F --> G["Evaluator.evaluateMaterial(finalState, startingColor)"]
-    G --> H{"Strategy"}
-    H -- RandomSearch --> I["Pick one random path"]
-    H -- GreedySearch --> J["Pick random path among max scores"]
+    C -- No --> D["Return None (Pass)"]
+    C -- Yes --> E["Evaluate candidates via SearchScoring.scorePath"]
+    E --> F["Apply turn path to get final board state"]
+    F --> G["Heuristic Evaluation function (evalFn)"]
+    G --> H{"Selection Strategy"}
+    H -- Random --> I["Choose a path uniformly at random"]
+    H -- Strategic --> J["Pick optimal path (tie-break by shortest winning line)"]
     I --> K["Return ScoredSequence"]
     J --> K
 ```
 
-The important detail is that both algorithms reason about a **full Dice Chess turn**, not a single micro-move. A returned sequence may therefore contain one, two, or three moves depending on the rolled dice and the maximum micro-moves rule.
+A critical property of Dice Chess is that these bots evaluate **full turn paths** (consisting of 1 to 3 micro-moves) as a single cohesive action, rather than evaluating individual micro-moves in isolation.
 
-## Stage 1: Enumerating Legal Turn Paths
+---
 
-`TurnGenerator.generateAllLegalTurnPaths` is the backbone of both search strategies. It recursively explores the full move space induced by the rolled dice and then filters the result set using Dice Chess legality rules.
+## Detailed Roster of Bot Strategies
 
-### What the generator expands
+### Level 1: Random Bot (`RandomSearch`)
+* **Difficulty:** 1
+* **Philosophy:** Completely blind to board state, representing pure chance.
+* **Selection Logic:** Uniformly selects any legal turn path at random.
+* **Purpose:** Acts as a baseline correctness check for move generation and a control group for benchmarking smarter bots.
 
-For a given `GameState` and dice multiset:
+---
 
-* each die value is mapped to pseudo-legal moves through `MoveGenerator.generateMoves`
-* each chosen move consumes one die, except castling, which consumes both king (`6`) and rook (`4`)
-* after every simulated micro-move, the engine restores the original `activeColor` so the same player continues the turn
-* the recursion stops when there are no remaining dice, no further legal moves, or a king capture occurs
+### Level 2: Checkmate-Aware Bot (`CheckmateAwareSearch`)
+* **Difficulty:** 2
+* **Philosophy:** The first spark of tactical awareness. Cares *only* about the King (winning the game or surviving) and is completely blind to material values.
+* **Selection Logic:**
+  1. **Immediate Win:** Looks for any turn path that captures the opponent's King (`TerminalWinScore`). If one exists, it is selected immediately.
+  2. **King Safety:** If no win is available, it filters paths to those where its own King is **not attacked** at the end of the turn:
+     $$
+     \text{Evaluator.evaluateKingSafety}(\text{finalState}, \text{myColor}) = 0
+     $$
+     It then selects a safe path randomly.
+  3. **Fallback:** If all moves leave the King under attack, it falls back to selecting any legal path randomly.
+* **Performance Optimization:** To minimize CPU overhead, it passes a dummy evaluator `(_, _) => 0` to `scorePath`, bypassing all material-counting calculations.
 
-### What makes a path legal
+---
 
-After exploring all non-empty paths, the generator keeps only:
+### Level 3: Greedy Bot (`GreedySearch`)
+* **Difficulty:** 3
+* **Philosophy:** Highly aggressive but short-sighted materialist.
+* **Selection Logic:**
+  - Evaluates all paths using **material balance** (`Evaluator.evaluateMaterial`).
+  - Chooses the path that maximizes friendly material minus opponent material.
+  - **Tie-Breaker:** If multiple paths win the game immediately, it prefers the **shortest path** to deliver checkmate as quickly as possible. Remaining ties are broken randomly.
+* **Material Weights:**
+  - Pawn = `100` | Knight/Bishop = `300` | Rook = `500` | Queen = `900` | King = `10000`
 
-* paths that capture the opponent king at any final step
-* or paths whose length matches the maximum achievable length among all generated paths
+---
 
-That is the same maximum-micro-moves rule documented in the move-generation section, but here the output is the **full path list**, ready for bot selection.
+### Level 4: Cautious Greedy Bot (`GreedySearchV2`)
+* **Difficulty:** 4
+* **Philosophy:** Balances greed with self-preservation to avoid walking into immediate checkmates.
+* **Selection Logic:**
+  - Evaluates paths using both **material balance** and **King safety** (`Evaluator.evaluate`).
+  - If a path leaves its own King under attack at the end of the turn, it applies a heavy **King Exposure Penalty** of `-2000` centipawns (greater than two Queens).
+  - Selects the path maximizing the combined score:
+    $$
+    \text{Score} = \text{MaterialScore} + \text{KingSafetyScore}
+    $$
 
-```mermaid
-flowchart TD
-    A["generateAllPaths(state, dice)"] --> B{"remaining dice empty?"}
-    B -- Yes --> C["Emit empty continuation"]
-    B -- No --> D["Iterate distinct dice"]
-    D --> E["Generate pseudo-legal moves for die"]
-    E --> F{"King capture?"}
-    F -- Yes --> G["Emit single-move terminal path"]
-    F -- No --> H{"Castling?"}
-    H -- Yes --> I["Consume both 6 and 4 dice"]
-    H -- No --> J["Consume current die"]
-    I --> K["Recurse on next state"]
-    J --> K
-    K --> L["Prefix current move to child paths"]
-    L --> M["Collect all non-empty paths"]
-    M --> N["Keep king-capture paths OR maximal-length paths"]
-```
+---
 
-## Stage 2: Scoring a Full Turn
+### Level 5: Aggressive Bot (`AggressiveSearch`)
+* **Difficulty:** 5
+* **Philosophy:** Relentlessly hunts the opponent's King, pushes pawns forward, and coordinates its pieces around the enemy King's ring.
+* **Selection Logic:**
+  - Evaluates paths using a highly specialized attacking evaluation function (`Evaluator.evaluateAggressive`) that aggregates four distinct heuristics:
+    $$
+    \text{AggressiveScore} = \text{StandardScore} + \text{PawnStorm} + \text{KingProximity} + \text{KingRingPressure}
+    $$
 
-Once a path is chosen for scoring, `SearchScoring.scorePath` simulates the entire sequence and evaluates the final board.
+#### Algorithmic Heuristics under the Hood
 
-### Path application semantics
+1. **Pawn Storm Heuristic:**
+   Encourages pawns to advance forward aggressively to open files and create attacking targets.
+   * White pawns: `(rank - 2) * 15` centipawns.
+   * Black pawns: `(7 - rank) * 15` centipawns.
 
-The scorer folds over the move list:
+2. **King Proximity Heuristic:**
+   Measures the Chebyshev distance of active friendly pieces (Knights, Bishops, Rooks, Queens) to the enemy King's square $(EK_{\text{rank}}, EK_{\text{file}})$, rewarding pieces that cluster closer to the target.
+   * Chebyshev distance: $\text{dist} = \max(|sq_{\text{rank}} - EK_{\text{rank}}|, |sq_{\text{file}} - EK_{\text{file}}|)$
+   * Formula: $\sum (8 - \text{dist}) \times \text{weight}_{\text{piece}}$
+   * Weights: Knight/Bishop = `15`, Rook = `25`, Queen = `40`.
 
-```scala
-val finalState = path.foldLeft(state)((s, m) => s.makeMove(m).copy(activeColor = s.activeColor))
-```
+3. **King Ring Pressure Heuristic:**
+   Awards points for controlling the 8 squares immediately surrounding the enemy King (the "King Ring").
+   * For each adjacent square, if a friendly piece attacks it (using `MoveGenerator.isSquareAttacked`), it receives `25` centipawns per attacking piece.
 
-This mirrors the turn generator: the active color stays constant throughout the path because the player is still inside the same Dice Chess turn.
+---
 
-### Evaluation & Terminal Scoring
+## Comparison of O(1) Bot Strategies
 
-Path scoring distinguishes **terminal wins** from standard positional/material evaluations:
+| Aspect | Level 1: Random | Level 2: Checkmate Aware | Level 3: Greedy | Level 4: Cautious Greedy | Level 5: Aggressive |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Material Aware** | No | No | Yes (Heuristic) | Yes (Heuristic) | Yes (Heuristic) |
+| **King Safety Aware** | No | Yes (Binary Filter) | No | Yes (Exposure Penalty) | Yes (Exposure Penalty) |
+| **Attacking Focus** | None | Direct King Capture | Loose captures | Loose captures | King hunt, Pawn Storm, Proximity |
+| **Evaluator Used** | None | Dummy `(_, _) => 0` | `evaluateMaterial` | `evaluate` | `evaluateAggressive` |
+| **Play Style** | Chaotic | Defensive & Evasive | Aggressive & Reckless | Balanced & Safe | Threatening & Pressuring |
 
-1. **Terminal Win Check**: The scorer first checks if the path results in a king capture (meaning the last move captures the opponent's king). If it does, the path is immediately scored as a terminal win:
-   $$
-   \text{score} = \text{TerminalWinScore} = \text{Int.MaxValue}
-   $$
-2. **Material Evaluation**: If the path does not capture the king, the scorer simulates the entire sequence to get the final board state and computes the **material balance**:
+---
 
-* Pawn = `100`
-* Knight = `300`
-* Bishop = `300`
-* Rook = `500`
-* Queen = `900`
-* King = `10000`
+## Computational Limitations of Single-Turn Search
 
-The score is measured from the starting side's perspective:
-$$
-\text{score} = \text{material(active side)} - \text{material(opponent)}
-$$
+While these bots perform incredibly well for instant tactical matches, they remain limited by their short horizon:
+- **No Reply Tree:** They only evaluate the board at the end of *their* turn. They do not simulate the opponent's reply tree.
+- **No Probability Weighting:** They do not calculate the mathematical expectations of the opponent's future dice rolls.
+- **Eager Enumeration:** They generate and score all possible legal paths eagerly, which is cheap for 1-turn depths but unsustainable for deep searches.
 
-This has an important practical consequence: both search strategies remain short-horizon and tactical, but the bot now explicitly prioritizes winning the game (capturing the opponent's king) over any material gain.
-
-## RandomSearch
-
-`RandomSearch` is the baseline strategy.
-
-### Algorithm
-
-1. Generate all legal full-turn paths.
-2. Return `None` if the set is empty.
-3. Choose one path uniformly at random.
-4. Score that chosen path and return it as `ScoredSequence`.
-
-```mermaid
-flowchart TD
-    A["Legal turn paths"] --> B{"Empty?"}
-    B -- Yes --> C["None"]
-    B -- No --> D["rand.nextInt(paths.length)"]
-    D --> E["Select one path"]
-    E --> F["scorePath(state, selectedPath)"]
-    F --> G["Return ScoredSequence"]
-```
-
-### Why it exists
-
-This strategy is useful as:
-
-* a sanity-check baseline for the JavaScript API
-* a non-deterministic bot for early UI testing
-* a control group when evaluating whether smarter heuristics actually improve move quality
-
-### Behavioral properties
-
-* It never returns an illegal path because the randomness is applied **after** legality filtering.
-* It may ignore clearly stronger captures because score is not used for selection.
-* Two identical positions can produce different moves across runs.
-
-## GreedySearch
-
-`GreedySearch` keeps the same path generator and scorer, but changes the selection rule.
-
-### Algorithm
-
-1. Generate all legal full-turn paths.
-2. Return `None` if the set is empty.
-3. Score every candidate path using `SearchScoring.scorePath`.
-4. Identify all optimal paths with the highest score, applying a **tie-breaker** for terminal wins: if multiple paths achieve `TerminalWinScore`, prefer the **shortest path** to win as quickly as possible.
-5. If multiple paths share the exact same maximum evaluation criterion, choose one uniformly at random.
-
-```mermaid
-flowchart TD
-    A["Legal turn paths"] --> B{"Empty?"}
-    B -- Yes --> C["None"]
-    B -- No --> D["Map each path to ScoredSequence"]
-    D --> E["Find paths matching max evaluation criterion"]
-    E --> F["Pick one optimal path uniformly at random"]
-```
-
-The tie-breaker is implemented as:
-```scala
-private def terminalWinPreference(scored: ScoredSequence): Int =
-  if scored.score == SearchScoring.TerminalWinScore then -scored.moves.size else 0
-```
-This ensures that when a terminal win is possible in 1 move, the engine doesn't pick a 2- or 3-move sequence that also captures the king.
-
-### What it optimizes
-
-The algorithm is called "greedy" because it only optimizes the **immediate final material balance at the end of the current turn**. It does not search the opponent reply tree.
-
-In practice, that means it tends to:
-
-* prefer captures of high-value pieces
-* prefer preparatory micro-moves if they unlock a stronger capture later in the same turn
-* miss deferred tactical punishments that happen on the opponent turn
-
-### Concrete example
-
-The test suite contains a representative case:
-
-* White rolls pawn (`1`) and bishop (`3`)
-* the pawn on `d2` blocks the bishop on `c1`
-* Black queen stands on `h6`
-
-`GreedySearch` correctly prefers the two-step sequence:
-
-1. `d2` -> `d3`
-2. `c1` -> `h6`
-
-The first move has no direct material gain. It is chosen only because the shared turn-path generator can see the entire turn and the greedy scorer evaluates the resulting final state after both micro-moves.
-
-## Side-by-Side Comparison
-
-| Aspect | RandomSearch | GreedySearch |
-| :--- | :--- | :--- |
-| Candidate generation | All legal full-turn paths | All legal full-turn paths |
-| Selection rule | Uniform random pick | Random choice among highest-scoring optimal paths (prioritizes terminal wins & shortest win paths) |
-| Determinism | No | No, selects randomly among top-evaluated paths |
-| Uses evaluator for choice | No | Yes |
-| Typical purpose | Baseline / UI smoke testing | Simple bot / immediate tactics |
-
-## Current Limits
-
-These algorithms are intentionally primitive and should be read as milestone-`v0.4` bot infrastructure, not as the planned final engine search.
-
-Known limits:
-
-* full-path enumeration happens eagerly before selection
-* evaluation is material-only
-* no opponent-response modeling
-* no probability weighting for future dice outcomes
-* no alpha-beta pruning, transposition table, or iterative deepening
-
-Those concerns belong to the later Expectimax-focused milestones. The current design is still valuable because it validates three critical contracts early:
-
-* full-turn legality under Dice Chess rules
-* JavaScript-facing bot integration through `DiceChess.getBestMove`
-* the ability to compare selection strategies over the same generated move space
+These limits are addressed in **Expectimax Search (Stage 3 / Difficulty 6+)**, which introduces probabilistic tree search, virtual thread concurrency, and transposition caches.
