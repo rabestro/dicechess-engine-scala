@@ -21,8 +21,8 @@ import dicechess.engine.domain.{Color, GameState, Bitboard}
   */
 object Evaluator:
 
-  /** Penalty applied when a player's king is attacked by an enemy piece, leaving it exposed to immediate capture.
-    * Set to 2000 centipawns (worth more than a Queen) to heavily discourage material gains that expose the king.
+  /** Penalty applied when a player's king is attacked by an enemy piece, leaving it exposed to immediate capture. Set
+    * to 2000 centipawns (worth more than a Queen) to heavily discourage material gains that expose the king.
     */
   val KingExposurePenalty: Int = 2000
 
@@ -57,7 +57,7 @@ object Evaluator:
     val oppColor = color.opponent
 
     var isAttacked = false
-    var p = myKings.value
+    var p          = myKings.value
     while (p != 0L) {
       val sqIdx = java.lang.Long.numberOfTrailingZeros(p)
       val sq    = Square.fromIndex(sqIdx)

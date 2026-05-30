@@ -38,7 +38,7 @@ class GreedySearchSuite extends FunSuite:
     assert(bestMoveOpt.isDefined)
     val bestMove = bestMoveOpt.get
     assertEquals(bestMove.moves.size, 2)
-    val move1 = bestMove.moves(0)
+    val move1 = bestMove.moves.head
     val move2 = bestMove.moves(1)
 
     assertEquals(move1.fromSquare.toNotation, "d2")
@@ -223,7 +223,7 @@ class GreedySearchSuite extends FunSuite:
         err => fail(s"Failed to parse FEN: $err"),
         state => state
       )
-    
+
     // Evaluate from White's perspective.
     // Material is White: Rook(500) vs Black: 0 => +500
     // King safety: White is safe (0). Black is exposed (-2000).
@@ -232,4 +232,3 @@ class GreedySearchSuite extends FunSuite:
     val score = Evaluator.evaluate(state, Color.White)
     assertEquals(score, 2500)
   }
-

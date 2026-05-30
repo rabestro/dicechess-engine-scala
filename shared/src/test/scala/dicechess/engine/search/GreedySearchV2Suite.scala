@@ -23,7 +23,7 @@ class GreedySearchV2Suite extends FunSuite:
     val bestMoveOpt = GreedySearchV2.findBestMove(state)
     assert(bestMoveOpt.isDefined)
     val bestMove = bestMoveOpt.get
-    
+
     // The bot should choose c3-e5 to block the check, NOT c3xh8.
     val move = bestMove.moves.head
     assertEquals(move.fromSquare.toNotation, "c3")

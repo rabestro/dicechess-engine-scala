@@ -56,7 +56,11 @@ object SearchScoring:
     * @return
     *   a [[ScoredSequence]] bundling `path` and its computed score
     */
-  def scorePath(state: GameState, path: List[Move], evalFn: (GameState, Color) => Int = Evaluator.evaluateMaterial): ScoredSequence =
+  def scorePath(
+      state: GameState,
+      path: List[Move],
+      evalFn: (GameState, Color) => Int = Evaluator.evaluateMaterial
+  ): ScoredSequence =
     val score =
       if path.isEmpty then evalFn(state, state.activeColor)
       else

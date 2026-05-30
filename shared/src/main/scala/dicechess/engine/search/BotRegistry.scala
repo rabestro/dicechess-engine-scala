@@ -50,7 +50,8 @@ object BotRegistry:
       BotInfo(
         id = "greedy-v2",
         name = "Cautious Greedy",
-        description = "Tries to capture the highest value piece, but avoids leaving the King exposed to immediate capture.",
+        description =
+          "Tries to capture the highest value piece, but avoids leaving the King exposed to immediate capture.",
         difficulty = 4,
         isExperimental = false
       ),
