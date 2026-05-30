@@ -40,7 +40,7 @@ object CheckmateAwareSearch extends SearchAlgorithm:
     if paths.isEmpty then None
     else
       // 1. Prioritize immediate King capture (winning sequences)
-      val scoredPaths  = paths.map(path => SearchScoring.scorePath(state, path))
+      val scoredPaths  = paths.map(path => SearchScoring.scorePath(state, path, (_, _) => 0))
       val winningPaths = scoredPaths.filter(_.score == SearchScoring.TerminalWinScore)
 
       if winningPaths.nonEmpty then Some(winningPaths(random.nextInt(winningPaths.length)))
