@@ -21,7 +21,7 @@ object JsApi:
     *   An array of bot metadata objects.
     */
   @JSExport
-  def getAvailableBots(): js.Array[js.Dynamic] =
+  def getAvailableBots: js.Array[js.Dynamic] =
     BotRegistry.availableBots.map { bot =>
       js.Dynamic.literal(
         id = bot.id,
@@ -63,7 +63,7 @@ object JsApi:
     */
   @JSExport
   def getPieceFromDice(dice: Int): String =
-    PieceType.fromDice(dice).map(_.asNotation).getOrElse(null)
+    PieceType.fromDice(dice).map(_.asNotation).orNull
 
   /** Computes the best sequence of micro-moves for the given position.
     *
@@ -109,7 +109,7 @@ object JsApi:
                 js.Dynamic.literal(
                   from = m.fromSquare.toNotation,
                   to = m.toSquare.toNotation,
-                  promotion = m.promotionPieceType.map(_.asNotation).getOrElse(null)
+                  promotion = m.promotionPieceType.map(_.asNotation).orNull
                 )
               }.toJSArray
               js.Dynamic.literal(
@@ -150,4 +150,3 @@ object JsApi:
   @JSExport
   def endTurn(dfen: String): js.UndefOr[String] =
     dicechess.engine.EngineFacade.endTurn(dfen)
-
