@@ -56,9 +56,9 @@ object SearchScoring:
     * @return
     *   a [[ScoredSequence]] bundling `path` and its computed score
     */
-  def scorePath(state: GameState, path: List[Move]): ScoredSequence =
+  def scorePath(state: GameState, path: List[Move], evalFn: (GameState, Color) => Int = Evaluator.evaluateMaterial): ScoredSequence =
     val score =
-      if path.isEmpty then Evaluator.evaluateMaterial(state, state.activeColor)
+      if path.isEmpty then evalFn(state, state.activeColor)
       else
         val activeColor       = state.activeColor
         val intermediateState = path.init.foldLeft(state)((s, m) => s.makeMove(m))
@@ -70,5 +70,5 @@ object SearchScoring:
         if isKingCapture then TerminalWinScore
         else
           val finalState = intermediateState.makeMove(lastMove).endTurn()
-          Evaluator.evaluateMaterial(finalState, activeColor)
+          evalFn(finalState, activeColor)
     ScoredSequence(path, score)
