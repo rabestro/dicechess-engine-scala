@@ -11,9 +11,7 @@ class BotMatchRunnerSpec extends FunSuite:
     val outcome = BotMatchRunner.simulateGame(GreedySearch, GreedySearch, rand)
 
     // Outcome must be either a Win or a Draw
-    outcome match
-      case GameOutcome.Win(_) => assert(true)
-      case GameOutcome.Draw   => assert(true)
+    assert(outcome == GameOutcome.Draw || outcome.isInstanceOf[GameOutcome.Win])
   }
 
   test("runMatch executes the correct number of games and enforces alternating colors") {

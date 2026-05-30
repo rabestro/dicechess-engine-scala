@@ -17,13 +17,23 @@ object BotMatchRunner:
     val baseBotId     = args.headOption.getOrElse("greedy")
     val gamesPerColor = args.lift(1).flatMap(_.toIntOption).getOrElse(50)
 
+    if gamesPerColor <= 0 then
+      System.err.println(s"Error: Invalid gamesPerColor '$gamesPerColor'. Must be greater than 0.")
+      sys.exit(1)
+
     val baseAlgorithmOpt = BotRegistry.getAlgorithm(baseBotId)
     if baseAlgorithmOpt.isEmpty then
-      println(s"Error: Baseline bot with ID '$baseBotId' not found in BotRegistry!")
+      System.err.println(s"Error: Baseline bot with ID '$baseBotId' not found in BotRegistry!")
       sys.exit(1)
 
     val baseAlgorithm = baseAlgorithmOpt.get
-    val baseBotInfo   = BotRegistry.availableBots.find(_.id == baseBotId).get
+    val baseBotIdNorm = baseBotId.toLowerCase
+    val baseBotInfo   = BotRegistry.availableBots
+      .find(_.id.toLowerCase == baseBotIdNorm)
+      .getOrElse {
+        System.err.println(s"Error: Baseline bot details with ID '$baseBotId' not found in BotRegistry!")
+        sys.exit(1)
+      }
 
     println("================================================================================")
     println(s"🎲♟️  Dice Chess Bot Arena - JVM Match Runner")
@@ -40,8 +50,8 @@ object BotMatchRunner:
 
     printSummaryTable(results)
 
-  /** Runs a series of games between an opponent bot and the base bot. Alternates colors to ensure a fair match with no
-    * color bias.
+  /** Package-private visibility (`private[bench]`) is utilized to expose match orchestration to [[BotMatchRunnerSpec]]
+    * for verification of win rates and results aggregation, while keeping execution internal to the bench module.
     */
   private[bench] def runMatch(
       opponentAlgo: SearchAlgorithm,
@@ -86,8 +96,8 @@ object BotMatchRunner:
       durationMs = durationMs
     )
 
-  /** Simulates a single game between White and Black bots. Evaluates turn loop in-memory until a King is captured or
-    * half-move clock reaches 100.
+  /** Package-private visibility (`private[bench]`) allows [[BotMatchRunnerSpec]] to verify individual turn executions,
+    * random seed reproducibility, and the 50-move rule draw condition.
     */
   private[bench] def simulateGame(
       whiteBot: SearchAlgorithm,
