@@ -45,7 +45,12 @@ console.log("DFEN after micro-move:", nextDfen);
 const finalDfen = DiceChess.endTurn(nextDfen);
 console.log("DFEN after ending turn:", finalDfen);
 
-// 4. Compute the best sequence of micro-moves using the greedy bot search
+// 4. Discover available bots (search algorithms)
+const bots = DiceChess.getAvailableBots();
+console.log("Available bots:", bots);
+// e.g. [ { id: 'random', name: 'Random', description: '...', difficulty: 1, isExperimental: false }, ... ]
+
+// 5. Compute the best sequence of micro-moves using the greedy bot search
 // Arguments: (dfen, optionalOptions)
 const botResult = DiceChess.getBestMove(finalDfen, { algorithm: "greedy" });
 console.log("Bot moves:", botResult.moves);

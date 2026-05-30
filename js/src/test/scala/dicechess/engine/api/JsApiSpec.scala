@@ -5,6 +5,19 @@ import munit.FunSuite
 
 class JsApiSpec extends FunSuite:
 
+  test("getAvailableBots: returns a list of supported bots") {
+    val bots = JsApi.getAvailableBots().toList
+    assert(bots.nonEmpty)
+
+    val randomBot = bots.find(_.id.asInstanceOf[String] == "random").get
+    assertEquals(randomBot.name.asInstanceOf[String], "Random")
+    assertEquals(randomBot.difficulty.asInstanceOf[Int], 1)
+
+    val greedyBot = bots.find(_.id.asInstanceOf[String] == "greedy").get
+    assertEquals(greedyBot.name.asInstanceOf[String], "Greedy")
+    assertEquals(greedyBot.difficulty.asInstanceOf[Int], 3)
+  }
+
   test("applyMove: simple pawn push updates FEN correctly") {
     val initialFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     val expected   = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e3 0 1"

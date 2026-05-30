@@ -14,7 +14,7 @@ The primary interface for interacting with the engine from JavaScript/TypeScript
 Returns all legal moves for a given position and a set of available dice rolls as a flat array of UCI strings (e.g., `["e2e4", "e7e8q"]`).
 
 ```typescript
-function getLegalUciMoves(fen: string, dice: number[]): string[]
+function getLegalUciMoves(dfen: string): string[]
 ```
 
 **Returns:** An array of full UCI move strings. If a pawn promotion is legal, the 5th character contains the target piece notation (e.g., `"e7e8q"`).
@@ -23,14 +23,14 @@ function getLegalUciMoves(fen: string, dice: number[]): string[]
 
 ### `applyMove`
 
-Applies a **micro-move** to the given FEN and returns the resulting board state. 
+Applies a **micro-move** to the given DFEN and returns the resulting board state. 
 This function acts as the **Single Source of Truth** for chess rules, ensuring correct handling of castling rights, en passant, and pawn promotions.
 
 > [!NOTE]  
 > Because a Dice Chess turn consists of multiple micro-moves, `applyMove` **does not** transition the turn to the opponent. The active color and full-move number remain unchanged. To formally end a turn, you must call `endTurn`.
 
 ```typescript
-function applyMove(fen: string, from: string, to: string, promotion?: string): string | undefined
+function applyMove(dfen: string, from: string, to: string, promotion?: string): string | undefined
 ```
 
 **Returns:** The updated FEN string after the move is applied, or `undefined` if the move is pseudo-illegal.
@@ -45,10 +45,28 @@ Explicitly ends the current player's turn. This function is critical for the mic
 3. Clears any stale *en-passant* targets from the previous turn, preventing illegal captures.
 
 ```typescript
-function endTurn(fen: string): string | undefined
+function endTurn(dfen: string): string | undefined
 ```
 
 **Returns:** The updated FEN string for the next player's turn, or `undefined` if the FEN is invalid.
+
+---
+
+### `getAvailableBots`
+
+Returns all available bots (search algorithms) supported by the engine.
+
+```typescript
+function getAvailableBots(): {
+    id: string,
+    name: string,
+    description: string,
+    difficulty: number,
+    isExperimental: boolean
+}[]
+```
+
+**Returns:** An array of bot metadata objects, which can be used to dynamically populate UI selection menus.
 
 ---
 
@@ -57,14 +75,15 @@ function endTurn(fen: string): string | undefined
 Computes the best sequence of micro-moves for the given position and available dice using the engine's search algorithms.
 
 ```typescript
-function getBestMove(fen: string, dice: number[], options?: { algorithm?: string }): {
+function getBestMove(dfen: string, options?: { algorithm?: string }): {
     moves: { from: string, to: string, promotion: string | null }[],
     score: number,
     timeTakenMs: number
 }
 ```
 
-- `options.algorithm`: Can be `"greedy"` (default) or `"random"`.
+- `options.algorithm`: The bot ID to use (e.g., `"greedy"` or `"random"`). Defaults to `"greedy"`.
+
 
 ---
 
