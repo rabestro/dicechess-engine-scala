@@ -6,10 +6,10 @@ import munit.FunSuite
 class CheckmateAwareSearchSuite extends FunSuite:
 
   test("CheckmateAwareSearch should prioritize an immediate winning king capture") {
-    // White can either capture Black king on a8 or Black queen on e5.
+    // White can either capture Black king on a8 or Black queen on h1.
     // Material value of Queen is 900, but King capture is TerminalWinScore.
     // CheckmateAwareSearch must pick the King capture.
-    val fen   = "k3q3/8/8/8/8/8/8/R7 w - - 0 1"
+    val fen   = "k7/8/8/8/8/8/8/R6q w - - 0 1"
     val state = FenParser
       .parse(fen)
       .fold(
@@ -46,16 +46,14 @@ class CheckmateAwareSearchSuite extends FunSuite:
   }
 
   test("CheckmateAwareSearch should fall back to any legal move if no safe move exists") {
-    // White king on e1. Black rooks on d2 and f2 attack d1, d2, f1, f2, e2, d1, f1 etc.
-    // Basically King is fully trapped and under attack, or rolls a die where all moves end on an attacked square.
-    // Let's place Black queen on e2, Black rook on d8, Black rook on f8.
+    // White king on e1. Black queen on e2, Black rooks on d8 and e8.
     // King is on e1. White rolls king (6).
     // Legal King moves from e1:
-    // - e1-e2 (captures queen? Wait, if e2 queen is defended, it's still attacked. But is it unsafe? Yes).
+    // - e1-e2 (unsafe, captures queen but it is defended by e8 rook).
     // - e1-d1 (unsafe, attacked by d8 rook).
-    // - e1-f1 (unsafe, attacked by f8 rook).
+    // - e1-f1 (unsafe, attacked by e2 queen).
     // - e1-d2 (unsafe, attacked by d8 rook and e2 queen).
-    // - e1-f2 (unsafe, attacked by f8 rook and e2 queen).
+    // - e1-f2 (unsafe, attacked by e2 queen).
     // All moves leave King under attack.
     // CheckmateAwareSearch should still successfully return a move (fallback).
     val fen   = "3rr3/8/8/8/8/8/4q3/4K3 w - - 0 1"

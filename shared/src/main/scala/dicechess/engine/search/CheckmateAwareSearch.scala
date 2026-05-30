@@ -16,7 +16,7 @@ object CheckmateAwareSearch extends SearchAlgorithm:
 
   private val rand = new Random()
 
-  /** Finds the best move using a fresh `Random` instance.
+  /** Finds the best move using the shared internal `Random` instance.
     *
     * @param state
     *   current [[GameState]]
