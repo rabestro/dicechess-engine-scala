@@ -82,16 +82,7 @@ object JsApi:
   def getBestMove(dfen: String, options: js.UndefOr[js.Dynamic]): js.Dynamic =
     if dfen == null then js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
     else
-      val algoName = options.toOption
-        .filter(_ != null)
-        .flatMap { opt =>
-          val alg = opt.selectDynamic("algorithm")
-          if scala.scalajs.js.typeOf(alg) == "string" then Some(alg.asInstanceOf[String])
-          else None
-        }
-        .getOrElse("greedy")
-
-      val searchAlgo = BotRegistry.getAlgorithm(algoName).getOrElse(BotRegistry.defaultAlgorithm)
+      val searchAlgo = resolveAlgorithm(options)
 
       FenParser.parse(dfen) match
         case Left(_)      => js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
@@ -166,11 +157,11 @@ object JsApi:
     */
   @JSExport
   def shouldBotAcceptDouble(dfen: String, currentStake: Int, options: js.UndefOr[js.Dynamic]): Boolean =
-    if dfen == null then true
+    if dfen == null then false
     else
       val searchAlgo = resolveAlgorithm(options)
       FenParser.parse(dfen) match
-        case Left(_)      => true
+        case Left(_)      => false
         case Right(state) => searchAlgo.shouldAcceptDouble(state, currentStake)
 
   /** Determines whether the bot should offer a draw.
