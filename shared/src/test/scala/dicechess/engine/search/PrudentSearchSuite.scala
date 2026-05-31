@@ -46,9 +46,8 @@ class PrudentSearchSuite extends FunSuite:
     assertEquals(moves.head.fromSquare.toNotation, "d2")
   }
 
-  test("PrudentSearch evalWithCaptureProbability penalises positions with exposed king") {
-    // Directly test that the eval function gives a lower score to a position
-    // where the king is exposed vs. one where it's safe.
+  test("kingCaptureProbability is higher for exposed king than for protected king") {
+    // Verify the underlying probability function differentiates between safe and exposed positions.
     import KingCaptureProbability.*
 
     // Exposed: White king on e1, Black rook on e8 (direct line)

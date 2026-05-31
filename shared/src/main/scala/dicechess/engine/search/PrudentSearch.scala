@@ -10,11 +10,11 @@ import scala.util.Random
   * model that accounts for all possible dice rolls (3d6).
   *
   * The evaluation function is:
-  * {{{
-  *   score = material
-  *           - P(king capture next turn) × 3000
-  *           - P(queen capture next turn) × 600
-  * }}}
+  * ```scala
+  * score = material
+  *   - P(king capture next turn) × 3000
+  *   - P(queen capture next turn) × 600
+  * ```
   *
   * This creates a smooth gradient: a move that leaves the king vulnerable in 10 % of rolls (penalty −300) is preferred
   * over one that leaves it vulnerable in 100 % of rolls (penalty −3000), unlike the binary `evaluateKingSafety` which

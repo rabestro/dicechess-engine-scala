@@ -39,10 +39,9 @@ class KingCaptureProbabilitySuite extends FunSuite:
     assertEqualsDouble(prob, SingleAttackerProb, 0.0001)
   }
 
-  test("kingCaptureProbability returns 0 when enemy has only a blocked rook") {
-    // Black rook on e8 blocked by a Black pawn on e7 — same color, can never be captured.
-    // Black could move the pawn to free the rook, but that requires a Pawn die AND a Rook die (needs two dice).
-    // Test expects P > 0 (can be freed with pawn+rook).
+  test("kingCaptureProbability is > 0 when a blocked rook can be freed") {
+    // Black rook on e8 blocked by a Black pawn on e7 — Black can move the pawn (needs Pawn die)
+    // then capture the king with the rook (needs Rook die). P > 0.
     val fen   = "4r3/4p3/8/4K3/8/8/8/8 b - - 0 1"
     val state = FenParser.parse(fen).fold(err => fail(s"Failed to parse FEN: $err"), identity)
     val prob  = KingCaptureProbability.kingCaptureProbability(state, Color.White)
