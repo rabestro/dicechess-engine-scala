@@ -43,3 +43,19 @@ object AggressiveSearch extends SearchAlgorithm:
     */
   private def terminalWinPreference(scored: ScoredSequence): Int =
     if scored.score == SearchScoring.TerminalWinScore then -scored.moves.size else 0
+
+  override def shouldOfferDouble(state: GameState, currentStake: Int): Boolean =
+    val _ = currentStake
+    estimateWinProbability(state) > 0.55
+
+  override def shouldAcceptDouble(state: GameState, currentStake: Int): Boolean =
+    val _ = currentStake
+    estimateWinProbability(state) > 0.22
+
+  override def shouldOfferDraw(state: GameState): Boolean =
+    val _ = state
+    false
+
+  override def shouldAcceptDraw(state: GameState): Boolean =
+    val _ = state
+    false

@@ -42,3 +42,17 @@ object GreedySearchV2 extends SearchAlgorithm:
     */
   private def terminalWinPreference(scored: ScoredSequence): Int =
     if scored.score == SearchScoring.TerminalWinScore then -scored.moves.size else 0
+
+  override def shouldOfferDouble(state: GameState, currentStake: Int): Boolean =
+    val _ = currentStake
+    estimateWinProbability(state) > 0.70
+
+  override def shouldAcceptDouble(state: GameState, currentStake: Int): Boolean =
+    val _ = currentStake
+    estimateWinProbability(state) > 0.35
+
+  override def shouldOfferDraw(state: GameState): Boolean =
+    state.fullMoveNumber > 30 && math.abs(Evaluator.evaluate(state, state.activeColor)) < 50
+
+  override def shouldAcceptDraw(state: GameState): Boolean =
+    Evaluator.evaluate(state, state.activeColor) < -100

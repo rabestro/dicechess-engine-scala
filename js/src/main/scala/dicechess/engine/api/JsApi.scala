@@ -82,16 +82,7 @@ object JsApi:
   def getBestMove(dfen: String, options: js.UndefOr[js.Dynamic]): js.Dynamic =
     if dfen == null then js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
     else
-      val algoName = options.toOption
-        .filter(_ != null)
-        .flatMap { opt =>
-          val alg = opt.selectDynamic("algorithm")
-          if scala.scalajs.js.typeOf(alg) == "string" then Some(alg.asInstanceOf[String])
-          else None
-        }
-        .getOrElse("greedy")
-
-      val searchAlgo = BotRegistry.getAlgorithm(algoName).getOrElse(BotRegistry.defaultAlgorithm)
+      val searchAlgo = resolveAlgorithm(options)
 
       FenParser.parse(dfen) match
         case Left(_)      => js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
@@ -150,3 +141,58 @@ object JsApi:
   @JSExport
   def endTurn(dfen: String): js.UndefOr[String] =
     dicechess.engine.EngineFacade.endTurn(dfen)
+
+  /** Determines whether the bot should offer a double before its dice roll.
+    */
+  @JSExport
+  def shouldBotOfferDouble(dfen: String, currentStake: Int, options: js.UndefOr[js.Dynamic]): Boolean =
+    if dfen == null then false
+    else
+      val searchAlgo = resolveAlgorithm(options)
+      FenParser.parse(dfen) match
+        case Left(_)      => false
+        case Right(state) => searchAlgo.shouldOfferDouble(state, currentStake)
+
+  /** Determines whether the bot should accept (Take) or decline (Drop) a double from the opponent.
+    */
+  @JSExport
+  def shouldBotAcceptDouble(dfen: String, currentStake: Int, options: js.UndefOr[js.Dynamic]): Boolean =
+    if dfen == null then false
+    else
+      val searchAlgo = resolveAlgorithm(options)
+      FenParser.parse(dfen) match
+        case Left(_)      => false
+        case Right(state) => searchAlgo.shouldAcceptDouble(state, currentStake)
+
+  /** Determines whether the bot should offer a draw.
+    */
+  @JSExport
+  def shouldBotOfferDraw(dfen: String, options: js.UndefOr[js.Dynamic]): Boolean =
+    if dfen == null then false
+    else
+      val searchAlgo = resolveAlgorithm(options)
+      FenParser.parse(dfen) match
+        case Left(_)      => false
+        case Right(state) => searchAlgo.shouldOfferDraw(state)
+
+  /** Determines whether the bot should accept a draw offered by the opponent.
+    */
+  @JSExport
+  def shouldBotAcceptDraw(dfen: String, options: js.UndefOr[js.Dynamic]): Boolean =
+    if dfen == null then false
+    else
+      val searchAlgo = resolveAlgorithm(options)
+      FenParser.parse(dfen) match
+        case Left(_)      => false
+        case Right(state) => searchAlgo.shouldAcceptDraw(state)
+
+  private def resolveAlgorithm(options: js.UndefOr[js.Dynamic]): dicechess.engine.search.SearchAlgorithm =
+    val algoName = options.toOption
+      .filter(_ != null)
+      .flatMap { opt =>
+        val alg = opt.selectDynamic("algorithm")
+        if scala.scalajs.js.typeOf(alg) == "string" then Some(alg.asInstanceOf[String])
+        else None
+      }
+      .getOrElse("greedy")
+    BotRegistry.getAlgorithm(algoName).getOrElse(BotRegistry.defaultAlgorithm)

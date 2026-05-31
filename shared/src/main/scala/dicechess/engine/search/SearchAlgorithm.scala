@@ -30,6 +30,57 @@ trait SearchAlgorithm:
     */
   def findBestMove(state: GameState): Option[ScoredSequence]
 
+  /** Determines whether the bot should offer a double before its dice roll.
+    *
+    * @param state
+    *   current game state (dice pool is empty)
+    * @param currentStake
+    *   the current stake of the game
+    * @return
+    *   true to offer a double, false otherwise
+    */
+  def shouldOfferDouble(state: GameState, currentStake: Int): Boolean = false
+
+  /** Determines whether the bot should accept (Take) or decline (Drop) a double from the opponent.
+    *
+    * @param state
+    *   current game state (dice pool is empty)
+    * @param currentStake
+    *   the proposed double stake (e.g. 2, 4...)
+    * @return
+    *   true to accept the double (Take), false to resign the current stake (Drop)
+    */
+  def shouldAcceptDouble(state: GameState, currentStake: Int): Boolean =
+    val _ = currentStake
+    estimateWinProbability(state) > 0.25
+
+  /** Determines whether the bot should offer a draw in the current position.
+    *
+    * @param state
+    *   current game state
+    * @return
+    *   true to offer a draw
+    */
+  def shouldOfferDraw(state: GameState): Boolean = false
+
+  /** Determines whether the bot should accept a draw offered by the opponent.
+    *
+    * @param state
+    *   current game state
+    * @return
+    *   true to accept the draw
+    */
+  def shouldAcceptDraw(state: GameState): Boolean = false
+
+  /** Estimates the winning probability in [0.0, 1.0] for the active side.
+    *
+    * Uses a standard logistic sigmoid function to map the centipawn score to a probability.
+    */
+  protected def estimateWinProbability(state: GameState): Double =
+    val myColor = state.activeColor
+    val eval    = Evaluator.evaluate(state, myColor)
+    1.0 / (1.0 + math.exp(-eval / 400.0))
+
 /** Shared scoring utilities used by all [[SearchAlgorithm]] implementations.
   *
   * Centralises the terminal-win sentinel and the path-scoring logic so that every strategy applies them consistently.
