@@ -47,3 +47,19 @@ object RandomSearch extends SearchAlgorithm:
     else
       val randomPath = paths(random.nextInt(paths.length))
       Some(SearchScoring.scorePath(state, randomPath))
+
+  override def shouldOfferDouble(state: GameState, currentStake: Int): Boolean =
+    val _ = (state, currentStake)
+    rand.nextDouble() < 0.15
+
+  override def shouldAcceptDouble(state: GameState, currentStake: Int): Boolean =
+    val _ = (state, currentStake)
+    rand.nextDouble() < 0.50
+
+  override def shouldOfferDraw(state: GameState): Boolean =
+    val _ = state
+    rand.nextDouble() < 0.05
+
+  override def shouldAcceptDraw(state: GameState): Boolean =
+    val _ = state
+    rand.nextDouble() < 0.20
