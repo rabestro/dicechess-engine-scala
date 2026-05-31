@@ -25,7 +25,7 @@ reviews:
 
   # ── Auto-Review Settings ──────────────────────────────────────────────────
   auto_review:
-    enabled: true
+    enabled: false
     drafts: false
     base_branches:
       - main
