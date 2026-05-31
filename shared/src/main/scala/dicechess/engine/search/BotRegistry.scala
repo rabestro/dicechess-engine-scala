@@ -76,6 +76,17 @@ object BotRegistry:
         isExperimental = false
       ),
       AggressiveSearch
+    ),
+    "prudent" -> (
+      BotInfo(
+        id = "prudent",
+        name = "Prudent",
+        description =
+          "Evaluates king and queen capture probability over all possible dice rolls; avoids positions where the opponent is likely to capture the king on the next turn.",
+        difficulty = 6,
+        isExperimental = true
+      ),
+      PrudentSearch
     )
   )
 

@@ -7,7 +7,7 @@ class BotRegistrySpec extends FunSuite:
   test("availableBots returns a list of configured bots sorted by difficulty") {
     val bots = BotRegistry.availableBots
 
-    assertEquals(bots.size, 5)
+    assertEquals(bots.size, 6)
     assertEquals(bots.head.id, "random")
     assertEquals(bots.head.difficulty, 1)
 
@@ -22,6 +22,9 @@ class BotRegistrySpec extends FunSuite:
 
     assertEquals(bots(4).id, "aggressive")
     assertEquals(bots(4).difficulty, 5)
+
+    assertEquals(bots(5).id, "prudent")
+    assertEquals(bots(5).difficulty, 6)
   }
 
   test("getAlgorithm returns the correct algorithm for a given id (case-insensitive)") {
@@ -38,6 +41,9 @@ class BotRegistrySpec extends FunSuite:
 
     assertEquals(BotRegistry.getAlgorithm("aggressive"), Some(AggressiveSearch))
     assertEquals(BotRegistry.getAlgorithm("AGGRESSIVE"), Some(AggressiveSearch))
+
+    assertEquals(BotRegistry.getAlgorithm("prudent"), Some(PrudentSearch))
+    assertEquals(BotRegistry.getAlgorithm("PRUDENT"), Some(PrudentSearch))
 
     assertEquals(BotRegistry.getAlgorithm("unknown"), None)
     assertEquals(BotRegistry.getAlgorithm(null), None)
