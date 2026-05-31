@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# This script prepares the distribution folder for the npm package
+
+set -euo pipefail
+
+# Get version from sbt
+VERSION=$(sbt -no-colors --error 'print version' | tail -n 1 | tr -d '[:space:]')
+CLEAN_VERSION=$(echo "$VERSION" | sed 's/-SNAPSHOT//')
+
+# Create distribution directory
+mkdir -p dist
+
+# Sync version in the root package.json
+sed -i.bak "s/\"version\": \"[^\"]*\"/\"version\": \"$CLEAN_VERSION\"\/" package.json && rm package.json.bak
+
+# Copy assets to the distribution folder
+cp js/target/scala-3.8.3/dicechess-engine-scala-opt/main.js dist/dicechess-engine.js
+cp js/dicechess-engine.d.ts dist/
+cp js/README.md dist/README.md
+
+# Compile optimized package.json for NPM publication
+jq --arg ver "$CLEAN_VERSION" \
+  '.version = $ver | \
+  .main = "dicechess-engine.js" | \
+  .types = "dicechess-engine.d.ts" | \
+  del(.files)' \
+  package.json > dist/package.json
