@@ -73,3 +73,23 @@ class BotDoubleDrawSpec extends FunSuite:
     assert(!AggressiveSearch.shouldOfferDraw(loseState))
     assert(!AggressiveSearch.shouldAcceptDraw(loseState)) // Aggressive bot never accepts draw
   }
+
+  test("Default SearchAlgorithm doubling and draw decisions") {
+    object DefaultSearch extends SearchAlgorithm:
+      override def findBestMove(state: GameState): Option[ScoredSequence] = None
+
+    val state = parseState("k7/8/8/8/8/8/8/K7 w - - 0 1")
+    assert(!DefaultSearch.shouldOfferDouble(state, 1))
+    assert(DefaultSearch.shouldAcceptDouble(state, 2)) // default takes > 25% (equal is 50%)
+    assert(!DefaultSearch.shouldOfferDraw(state))
+    assert(!DefaultSearch.shouldAcceptDraw(state))
+  }
+
+  test("RandomSearch doubling and draw decisions") {
+    val state = parseState("k7/8/8/8/8/8/8/K7 w - - 0 1")
+    // Invoke them to ensure test coverage of all branch lines
+    RandomSearch.shouldOfferDouble(state, 1)
+    RandomSearch.shouldAcceptDouble(state, 2)
+    RandomSearch.shouldOfferDraw(state)
+    RandomSearch.shouldAcceptDraw(state)
+  }

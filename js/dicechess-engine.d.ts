@@ -58,6 +58,26 @@ export interface DiceChessApi {
      * @param dfen The current board state in DiceChess FEN notation.
      */
     endTurn(dfen: string): string | undefined;
+
+    /**
+     * Determines whether the bot should offer a double before its dice roll.
+     */
+    shouldBotOfferDouble(dfen: string, currentStake: number, options?: { algorithm?: string }): boolean;
+
+    /**
+     * Determines whether the bot should accept (Take) or decline (Drop) a double from the opponent.
+     */
+    shouldBotAcceptDouble(dfen: string, currentStake: number, options?: { algorithm?: string }): boolean;
+
+    /**
+     * Determines whether the bot should offer a draw.
+     */
+    shouldBotOfferDraw(dfen: string, options?: { algorithm?: string }): boolean;
+
+    /**
+     * Determines whether the bot should accept a draw offered by the opponent.
+     */
+    shouldBotAcceptDraw(dfen: string, options?: { algorithm?: string }): boolean;
 }
 
 export const DiceChess: DiceChessApi;
