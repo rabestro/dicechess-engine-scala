@@ -2,15 +2,27 @@
   "testCases": [
     {
       "name": "Queen and Bishop threatening the King",
-      "description": "The white queen and bishop are threatening the black king, checking the probability of capturing the black king",
+      "description": "The white queen and bishop are threatening the black king.",
       "fen": "rnbqkbnr/pppppppp/8/1B6/4P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 0 1",
       "expectedKingProbability": 0.2778
     },
     {
       "name": "Kings at a distance",
-      "description": "No pieces on the board except for the two kings, checking the probability of capturing the white king",
+      "description": "No pieces on the board except for the two kings.",
       "fen": "4k3/8/8/8/8/8/8/4K3 b - -",
       "expectedKingProbability": 0.0
+    },
+    {
+      "name": "At least one of two pieces",
+      "description": "The white queen and knight are direct attacking the black king.",
+      "fen": "rnb1qbnr/pppppkpp/8/6N1/8/4PQ2/PPPP1PPP/RNB1K2R w KQ - 0 1",
+      "expectedKingProbability": 0.7037
+    },
+    {
+      "name": "At least one bishop",
+      "description": "The white bishop is direct attacking the black king.",
+      "fen": "rnbqkbnr/pppppBpp/8/8/4P3/8/PPPP1PPP/RNBQK1NR w KQkq - 0 1",
+      "expectedKingProbability": 0.4213
     }
   ]
 }
