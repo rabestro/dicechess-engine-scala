@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# This script prepares the distribution folder for the npm package
+#MISE description="📦 Prepare the distribution folder for the npm package"
+#MISE depends=["build:js"]
 
 set -euo pipefail
 
@@ -18,10 +19,10 @@ cp js/target/scala-3.8.3/dicechess-engine-scala-opt/main.js dist/dicechess-engin
 cp js/dicechess-engine.d.ts dist/
 cp js/README.md dist/README.md
 
-# Compile optimized package.json for NPM publication
-jq --arg ver "$CLEAN_VERSION" \
-  '.version = $ver | \
-  .main = "dicechess-engine.js" | \
-  .types = "dicechess-engine.d.ts" | \
-  del(.files)' \
-  package.json > dist/package.json
+# Compile optimized package.json for NPM publication (flattened paths, no 'files' field needed)
+jq --arg ver "$CLEAN_VERSION" '
+  .version = $ver |
+  .main = "dicechess-engine.js" |
+  .types = "dicechess-engine.d.ts" |
+  del(.files)
+' package.json > dist/package.json

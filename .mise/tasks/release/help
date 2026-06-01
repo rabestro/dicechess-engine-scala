@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mise description="📖 Show release pipeline documentation"
+#MISE description="📖 Show release pipeline documentation"
 
 echo ""
 echo "=== RELEASE PIPELINE - USAGE INSTRUCTIONS ==="

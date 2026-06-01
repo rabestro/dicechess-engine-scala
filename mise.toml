@@ -19,7 +19,7 @@ tokei = "latest"               # Code statistics engine (LOC, complexity analysi
 "aqua:SonarSource/sonarqube-cli" = "latest" # SonarQube CLI for static analysis
 
 [tasks."setup:tools"]
-description = "🛠️ Install system and build dependencies (SBT, universal-ctags, tree)"
+description = "🛠️  Install system and build dependencies (SBT, universal-ctags, tree)"
 run_windows = """
 winget install --id sbt.sbt --version 1.12.11 --exact --accept-package-agreements --accept-source-agreements
 winget install --id UniversalCtags.UniversalCtags --accept-package-agreements --accept-source-agreements
@@ -32,7 +32,7 @@ description = "🔨 Incremental compilation of main and test sources (JVM)"
 run = "sbt rootJVM/compile"
 
 [tasks.run]
-description = "▶️ Start the engine application (JVM CLI)"
+description = "▶️  Start the engine application (JVM CLI)"
 run = "sbt rootJVM/run"
 
 [tasks.test]
@@ -64,7 +64,7 @@ description = "⚡ Run JMH benchmarks matching a regex pattern"
 run = "sbt \"benchmark/Jmh/run {{arg(name=\\\"pattern\\\")}}\""
 
 [tasks.arena]
-description = "⚔️ Run the Bot Battle Arena match runner (JVM)"
+description = "⚔️  Run the Bot Battle Arena match runner (JVM)"
 run = "sbt 'rootJVM/runMain dicechess.engine.bench.BotMatchRunner {{arg(name=\"base\", default=\"greedy\")}} {{arg(name=\"games\", default=\"50\")}}'"
 
 [tasks.clean]
@@ -86,31 +86,6 @@ run = "sbt rootJS/fullOptJS"
 [tasks."build:js:dev"]
 description = "📦 Build fast JavaScript bundle for local dev"
 run = "sbt rootJS/fastOptJS"
-
-[tasks."package:prepare"]
-description = "📦 Prepare the distribution folder for the npm package"
-depends = ["build:js"]
-run = """
-mkdir -p dist
-VERSION=$(sbt -no-colors --error 'print version' | tail -n 1 | tr -d '[:space:]')
-CLEAN_VERSION=$(echo $VERSION | sed 's/-SNAPSHOT//')
-
-# Sync version in the root package.json
-sed -i.bak "s/\\\"version\\\": \\\"[^\\\"]*\\\"/\\\"version\\\": \\\"$CLEAN_VERSION\\\"/" package.json && rm package.json.bak
-
-# Copy assets to the distribution folder
-cp js/target/scala-3.8.3/dicechess-engine-scala-opt/main.js dist/dicechess-engine.js
-cp js/dicechess-engine.d.ts dist/
-cp js/README.md dist/README.md
-
-# Compile optimized package.json for NPM publication (flattened paths, no 'files' field needed)
-jq --arg ver "$CLEAN_VERSION" '
-  .version = $ver |
-  .main = "dicechess-engine.js" |
-  .types = "dicechess-engine.d.ts" |
-  del(.files)
-' package.json > dist/package.json
-"""
 
 [tasks."package:clean"]
 description = "🧹 Remove the distribution folder"

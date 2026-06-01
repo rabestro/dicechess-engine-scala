@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mise description="📌 Prepare release (bump version, commit, create tag)"
+#MISE description="📌 Prepare release (bump version, commit, create tag)"
 
 set -euo pipefail
 
