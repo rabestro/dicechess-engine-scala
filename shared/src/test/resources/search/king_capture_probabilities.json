@@ -1,0 +1,16 @@
+{
+  "testCases": [
+    {
+      "name": "Queen and Bishop threatening the King",
+      "description": "The white queen and bishop are threatening the black king, checking the probability of capturing the black king",
+      "fen": "rnbqkbnr/pppppppp/8/1B6/4P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 0 1",
+      "expectedKingProbability": 0.2778
+    },
+    {
+      "name": "Kings at a distance",
+      "description": "No pieces on the board except for the two kings, checking the probability of capturing the white king",
+      "fen": "4k3/8/8/8/8/8/8/4K3 b - -",
+      "expectedKingProbability": 0.0
+    }
+  ]
+}
