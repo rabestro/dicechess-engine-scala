@@ -15,9 +15,10 @@ import dicechess.engine.domain.*
   * object MyBot extends SearchAlgorithm with DrawOfferLogic
   * ```
   *
-  * ## Why separate from `SearchAlgorithm` The base [[SearchAlgorithm]] defaults both draw methods to `false` so that
-  * simple bots remain silent. This trait packages a single, consistent draw policy that can be composed with any
-  * strategy without code duplication.
+  * ## Why separate from `SearchAlgorithm`
+  *
+  * The base [[SearchAlgorithm]] defaults both draw methods to `false` so that simple bots remain silent. This trait
+  * packages a single, consistent draw policy that can be composed with any strategy without code duplication.
   */
 trait DrawOfferLogic extends SearchAlgorithm:
 

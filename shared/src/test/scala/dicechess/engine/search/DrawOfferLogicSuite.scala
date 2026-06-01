@@ -45,6 +45,11 @@ class DrawOfferLogicSuite extends FunSuite:
   // shouldOfferDraw — false (not a dead draw)
   // ──────────────────────────────────────────────
 
+  test("does not offer draw when kings are adjacent") {
+    val state = parseState("k7/1K6/8/8/8/8/8/8 w - - 0 1")
+    assert(!TestBot.shouldOfferDraw(state))
+  }
+
   test("does not offer draw when a pawn is present") {
     val state = parseState("k7/8/8/8/8/8/1P6/K7 w - - 0 1")
     assert(!TestBot.shouldOfferDraw(state))
