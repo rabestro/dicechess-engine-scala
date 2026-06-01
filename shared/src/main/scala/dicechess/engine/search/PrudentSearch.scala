@@ -20,7 +20,7 @@ import scala.util.Random
   * over one that leaves it vulnerable in 100 % of rolls (penalty −3000), unlike the binary `evaluateKingSafety` which
   * applies a flat −2000 regardless of probability.
   */
-object PrudentSearch extends SearchAlgorithm:
+object PrudentSearch extends SearchAlgorithm with DrawOfferLogic:
 
   private val KingCaptureWeight  = 3000
   private val QueenCaptureWeight = 600
