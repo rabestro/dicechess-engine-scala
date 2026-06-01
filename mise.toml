@@ -11,7 +11,6 @@ gh = "latest"                  # GitHub CLI for PRs, issues and workflow managem
 fd = "latest"                  # User-friendly and fast file finder
 jq = "latest"                  # JSON processor for parsing API responses
 yq = "latest"                  # YAML processor for GitHub Actions management
-gemini = "latest"              # AI Agent integration and automation
 ripgrep = "latest"             # High-performance code search (grep replacement)
 ast-grep = "latest"            # Structural AST code search and rewrite utility
 tokei = "latest"               # Code statistics engine (LOC, complexity analysis)
