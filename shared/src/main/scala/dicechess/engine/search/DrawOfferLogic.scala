@@ -5,22 +5,24 @@ import dicechess.engine.domain.*
 /** Mix-in that equips a [[SearchAlgorithm]] with draw-awareness based on insufficient material and evaluation
   * thresholds.
   *
-  * Bots mixing in this trait will offer a draw when neither side can force checkmate (king + at most one bishop each,
-  * no other pieces, kings safely separated and the defending king on the opposite square colour from the enemy bishop).
-  * They will accept a draw offer when the position evaluation drops below −200 centipawns (down material).
+  * Bots mixing in this trait will offer a draw when neither side can force a king capture — the win condition in Dice
+  * Chess. This happens with king + at most one bishop each, no other pieces, kings safely separated and the defending
+  * king on the opposite square colour from the enemy bishop. They will accept a draw offer when the position evaluation
+  * drops below −200 centipawns (down material).
   *
   * The trait is designed to be reusable — any `SearchAlgorithm` can gain draw logic simply by declaring:
-  * {{{
-  *   object MyBot extends SearchAlgorithm with DrawOfferLogic
-  * }}}
+  * ```scala
+  * object MyBot extends SearchAlgorithm with DrawOfferLogic
+  * ```
   *
-  * ==Why separate from `SearchAlgorithm`==
-  * The base [[SearchAlgorithm]] defaults both draw methods to `false` so that simple bots remain silent. This trait
-  * packages a single, consistent draw policy that can be composed with any strategy without code duplication.
+  * ## Why separate from `SearchAlgorithm` The base [[SearchAlgorithm]] defaults both draw methods to `false` so that
+  * simple bots remain silent. This trait packages a single, consistent draw policy that can be composed with any
+  * strategy without code duplication.
   */
 trait DrawOfferLogic extends SearchAlgorithm:
 
-  /** Offers a draw when the position is a theoretical dead draw: neither player can ever deliver checkmate.
+  /** Offers a draw when the position is a theoretical dead draw: neither player can ever force a king capture — the win
+    * condition in Dice Chess.
     *
     * The check requires all of the following:
     *   - No pawns, knights, rooks, or queens on the board.
@@ -46,7 +48,7 @@ trait DrawOfferLogic extends SearchAlgorithm:
   override def shouldAcceptDraw(state: GameState): Boolean =
     Evaluator.evaluate(state, state.activeColor) < -200
 
-  /** Returns `true` when [[state]] has no pieces that can force checkmate.
+  /** Returns `true` when [[state]] has no pieces that can force a king capture.
     *
     * Memory layout — the method inspects piece-type bitboards and king squares, producing no allocations beyond boxing
     * for the `Long` trailing-zero intrinsic.
