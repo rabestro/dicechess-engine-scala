@@ -13,7 +13,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
-    <p style="margin-top: 0; margin-bottom: 16px;">No pieces on the board except for the two kings.</p>
+    <p style="margin-top: 0; margin-bottom: 16px;">Kings positioned on opposite ends of the board with no intervening or threatening pieces.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
       <li style="margin-bottom: 8px;"><strong>Expected Probability:</strong> <code>0.00%</code></li>
       <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>4k3/8/8/8/8/8/8/4K3 b - -</code></li>
@@ -30,7 +30,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
-    <p style="margin-top: 0; margin-bottom: 16px;">The white bishop is direct attacking the black king.</p>
+    <p style="margin-top: 0; margin-bottom: 16px;">A single bishop directly attacks the king, making it vulnerable whenever that piece type appears.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
       <li style="margin-bottom: 8px;"><strong>Expected Probability:</strong> <code>42.13%</code></li>
       <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnbqkbnr/pppppBpp/8/8/4P3/8/PPPP1PPP/RNB1K1NR w KQkq - 0 1</code></li>
@@ -47,7 +47,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
-    <p style="margin-top: 0; margin-bottom: 16px;">The white queen and knight are direct attacking the black king.</p>
+    <p style="margin-top: 0; margin-bottom: 16px;">Multiple attacking pieces are present, creating a threat if either piece type is rolled.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
       <li style="margin-bottom: 8px;"><strong>Expected Probability:</strong> <code>70.37%</code></li>
       <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnb1qbnr/pppppkpp/8/6N1/8/4PQ2/PPPP1PPP/RNB1K2R w KQ - 0 1</code></li>
@@ -64,7 +64,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
-    <p style="margin-top: 0; margin-bottom: 16px;">In this position both a pawn and a bishop need to appear at dice.</p>
+    <p style="margin-top: 0; margin-bottom: 16px;">Two different attacking pieces must both appear on the dice to facilitate a capture threat.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
       <li style="margin-bottom: 8px;"><strong>Expected Probability:</strong> <code>13.89%</code></li>
       <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnbq1bnr/ppppkppp/8/4p3/1P6/B7/P1PPPPPP/R3KBNR w KQ - 0 1</code></li>
@@ -81,7 +81,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
-    <p style="margin-top: 0; margin-bottom: 16px;">In this position two bishops need to appear at dice.</p>
+    <p style="margin-top: 0; margin-bottom: 16px;">Vulnerability depends on rolling a specific pair of identical attacking pieces.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
       <li style="margin-bottom: 8px;"><strong>Expected Probability:</strong> <code>7.41%</code></li>
       <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnbqkbnr/pppppppp/8/8/2B1P3/8/PPPP1PPP/RNB1K1NR w KQ - 0 1</code></li>
@@ -98,7 +98,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
-    <p style="margin-top: 0; margin-bottom: 16px;">In this position three knights need to appear at dice.</p>
+    <p style="margin-top: 0; margin-bottom: 16px;">The king is threatened only if three identical attacking pieces are rolled simultaneously.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
       <li style="margin-bottom: 8px;"><strong>Expected Probability:</strong> <code>0.46%</code></li>
       <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnbqkbnr/pppppppp/8/8/8/2N5/PPPPPPPP/R1BQKBNR w KQ - 0 1</code></li>
@@ -115,7 +115,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
-    <p style="margin-top: 0; margin-bottom: 16px;">When it's favorable for a player if one of the three specific pieces — be it a knight, a bishop, or a queen — appear, the probability of such an event is very high.</p>
+    <p style="margin-top: 0; margin-bottom: 16px;">Multiple attacking piece types are capable of threatening the king if any one of them appears.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
       <li style="margin-bottom: 8px;"><strong>Expected Probability:</strong> <code>87.50%</code></li>
       <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnbq1bnr/ppppkppp/4p3/3N4/3P3B/Q7/PPP1PPPP/R3KBNR w KQ - 0 1</code></li>
@@ -132,7 +132,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
-    <p style="margin-top: 0; margin-bottom: 16px;">When any of four specific pieces—a knight, bishop, rook, or queen—can appear on the dice, the probability of such an event increases to 96.3%.</p>
+    <p style="margin-top: 0; margin-bottom: 16px;">High likelihood of king capture threat as it depends on any one of four different attacker types appearing.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
       <li style="margin-bottom: 8px;"><strong>Expected Probability:</strong> <code>96.30%</code></li>
       <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnbq1bnr/ppppkppp/8/3N2B1/P2P4/Q3R3/1PP1PPPP/4KBNR w K - 0 1</code></li>
@@ -149,7 +149,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
-    <p style="margin-top: 0; margin-bottom: 16px;">When any of five specific pieces—a knight, bishop, rook, queen, or pawn—can appear on the dice, the probability of such an event increases to 99.54%.</p>
+    <p style="margin-top: 0; margin-bottom: 16px;">Almost certain capture threat as nearly any piece type appearing on the dice enables the attack.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
       <li style="margin-bottom: 8px;"><strong>Expected Probability:</strong> <code>99.54%</code></li>
       <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>4R3/8/8/Q3k3/3P4/5N2/7B/6K1 w - - 0 1</code></li>
@@ -166,7 +166,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
-    <p style="margin-top: 0; margin-bottom: 16px;">The probability that three specific pieces will appear on the dice (in any order) is 2.78%.</p>
+    <p style="margin-top: 0; margin-bottom: 16px;">Threat requires the specific combination of three different attacking piece types.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
       <li style="margin-bottom: 8px;"><strong>Expected Probability:</strong> <code>2.78%</code></li>
       <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnbq1bnr/pppppkpp/8/3N4/2P5/1B1P2P1/PP2PP1P/R1B1K2R w KQ - 0 1</code></li>
@@ -183,7 +183,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
-    <p style="margin-top: 0; margin-bottom: 16px;">The probability of rolling three specific pieces on the dice, where two are identical (a double) and one is different, is 1.39%, regardless of the order in which they appear. </p>
+    <p style="margin-top: 0; margin-bottom: 16px;">Threat relies on a specific combination consisting of a pair of identical pieces and one different piece.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
       <li style="margin-bottom: 8px;"><strong>Expected Probability:</strong> <code>1.39%</code></li>
       <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnbq1bnr/pppppkpp/8/8/8/2P5/PP1PPPPP/R1B1KB1R w KQ - 0 1</code></li>
@@ -200,7 +200,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
-    <p style="margin-top: 0; margin-bottom: 16px;">The white queen and bishop are threatening the black king.</p>
+    <p style="margin-top: 0; margin-bottom: 16px;">Combined attacking influence from both the queen and bishop.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
       <li style="margin-bottom: 8px;"><strong>Expected Probability:</strong> <code>14.81%</code></li>
       <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnbqkbnr/pppppppp/8/1B6/4P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 0 1</code></li>
@@ -217,7 +217,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
-    <p style="margin-top: 0; margin-bottom: 16px;">The white bishop is direct attacking the black king and three queens can reach the king as well.</p>
+    <p style="margin-top: 0; margin-bottom: 16px;">Direct attacking pressure combined with support from multiple queen threats.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
       <li style="margin-bottom: 8px;"><strong>Expected Probability:</strong> <code>42.59%</code></li>
       <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnbqkbnr/pppppBpp/8/8/4P3/8/PPPP1PPP/RNBQK1NR w KQkq - 0 1</code></li>
@@ -234,7 +234,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
-    <p style="margin-top: 0; margin-bottom: 16px;">In this position both a pawn and a bishop need to appear at dice.</p>
+    <p style="margin-top: 0; margin-bottom: 16px;">Capture threat necessitates specific different piece types to be rolled.</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
       <li style="margin-bottom: 8px;"><strong>Expected Probability:</strong> <code>14.35%</code></li>
       <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>rnbq1bnr/ppppkppp/8/4p3/1P6/B7/P1PPPPPP/RN1QKBNR w KQ - 0 1</code></li>
