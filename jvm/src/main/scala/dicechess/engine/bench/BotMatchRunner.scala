@@ -16,36 +16,47 @@ object BotMatchRunner:
   def main(args: Array[String]): Unit =
     val baseBotId     = args.headOption.getOrElse("greedy")
     val gamesPerColor = args.lift(1).flatMap(_.toIntOption).getOrElse(50)
+    
+    try
+      runArena(baseBotId, None, gamesPerColor, StartFen)
+    catch
+      case e: Exception =>
+        System.err.println(e.getMessage)
+        sys.exit(1)
 
+  def runArena(baseBotId: String, opponentBotId: Option[String], gamesPerColor: Int, startFen: String): Unit =
     if gamesPerColor <= 0 then
-      System.err.println(s"Error: Invalid gamesPerColor '$gamesPerColor'. Must be greater than 0.")
-      sys.exit(1)
+      throw new IllegalArgumentException(s"Error: Invalid gamesPerColor '$gamesPerColor'. Must be greater than 0.")
 
     val baseAlgorithmOpt = BotRegistry.getAlgorithm(baseBotId)
     if baseAlgorithmOpt.isEmpty then
-      System.err.println(s"Error: Baseline bot with ID '$baseBotId' not found in BotRegistry!")
-      sys.exit(1)
+      throw new IllegalArgumentException(s"Error: Baseline bot with ID '$baseBotId' not found in BotRegistry!")
 
     val baseAlgorithm = baseAlgorithmOpt.get
     val baseBotIdNorm = baseBotId.toLowerCase
     val baseBotInfo   = BotRegistry.availableBots
       .find(_.id.toLowerCase == baseBotIdNorm)
       .getOrElse {
-        System.err.println(s"Error: Baseline bot details with ID '$baseBotId' not found in BotRegistry!")
-        sys.exit(1)
+        throw new IllegalArgumentException(s"Error: Baseline bot details with ID '$baseBotId' not found in BotRegistry!")
       }
 
     println("================================================================================")
     println(s"🎲♟️  Dice Chess Bot Arena - JVM Match Runner")
     println(s"Baseline Bot: ${baseBotInfo.name} (${baseBotInfo.id})")
     println(s"Games per Color: $gamesPerColor (Total ${gamesPerColor * 2} games per match)")
+    if startFen != StartFen then println(s"Starting FEN: $startFen")
     println("================================================================================")
 
-    val opponents = BotRegistry.availableBots
+    val opponents = opponentBotId match
+      case Some(id) => 
+        BotRegistry.availableBots.find(_.id.toLowerCase == id.toLowerCase)
+          .map(List(_))
+          .getOrElse(throw new IllegalArgumentException(s"Error: Opponent bot with ID '$id' not found!"))
+      case None => BotRegistry.availableBots
 
     val results = for opponentInfo <- opponents yield
       val opponentAlgo = BotRegistry.getAlgorithm(opponentInfo.id).get
-      val matchResult  = runMatch(opponentAlgo, baseAlgorithm, gamesPerColor)
+      val matchResult  = runMatch(opponentAlgo, baseAlgorithm, gamesPerColor, startFen)
       (opponentInfo, matchResult)
 
     printSummaryTable(results)
@@ -53,10 +64,11 @@ object BotMatchRunner:
   /** Package-private visibility (`private[bench]`) is utilized to expose match orchestration to [[BotMatchRunnerSpec]]
     * for verification of win rates and results aggregation, while keeping execution internal to the bench module.
     */
-  private[bench] def runMatch(
+  def runMatch(
       opponentAlgo: SearchAlgorithm,
       baseAlgo: SearchAlgorithm,
-      gamesPerColor: Int
+      gamesPerColor: Int,
+      startFen: String = StartFen
   ): MatchResult =
     val rand          = new Random(42) // Fixed seed for reproducible run results
     var winsAsWhite   = 0
@@ -70,7 +82,7 @@ object BotMatchRunner:
 
     // 1. Play games with Opponent as White and Base Bot as Black
     for (_ <- 1 to gamesPerColor) do
-      simulateGame(opponentAlgo, baseAlgo, rand) match
+      simulateGame(opponentAlgo, baseAlgo, rand, startFen) match
         case GameOutcome.Win(color) =>
           if color.isWhite then winsAsWhite += 1 else lossesAsWhite += 1
         case GameOutcome.Draw =>
@@ -78,7 +90,7 @@ object BotMatchRunner:
 
     // 2. Play games with Base Bot as White and Opponent as Black
     for (_ <- 1 to gamesPerColor) do
-      simulateGame(baseAlgo, opponentAlgo, rand) match
+      simulateGame(baseAlgo, opponentAlgo, rand, startFen) match
         case GameOutcome.Win(color) =>
           if color.isBlack then winsAsBlack += 1 else lossesAsBlack += 1
         case GameOutcome.Draw =>
@@ -102,9 +114,10 @@ object BotMatchRunner:
   private[bench] def simulateGame(
       whiteBot: SearchAlgorithm,
       blackBot: SearchAlgorithm,
-      rand: Random
+      rand: Random,
+      startFen: String = StartFen
   ): GameOutcome =
-    var state                = FenParser.parse(StartFen).getOrElse(throw new Exception("Start FEN is invalid!"))
+    var state                = FenParser.parse(startFen).getOrElse(throw new Exception("Start FEN is invalid!"))
     var isGameOver           = false
     var outcome: GameOutcome = GameOutcome.Draw
 

@@ -27,6 +27,9 @@ lazy val root = crossProject(JSPlatform, JVMPlatform)
   .settings(
     name := "dicechess-engine-scala",
     libraryDependencies ++= Seq(
+      "com.monovore" %%% "decline"   % "2.4.1",
+      "org.typelevel" %%% "cats-core" % "2.10.0",
+
       // JSON library (Circe) - using %%% for cross-platform support
       "io.circe" %%% "circe-core" % "0.14.15",
       "io.circe" %%% "circe-generic" % "0.14.15",
@@ -46,6 +49,7 @@ lazy val root = crossProject(JSPlatform, JVMPlatform)
   )
   .jvmSettings(
     // JVM-specific settings
+    libraryDependencies += "org.jline" % "jline" % "3.25.1",
     Compile / doc / scalacOptions ++= Seq(
       "-project",         name.value,
       "-project-version", version.value,
