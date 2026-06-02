@@ -55,6 +55,9 @@ jobs:
         run: npm ci
         working-directory: ${{ env.BUILD_PATH }}
 
+      - name: Install mise
+        uses: jdx/mise-action@v4
+
       - name: Generate Visual Test Cases Catalog
         run: mise run docs:generate
 
