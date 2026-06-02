@@ -22,12 +22,21 @@ object Main:
     renderBoard(state)
     renderAnalysis(state)
 
-    print("\nEnter UCI move (e.g., e2e4), bot ID (e.g., prudent), or 'exit': ")
+    print("\nEnter UCI move (e.g., e2e4), bot ID (e.g., prudent), 'dice 1 2 3', 'help', or 'exit': ")
     val input = StdIn.readLine().trim.toLowerCase
 
     input match
       case "exit" | "quit" =>
         println("Exiting...")
+      case "help" =>
+        println("Commands: <uci_move> (e.g. e2e4), <bot_id>, 'dice 1 2 3', 'exit'")
+        runCliLoop(state)
+      case diceCmd if diceCmd.startsWith("dice ") =>
+        val dice = diceCmd.drop(5).split(" ").flatMap(_.toIntOption).toList
+        if dice.length > 0 && dice.length <= 3 then runCliLoop(state.withDicePool(dice))
+        else
+          println("Invalid dice: provide 1-3 numbers (1-6).")
+          runCliLoop(state)
       case botId if BotRegistry.getAlgorithm(botId).isDefined =>
         val algo = BotRegistry.getAlgorithm(botId).get
         algo.findBestMove(state) match
