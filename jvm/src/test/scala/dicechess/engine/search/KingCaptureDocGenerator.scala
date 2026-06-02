@@ -56,7 +56,7 @@ object KingCaptureDocGenerator:
   <div style="flex: 1; min-width: 300px;">
     <p style="margin-top: 0; margin-bottom: 16px;">${tc.description}</p>
     <ul style="list-style-type: disc; padding-left: 20px; margin-bottom: 0;">
-      <li style="margin-bottom: 8px;"><strong>Expected Probability:</strong> <code>${tc.expectedKingProbability}</code></li>
+      <li style="margin-bottom: 8px;"><strong>Expected Probability:</strong> <code>${f"${tc.expectedKingProbability * 100}%.2f%%"}</code></li>
       <li style="margin-bottom: 0;"><strong>FEN:</strong> <code>${tc.fen}</code></li>
     </ul>
   </div>
