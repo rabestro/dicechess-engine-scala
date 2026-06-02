@@ -50,7 +50,7 @@ object KingCaptureDocGenerator:
       val imgUrl      =
         s"https://lichess1.org/export/fen.gif?fen=$encodedFen&color=$boardColor&theme=brown&piece=cburnett"
 
-      sb.append(s"### $caseNum. ${tc.name}\n\n")
+      sb.append(s"## $caseNum. ${tc.name}\n\n")
       sb.append(
         s"""<div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">

@@ -100,13 +100,13 @@ run = "sbt \"project rootJVM\" \"Test / runMain dicechess.engine.search.KingCapt
 
 [tasks."docs:dev"]
 description = "🚀 Run the documentation site dev server"
-depends = ["docs:generate"]
+depends = ["docs:generate", "docs:search:generate"]
 run = "npm run dev"
 dir = "docs"
 
 [tasks."docs:build"]
 description = "📦 Build production-ready documentation static site"
-depends = ["docs:generate"]
+depends = ["docs:generate", "docs:search:generate"]
 run = "npm run build"
 dir = "docs"
 

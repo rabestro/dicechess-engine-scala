@@ -35,17 +35,17 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Java
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.0.0
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa139f40e017 # v4.7.0
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '25'
           cache: sbt
 
       - name: Setup sbt
         uses: sbt/setup-sbt@93e926cbdb4a428e41b4ef754124ec82925ffdc2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@1d0ff469b7ec7b3ea9d8d1e2e4df73f089620759 # v4.2.0
         with:
           node-version: "26"
           cache: "npm"
@@ -56,10 +56,10 @@ jobs:
         working-directory: ${{ env.BUILD_PATH }}
 
       - name: Generate Visual Test Cases Catalog
-        run: sbt "project rootJVM" "Test / runMain dicechess.engine.movegen.DocGenerator"
+        run: mise run docs:generate
 
       - name: Generate King Capture Probability Test Cases Catalog
-        run: sbt "project rootJVM" "Test / runMain dicechess.engine.search.KingCaptureDocGenerator"
+        run: mise run docs:search:generate
 
       - name: Build with Astro
         run: npm run build
@@ -74,7 +74,7 @@ jobs:
           cp -r jvm/target/scala-3.8.3/api/* ${{ env.BUILD_PATH }}/dist/api/
 
       - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@56afc609e74202658d34b0e87900b955743f06c5 # v3.0.1
         with:
           path: "${{ env.BUILD_PATH }}/dist"
 
@@ -91,4 +91,4 @@ jobs:
     steps:
       - name: Deploy static site to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0f25962804f58c7 # v4.0.5
