@@ -28,23 +28,28 @@ object Main:
     var running = true
     val parser  = new org.jline.reader.impl.DefaultParser()
 
-    while running do
-      try
-        val line = lineReader.readLine("dicechess> ").trim
-        if line.nonEmpty then
-          if line == "exit" || line == "quit" then running = false
-          else
-            import scala.jdk.CollectionConverters.*
-            val parsedLine = parser.parse(line, 0)
-            val tokens     = parsedLine.words().asScala.toList
+    try
+      while running do
+        try
+          val line = lineReader.readLine("dicechess> ").trim
+          if line.nonEmpty then
+            if line == "exit" || line == "quit" then running = false
+            else
+              import scala.jdk.CollectionConverters.*
+              val parsedLine = parser.parse(line, 0)
+              val tokens     = parsedLine.words().asScala.toList
 
-            Commands.rootCommand.parse(tokens) match
-              case Left(help) => System.err.println(help)
-              case Right(cmd) => Commands.execute(cmd)
-      catch
-        case _: UserInterruptException =>
-        // Ignore, just clear the line
-        case _: EndOfFileException =>
-          running = false
-        case e: Exception =>
-          System.err.println(s"Error: ${e.getMessage}")
+              if tokens.headOption.contains("help") then println(Commands.rootCommand.showHelp)
+              else
+                Commands.rootCommand.parse(tokens) match
+                  case Left(help) => System.err.println(help)
+                  case Right(cmd) => Commands.execute(cmd)
+        catch
+          case _: UserInterruptException =>
+          // Ignore, just clear the line
+          case _: EndOfFileException =>
+            running = false
+          case e: Exception =>
+            System.err.println(s"Error: ${e.getMessage}")
+    finally
+      terminal.close()

@@ -20,13 +20,13 @@ object Commands:
     (fenOpt, unicodeOpt).mapN(EvalCommand.apply)
   }
 
-  val baseOpt     = Opts.argument[String](metavar = "BASE")
-  val opponentOpt = Opts.argument[String](metavar = "OPPONENT")
-  val gamesOpt    = Opts.option[Int]("games", help = "Number of games per color").withDefault(50)
-  val startFenOpt = Opts.option[String]("fen", help = "Starting FEN").orNone
+  val baseOpt        = Opts.argument[String](metavar = "BASE")
+  val opponentOpt    = Opts.argument[String](metavar = "OPPONENT")
+  val gamesOpt       = Opts.option[Int]("games", help = "Number of games per color").withDefault(50)
+  val optionalFenOpt = Opts.arguments[String]("FEN").orNone.map(_.map(_.toList.mkString(" ")))
 
   val arenaCommand = Opts.subcommand("arena", "Run a bot match") {
-    (baseOpt, opponentOpt, gamesOpt, startFenOpt).mapN(ArenaCommand.apply)
+    (baseOpt, opponentOpt, gamesOpt, optionalFenOpt).mapN(ArenaCommand.apply)
   }
 
   val rootCommand = Command("dicechess", "Dice Chess Engine CLI") {
@@ -53,4 +53,4 @@ object Commands:
       try
         val actualFen = fen.getOrElse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
         BotMatchRunner.runArena(base, Some(opponent), games, actualFen)
-      catch case e: Exception => println(s"Error: ${e.getMessage}")
+      catch case e: IllegalArgumentException => println(e.getMessage)

@@ -25,11 +25,14 @@ object BotMatchRunner:
 
   def runArena(baseBotId: String, opponentBotId: Option[String], gamesPerColor: Int, startFen: String): Unit =
     if gamesPerColor <= 0 then
-      throw new IllegalArgumentException(s"Error: Invalid gamesPerColor '$gamesPerColor'. Must be greater than 0.")
+      throw new IllegalArgumentException(s"Invalid gamesPerColor '$gamesPerColor'. Must be greater than 0.")
+
+    val parsedFen =
+      FenParser.parse(startFen).getOrElse(throw new IllegalArgumentException(s"Invalid start FEN: $startFen"))
 
     val baseAlgorithmOpt = BotRegistry.getAlgorithm(baseBotId)
     if baseAlgorithmOpt.isEmpty then
-      throw new IllegalArgumentException(s"Error: Baseline bot with ID '$baseBotId' not found in BotRegistry!")
+      throw new IllegalArgumentException(s"Baseline bot with ID '$baseBotId' not found in BotRegistry!")
 
     val baseAlgorithm = baseAlgorithmOpt.get
     val baseBotIdNorm = baseBotId.toLowerCase
@@ -37,7 +40,7 @@ object BotMatchRunner:
       .find(_.id.toLowerCase == baseBotIdNorm)
       .getOrElse {
         throw new IllegalArgumentException(
-          s"Error: Baseline bot details with ID '$baseBotId' not found in BotRegistry!"
+          s"Baseline bot details with ID '$baseBotId' not found in BotRegistry!"
         )
       }
 
@@ -53,12 +56,12 @@ object BotMatchRunner:
         BotRegistry.availableBots
           .find(_.id.toLowerCase == id.toLowerCase)
           .map(List(_))
-          .getOrElse(throw new IllegalArgumentException(s"Error: Opponent bot with ID '$id' not found!"))
+          .getOrElse(throw new IllegalArgumentException(s"Opponent bot with ID '$id' not found!"))
       case None => BotRegistry.availableBots
 
     val results = for opponentInfo <- opponents yield
       val opponentAlgo = BotRegistry.getAlgorithm(opponentInfo.id).get
-      val matchResult  = runMatch(opponentAlgo, baseAlgorithm, gamesPerColor, startFen)
+      val matchResult  = runMatch(opponentAlgo, baseAlgorithm, gamesPerColor, parsedFen)
       (opponentInfo, matchResult)
 
     printSummaryTable(results)
@@ -66,11 +69,11 @@ object BotMatchRunner:
   /** Package-private visibility (`private[bench]`) is utilized to expose match orchestration to [[BotMatchRunnerSpec]]
     * for verification of win rates and results aggregation, while keeping execution internal to the bench module.
     */
-  def runMatch(
+  private[bench] def runMatch(
       opponentAlgo: SearchAlgorithm,
       baseAlgo: SearchAlgorithm,
       gamesPerColor: Int,
-      startFen: String = StartFen
+      startFen: GameState = FenParser.parse(StartFen).toOption.get
   ): MatchResult =
     val rand          = new Random(42) // Fixed seed for reproducible run results
     var winsAsWhite   = 0
@@ -117,9 +120,9 @@ object BotMatchRunner:
       whiteBot: SearchAlgorithm,
       blackBot: SearchAlgorithm,
       rand: Random,
-      startFen: String = StartFen
+      startState: GameState = FenParser.parse(StartFen).toOption.get
   ): GameOutcome =
-    var state                = FenParser.parse(startFen).getOrElse(throw new Exception("Start FEN is invalid!"))
+    var state                = startState
     var isGameOver           = false
     var outcome: GameOutcome = GameOutcome.Draw
 

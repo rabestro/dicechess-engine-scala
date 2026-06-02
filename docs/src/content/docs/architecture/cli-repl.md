@@ -14,14 +14,16 @@ To launch the interactive CLI from the project root, run:
 ```bash
 mise run run
 ```
+
 Or, if you have `sbt` installed directly:
+
 ```bash
 sbt rootJVM/run
 ```
 
 Once started, you will see the `dicechess>` prompt:
 
-```
+```text
 ==================================================
 🎲♟️ Dice Chess Engine Interactive CLI
 Type 'help' for commands, or 'exit' to quit.
@@ -36,16 +38,19 @@ dicechess>
 Evaluates a given position (in FEN format) and prints an ASCII (or Unicode) representation of the board along with King and Queen Capture Probabilities.
 
 **Usage:**
+
 ```bash
 eval [--unicode] <FEN>
 ```
 
 **Example (Starting Position):**
+
 ```bash
 dicechess> eval rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 ```
 
 **Example (Unicode Output):**
+
 ```bash
 dicechess> eval --unicode rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 ```
@@ -55,16 +60,19 @@ dicechess> eval --unicode rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0
 Runs a bot-vs-bot match in memory. By default, it runs the `greedy` bot against all other available bots, but you can specify a base bot, an opponent, the number of games, and a custom starting position.
 
 **Usage:**
+
 ```bash
 arena [--games <int>] [--fen <FEN>] <BASE> <OPPONENT>
 ```
 
 **Examples:**
+
 ```bash
 dicechess> arena greedy random
 ```
 
 Run 5 games per color from a custom endgame FEN:
+
 ```bash
 dicechess> arena greedy random --games 5 --fen "4k3/8/8/8/8/8/8/4K3 b - -"
 ```
