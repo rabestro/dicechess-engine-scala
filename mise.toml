@@ -94,15 +94,19 @@ run = "rm -rf dist"
 description = "📝 Generate visual test cases catalog from JSON files"
 run = "sbt \"project rootJVM\" \"Test / runMain dicechess.engine.movegen.DocGenerator\""
 
+[tasks."docs:search:generate"]
+description = "📝 Generate visual test cases catalog for King Capture Probability"
+run = "sbt \"project rootJVM\" \"Test / runMain dicechess.engine.search.KingCaptureDocGenerator\""
+
 [tasks."docs:dev"]
 description = "🚀 Run the documentation site dev server"
-depends = ["docs:generate"]
+depends = ["docs:generate", "docs:search:generate"]
 run = "npm run dev"
 dir = "docs"
 
 [tasks."docs:build"]
 description = "📦 Build production-ready documentation static site"
-depends = ["docs:generate"]
+depends = ["docs:generate", "docs:search:generate"]
 run = "npm run build"
 dir = "docs"
 
