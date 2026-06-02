@@ -39,71 +39,78 @@ Dice Chess is a stochastic variant of chess where players must roll a 6-sided di
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ Tech Stack & Architecture
 
-* **Language**: Scala 3 (leveraging modern enums, case classes, and type safety)
-* **Concurrency**: Cats Effect 3 / ZIO (for high-performance parallel tree search)
-* **API Framework**: Tapir / Http4s (exposing lightweight REST endpoints)
-* **Build Tool**: sbt (Simple Build Tool)
+This project is built using a **monorepo / cross-project** structure enabling seamless code reuse across platforms:
 
----
-
-## 🗺️ Pre-Hackathon & Hackathon Roadmap
-
-```
-[Phase 0: Pre-Hackathon - 2 Months Prep]
- ├── Setup repository structure & Domain Models (Scala 3)
- ├── Write a FEN Parser for Dice Chess
- └── Define & implement basic API endpoints (mock responses)
-
-[Phase 1: Hackathon Day 1 - Morning]
- ├── Core Move Generator (handling the 3 micro-moves sequence)
- └── Basic Greedy/Random evaluation
-
-[Phase 2: Hackathon Day 1 - Afternoon & Night]
- ├── Search Engine implementation (Expectimax or MCTS)
- └── Position Evaluation Function (Material, Position, Mobilty)
-
-[Phase 3: Hackathon Day 2 - Morning]
- ├── Integration of HTTP API with the main PWA Client
- └── Performance profiling and bug fixing
-
-[Phase 4: Hackathon Day 2 - Afternoon]
- └── Demo preparation, benchmarks, and final presentation!
-```
+* **Language**: Scala 3 (leveraging modern opaque types, enums, and zero-cost abstractions)
+* **Cross-Compilation**: `sbt-crossproject` compiling to:
+  * **JS Platform (Scala.js)**: Produces an optimized, fast ES Module running directly in the [Svelte PWA Frontend](https://dc.jc.id.lv/).
+  * **JVM Platform**: For high-speed simulations, deep search tree experiments, and performance profiling.
+* **JSON Serialization**: Circe (cross-platform)
+* **Benchmarking**: Java Microbenchmark Harness (`sbt-jmh`)
+* **Testing**: `MUnit` + `ScalaCheck` (property-based testing)
 
 ---
 
-## 🔌 API Contract (JSON)
+## 🔌 Core JavaScript API (`DiceChess` JS Module)
 
-### 1. Suggest Best Move
-`POST /api/v1/engine/suggest`
+The Scala.js module exports a global/module object named `DiceChess` for seamless integration with the web platform:
 
-#### Request
-```json
+### 1. Get Best Move for Bot
+```javascript
+// Request the best move sequence for a specific bot algorithm
+const result = DiceChess.getBestMove(
+  "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1 P", 
+  { algorithm: "prudent" }
+);
+
+console.log(result);
+/* Output:
 {
-  "dfen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 P",
-  "depth": 3
+  moves: [ 
+    { from: "e2", to: "e4", promotion: null } 
+  ],
+  score: 45,
+  timeTakenMs: 12
 }
+*/
 ```
 
-#### Response
-```json
-{
-  "suggested_turn": {
-    "dfen_after_turn": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1 P",
-    "micro_moves": [
-      { "from": "e2", "to": "e4" },
-      { "from": "d2", "to": "d4" }
-    ]
-  },
-  "evaluation": {
-    "win_probability": 0.545,
-    "score_cp": 45
-  },
-  "nodes_searched": 1420500,
-  "time_ms": 120
-}
+### 2. Check Available Bots
+```javascript
+const bots = DiceChess.getAvailableBots();
+// Returns metadata for: [Random, Checkmate-Aware, Greedy, Cautious Greedy, Aggressive, Prudent]
+```
+
+### 3. Utility API Functions
+* `getLegalUciMoves(dfen)`: Returns legal moves in standard UCI format.
+* `applyMove(dfen, from, to, promotion)`: Applies a micro-move and returns the new DFEN.
+* `endTurn(dfen)`: Advances the game state to the next player's turn (color toggle, move counts, clears dice pool).
+* `shouldBotOfferDouble(dfen, currentStake, options)`: Evaluates whether the bot should double.
+
+---
+
+## 🗺️ Roadmap & Hackathon Milestones
+
+```
+[✅ Phase 1: Foundation & Core Types]
+ ├── Bitboard, Square, Piece, Color opaque types
+ └── High-performance FEN (DFEN) Parser
+
+[✅ Phase 2: Move Generation & Validation]
+ ├── Sliding pieces attack tables (Magic Bitboards)
+ ├── Maximum Micro-moves Rule validation & Turn Generator
+ └── Fast JS API export (Scala.js) for frontend integration
+
+[✅ Phase 3: Immediate Heuristics & Local AI]
+ ├── 5+ Bot behaviors: Random, Checkmate-Aware, Greedy, Aggressive, Prudent
+ └── Probabilistic King Capture analysis (calculating EV over 3d6 combinations)
+
+[🚀 Phase 4: Hackathon Goals & Advanced AI]
+ ├── Fast, deep Stochastic Search Engine (Expectimax with Alpha-Beta pruning)
+ ├── Mass Bot-vs-Bot Self-Play simulations (JVM) for auto-tuning heuristic weights
+ └── High-throughput evaluation benchmarks & low-level memory optimizations
 ```
 
 ---
