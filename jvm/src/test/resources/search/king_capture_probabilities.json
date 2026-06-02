@@ -43,6 +43,30 @@
       "expectedKingProbability": 0.875
     },
     {
+      "name": "One of four pieces",
+      "description": "When any of four specific pieces—a knight, bishop, rook, or queen—can appear on the dice, the probability of such an event increases to 96.3%.",
+      "fen": "rnbq1bnr/ppppkppp/8/3N2B1/P2P4/Q3R3/1PP1PPPP/4KBNR w K - 0 1",
+      "expectedKingProbability": 0.963
+    },
+    {
+      "name": "One of five pieces",
+      "description": "When any of five specific pieces—a knight, bishop, rook, queen, or pawn—can appear on the dice, the probability of such an event increases to 99.54%.",
+      "fen": "4R3/8/8/Q3k3/3P4/5N2/7B/6K1 w - - 0 1",
+      "expectedKingProbability": 0.9954
+    },
+    {
+      "name": "Three different pieces",
+      "description": "The probability that three specific pieces will appear on the dice (in any order) is 2.78%.",
+      "fen": "rnbq1bnr/pppppkpp/8/3N4/2P5/1B1P2P1/PP2PP1P/R1B1K2R w KQ - 0 1",
+      "expectedKingProbability": 0.0278
+    },
+    {
+      "name": "Two identical pieces + one different piece",
+      "description": "The probability of rolling three specific pieces on the dice, where two are identical (a double) and one is different, is 1.39%, regardless of the order in which they appear. ",
+      "fen": "rnbq1bnr/pppppkpp/8/8/8/2P5/PP1PPPPP/R1B1KB1R w KQ - 0 1",
+      "expectedKingProbability": 0.0139
+    },
+    {
       "name": "Queen and Bishop threatening the King",
       "description": "The white queen and bishop are threatening the black king.",
       "fen": "rnbqkbnr/pppppppp/8/1B6/4P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 0 1",
