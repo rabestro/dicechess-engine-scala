@@ -27,6 +27,9 @@ lazy val root = crossProject(JSPlatform, JVMPlatform)
   .settings(
     name := "dicechess-engine-scala",
     libraryDependencies ++= Seq(
+      "com.monovore" %%% "decline"   % "2.5.0",
+      "org.typelevel" %%% "cats-core" % "2.13.0",
+
       // JSON library (Circe) - using %%% for cross-platform support
       "io.circe" %%% "circe-core" % "0.14.15",
       "io.circe" %%% "circe-generic" % "0.14.15",
@@ -36,6 +39,7 @@ lazy val root = crossProject(JSPlatform, JVMPlatform)
       "org.scalameta" %%% "munit"            % "1.3.0" % Test,
       "org.scalameta" %%% "munit-scalacheck" % "1.3.0" % Test
     ),
+    coverageExcludedFiles := ".*Main\\.scala",
     scalacOptions ++= Seq(
       "-Werror",           // Fail the compilation if there are any warnings
       "-Wunused:all",      // Fail on unused imports, privates, locals, and implicits
@@ -46,6 +50,7 @@ lazy val root = crossProject(JSPlatform, JVMPlatform)
   )
   .jvmSettings(
     // JVM-specific settings
+    libraryDependencies += "org.jline" % "jline" % "3.26.3",
     Compile / doc / scalacOptions ++= Seq(
       "-project",         name.value,
       "-project-version", version.value,

@@ -1,26 +1,55 @@
 package dicechess.engine
 
-import dicechess.engine.domain.*
+import dicechess.engine.cli.Commands
+import org.jline.reader.{LineReaderBuilder, UserInterruptException, EndOfFileException}
+import org.jline.reader.impl.completer.StringsCompleter
+import org.jline.terminal.TerminalBuilder
 
-/** JVM entry point for the Dice Chess Engine.
-  *
-  * Used for smoke-testing and development verification. Initialises the engine, exercises basic domain model
-  * construction, and prints a ready-banner to stdout. Not used in production — the actual API is exposed via
-  * [[dicechess.engine.api.JsApi]] (Scala.js) and via [[dicechess.engine.EngineFacade]].
-  */
 object Main:
-  private val Separator = "=" * 50
-
   def main(args: Array[String]): Unit =
-    println(Separator)
-    println("🎲♟️ Dice Chess Engine (Scala 3) successfully initialized!")
-    println(Separator)
+    val terminal = TerminalBuilder
+      .builder()
+      .system(true)
+      .build()
 
-    // Demonstrate basic domain model creation
-    val startSquare = Square('e', 2)
-    val endSquare   = Square('e', 4)
-    val pawnMove    = MicroMove(startSquare, endSquare)
+    val completer = new StringsCompleter("eval", "arena", "help", "exit")
 
-    println(s"Created a micro-move representation: ${pawnMove.toNotation}")
-    println("Ready for the Hackathon! 🚀")
-    println(Separator)
+    val lineReader = LineReaderBuilder
+      .builder()
+      .terminal(terminal)
+      .completer(completer)
+      .build()
+
+    println("==================================================")
+    println("🎲♟️ Dice Chess Engine Interactive CLI")
+    println("Type 'help' for commands, or 'exit' to quit.")
+    println("==================================================")
+
+    var running = true
+    val parser  = new org.jline.reader.impl.DefaultParser()
+
+    try
+      while running do
+        try
+          val line = lineReader.readLine("dicechess> ").trim
+          if line.nonEmpty then
+            if line == "exit" || line == "quit" then running = false
+            else
+              import scala.jdk.CollectionConverters.*
+              val parsedLine = parser.parse(line, 0)
+              val tokens     = parsedLine.words().asScala.toList
+
+              if tokens.headOption.contains("help") then println(Commands.rootCommand.showHelp)
+              else
+                Commands.rootCommand.parse(tokens) match
+                  case Left(help) => System.err.println(help)
+                  case Right(cmd) => Commands.execute(cmd)
+        catch
+          case _: UserInterruptException =>
+          // Ignore, just clear the line
+          case _: EndOfFileException =>
+            running = false
+          case e: Exception =>
+            System.err.println(s"Error: ${e.getMessage}")
+    finally
+      terminal.close()
