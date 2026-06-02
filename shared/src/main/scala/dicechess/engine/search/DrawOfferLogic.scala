@@ -11,7 +11,7 @@ import dicechess.engine.domain.*
   * drops below −200 centipawns (down material).
   *
   * The trait is designed to be reusable — any `SearchAlgorithm` can gain draw logic simply by declaring:
-  * ```scala
+  * ```text
   * object MyBot extends SearchAlgorithm with DrawOfferLogic
   * ```
   *

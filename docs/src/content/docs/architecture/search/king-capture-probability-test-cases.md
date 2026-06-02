@@ -9,7 +9,7 @@ sidebar:
 
 This page catalogs all our active test cases for king capture probability, allowing developers to visually inspect and verify scenarios.
 
-### 1. Kings at a distance
+## 1. Kings at a distance
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
@@ -26,7 +26,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 ---
 
-### 2. At least one bishop
+## 2. At least one bishop
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
@@ -43,7 +43,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 ---
 
-### 3. At least one of two pieces
+## 3. At least one of two pieces
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
@@ -60,7 +60,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 ---
 
-### 4. Two pieces (different)
+## 4. Two pieces (different)
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
@@ -77,7 +77,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 ---
 
-### 5. Two identical pieces (doubles)
+## 5. Two identical pieces (doubles)
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
@@ -94,7 +94,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 ---
 
-### 6. Three identical pieces (triplets)
+## 6. Three identical pieces (triplets)
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
@@ -111,7 +111,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 ---
 
-### 7. One of three pieces
+## 7. One of three pieces
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
@@ -128,7 +128,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 ---
 
-### 8. One of four pieces
+## 8. One of four pieces
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
@@ -145,7 +145,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 ---
 
-### 9. One of five pieces
+## 9. One of five pieces
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
@@ -162,7 +162,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 ---
 
-### 10. Three different pieces
+## 10. Three different pieces
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
@@ -179,7 +179,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 ---
 
-### 11. Two identical pieces + one different piece
+## 11. Two identical pieces + one different piece
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
@@ -196,7 +196,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 ---
 
-### 12. Queen and Bishop threatening the King
+## 12. Queen and Bishop threatening the King
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
@@ -213,7 +213,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 ---
 
-### 13. A bishop and the three queens
+## 13. A bishop and the three queens
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">
@@ -230,7 +230,7 @@ This page catalogs all our active test cases for king capture probability, allow
 
 ---
 
-### 14. Two pieces or queens
+## 14. Two pieces or queens
 
 <div style="display: flex; flex-direction: row; gap: 24px; align-items: start; margin-bottom: 30px; flex-wrap: wrap;">
   <div style="flex: 1; min-width: 300px;">

@@ -10,7 +10,7 @@ import scala.util.Random
   * model that accounts for all possible dice rolls (3d6).
   *
   * The evaluation function is:
-  * ```scala
+  * ```text
   * score = material
   *   - P(king capture next turn) × 3000
   *   - P(queen capture next turn) × 600
