@@ -6,8 +6,9 @@ on:
     paths:
       - 'docs/**'
       - 'src/main/scala/**'
+      - 'jvm/src/test/resources/search/**'
       - 'shared/src/test/resources/movegen/**'
-      - '.github/workflows/deploy-docs.yml'
+      - '.github/workflows/deploy-docs.yaml'
 
   # Allows manual execution from Actions tab
   workflow_dispatch:
@@ -56,6 +57,9 @@ jobs:
 
       - name: Generate Visual Test Cases Catalog
         run: sbt "project rootJVM" "Test / runMain dicechess.engine.movegen.DocGenerator"
+
+      - name: Generate King Capture Probability Test Cases Catalog
+        run: sbt "project rootJVM" "Test / runMain dicechess.engine.search.KingCaptureDocGenerator"
 
       - name: Build with Astro
         run: npm run build
