@@ -55,14 +55,11 @@ jobs:
         run: npm ci
         working-directory: ${{ env.BUILD_PATH }}
 
-      - name: Install mise
-        uses: jdx/mise-action@v4
-
       - name: Generate Visual Test Cases Catalog
-        run: mise run docs:generate
+        run: sbt "project rootJVM" "Test / runMain dicechess.engine.movegen.DocGenerator"
 
       - name: Generate King Capture Probability Test Cases Catalog
-        run: mise run docs:search:generate
+        run: sbt "project rootJVM" "Test / runMain dicechess.engine.search.KingCaptureDocGenerator"
 
       - name: Build with Astro
         run: npm run build
