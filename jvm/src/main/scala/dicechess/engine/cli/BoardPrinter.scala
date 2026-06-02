@@ -9,7 +9,7 @@ object BoardPrinter:
     for rank <- 7 to 0 by -1 do
       sb.append(s"${rank + 1} |")
       for file <- 0 to 7 do
-        val sq = Square.fromFileAndRank(file, rank)
+        val sq = Square((file + 'a').toChar, rank + 1)
         val piece = state.mailbox(sq)
         if piece.isEmpty then
           sb.append(" . ")

@@ -36,7 +36,7 @@ object Commands:
   def execute(command: CliCommand): Unit = command match
     case EvalCommand(fen, unicode) =>
       FenParser.parse(fen) match
-        case Some(state) =>
+        case Right(state) =>
           println(BoardPrinter.printBoard(state, unicode))
           
           val opponent = state.activeColor.opponent
@@ -46,8 +46,8 @@ object Commands:
           println(f"King Capture Probability (for ${opponent}): ${kcp * 100}%.1f%%")
           println(f"Queen Capture Probability (for ${opponent}): ${qcp * 100}%.1f%%")
           
-        case None =>
-          println("Error: Invalid FEN string")
+        case Left(err) =>
+          println(s"Error: $err")
 
     case ArenaCommand(base, opponent, games, fen) =>
       try
