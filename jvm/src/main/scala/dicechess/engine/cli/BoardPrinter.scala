@@ -9,17 +9,14 @@ object BoardPrinter:
     for rank <- 7 to 0 by -1 do
       sb.append(s"${rank + 1} |")
       for file <- 0 to 7 do
-        val sq = Square((file + 'a').toChar, rank + 1)
+        val sq    = Square((file + 'a').toChar, rank + 1)
         val piece = state.mailbox(sq)
-        if piece.isEmpty then
-          sb.append(" . ")
+        if piece.isEmpty then sb.append(" . ")
         else
-          val pt = piece.pieceType
+          val pt      = piece.pieceType
           val isWhite = piece.color.isWhite
-          val char = if useUnicode then
-            getUnicodeChar(pt, isWhite)
-          else
-            getAsciiChar(pt, isWhite)
+          val char    = if useUnicode then getUnicodeChar(pt, isWhite)
+          else getAsciiChar(pt, isWhite)
           sb.append(s" $char ")
       sb.append("|\n")
     sb.append("  +------------------------+\n")

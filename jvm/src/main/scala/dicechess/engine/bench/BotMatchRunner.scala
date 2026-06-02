@@ -16,9 +16,8 @@ object BotMatchRunner:
   def main(args: Array[String]): Unit =
     val baseBotId     = args.headOption.getOrElse("greedy")
     val gamesPerColor = args.lift(1).flatMap(_.toIntOption).getOrElse(50)
-    
-    try
-      runArena(baseBotId, None, gamesPerColor, StartFen)
+
+    try runArena(baseBotId, None, gamesPerColor, StartFen)
     catch
       case e: Exception =>
         System.err.println(e.getMessage)
@@ -37,7 +36,9 @@ object BotMatchRunner:
     val baseBotInfo   = BotRegistry.availableBots
       .find(_.id.toLowerCase == baseBotIdNorm)
       .getOrElse {
-        throw new IllegalArgumentException(s"Error: Baseline bot details with ID '$baseBotId' not found in BotRegistry!")
+        throw new IllegalArgumentException(
+          s"Error: Baseline bot details with ID '$baseBotId' not found in BotRegistry!"
+        )
       }
 
     println("================================================================================")
@@ -48,8 +49,9 @@ object BotMatchRunner:
     println("================================================================================")
 
     val opponents = opponentBotId match
-      case Some(id) => 
-        BotRegistry.availableBots.find(_.id.toLowerCase == id.toLowerCase)
+      case Some(id) =>
+        BotRegistry.availableBots
+          .find(_.id.toLowerCase == id.toLowerCase)
           .map(List(_))
           .getOrElse(throw new IllegalArgumentException(s"Error: Opponent bot with ID '$id' not found!"))
       case None => BotRegistry.availableBots
