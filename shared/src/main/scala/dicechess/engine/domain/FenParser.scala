@@ -51,7 +51,10 @@ object FenParser {
       if parts.length < 4 then break(Left("Invalid FEN: insufficient parts"))
 
       val board       = parts(0)
-      val activeColor = if parts(1) == "w" then Color.White else Color.Black
+      val activeColor = parts(1) match
+        case "w" => Color.White
+        case "b" => Color.Black
+        case other => break(Left(s"Invalid active color '$other'"))
       val castling    = parts(2)
       var castlingInt = 0
       if castling.contains('K') then castlingInt |= 1
