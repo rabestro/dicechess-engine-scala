@@ -14,12 +14,12 @@ class MoveGenJsonSpec extends FunSuite:
   private def loadTestCases(resourceName: String): List[MoveGenTestCase] =
     val source = Option(getClass.getClassLoader.getResourceAsStream(resourceName))
       .map(Source.fromInputStream)
-      .getOrElse(throw new IllegalArgumentException(s"Resource not found: $resourceName"))
+      .getOrElse(sys.error(s"Resource not found: $resourceName"))
     val jsonStr = try source.mkString
     finally source.close()
     decode[List[MoveGenTestCase]](jsonStr) match
       case Right(cases) => cases
-      case Left(error)  => throw new RuntimeException(s"Failed to parse $resourceName: $error")
+      case Left(error)  => sys.error(s"Failed to parse $resourceName: $error")
 
   // Load JSON test suites
   private val testSuites = Map(

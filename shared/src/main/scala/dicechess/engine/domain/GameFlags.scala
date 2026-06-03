@@ -14,6 +14,8 @@ opaque type GameFlags = Int
   *   - Bits 22-28 (7 bits): Half Move Clock (0-127, for the 50-move rule)
   */
 object GameFlags:
+  given CanEqual[GameFlags, GameFlags] = CanEqual.derived
+
   /** A [[GameFlags]] with all fields zeroed: White to move, no castling rights, no en-passant, empty dice pool, zero
     * half-move clock.
     */
@@ -137,7 +139,7 @@ object GameFlags:
       if diceSlot1 == 0 then flags | (die << 13)
       else if diceSlot2 == 0 then flags | (die << 16)
       else if diceSlot3 == 0 then flags | (die << 19)
-      else throw new IllegalStateException(s"Dice pool is full: $diceSlot1, $diceSlot2, $diceSlot3")
+      else sys.error(s"Dice pool is full: $diceSlot1, $diceSlot2, $diceSlot3")
 
     /** Removes a single occurrence of the specified die from the pool. Does nothing if the die is not present.
       */

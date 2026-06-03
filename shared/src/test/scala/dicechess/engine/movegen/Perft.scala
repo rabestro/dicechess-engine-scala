@@ -11,17 +11,16 @@ object Perft:
     * over the dice pool to the next player.
     */
   def countNodes(state: GameState, depth: Int): Long =
-    if depth == 0 then return 1
-
-    val moves = MoveGenerator.generateMoves(state)
-    if depth == 1 then return moves.length.toLong
-
-    var nodes = 0L
-    for mv <- moves do
-      val nextState = state.makeMove(mv).endTurn().withDicePool(state.dicePool) // Maintain dice roll
-      nodes += countNodes(nextState, depth - 1)
-
-    nodes
+    if depth == 0 then 1
+    else
+      val moves = MoveGenerator.generateMoves(state)
+      if depth == 1 then moves.length.toLong
+      else
+        var nodes = 0L
+        for mv <- moves do
+          val nextState = state.makeMove(mv).endTurn().withDicePool(state.dicePool) // Maintain dice roll
+          nodes += countNodes(nextState, depth - 1)
+        nodes
 
   /** Performs a divide Perft: lists each move and the number of nodes it produces. Useful for debugging discrepancies.
     */

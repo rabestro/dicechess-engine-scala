@@ -36,7 +36,7 @@ class CheckmateAwareSearchSuite extends FunSuite:
       )
 
     // Try a few times to ensure we don't pick e2
-    for (_ <- 1 to 20) {
+    for _ <- 1 to 20 do {
       val bestMoveOpt = CheckmateAwareSearch.findBestMove(state.withDicePool(List(6)))
       assert(bestMoveOpt.isDefined)
       val bestMove   = bestMoveOpt.get

@@ -1,6 +1,7 @@
 package dicechess.engine.search
 
 import dicechess.engine.domain.*
+import scala.util.boundary, boundary.break
 
 /** Mix-in that equips a [[SearchAlgorithm]] with draw-awareness based on insufficient material and evaluation
   * thresholds.
@@ -54,14 +55,14 @@ trait DrawOfferLogic extends SearchAlgorithm:
     * Memory layout — the method inspects piece-type bitboards and king squares, producing no allocations beyond boxing
     * for the `Long` trailing-zero intrinsic.
     */
-  private def hasInsufficientDrawMaterial(state: GameState): Boolean =
+  private def hasInsufficientDrawMaterial(state: GameState): Boolean = boundary {
     val allPieces = state.pawns | state.knights | state.rooks | state.queens
-    if allPieces != Bitboard.empty then return false
+    if allPieces != Bitboard.empty then break(false)
 
     val whiteBishops = (state.bishops & state.whitePieces).count
     val blackBishops = (state.bishops & state.blackPieces).count
 
-    if whiteBishops > 1 || blackBishops > 1 then return false
+    if whiteBishops > 1 || blackBishops > 1 then break(false)
 
     val wkSq = Square.fromIndex(java.lang.Long.numberOfTrailingZeros((state.kings & state.whitePieces).value))
     val bkSq = Square.fromIndex(java.lang.Long.numberOfTrailingZeros((state.kings & state.blackPieces).value))
@@ -69,11 +70,12 @@ trait DrawOfferLogic extends SearchAlgorithm:
     val fileDist = (wkSq.file - bkSq.file).abs
     val rankDist = (wkSq.rank - bkSq.rank).abs
 
-    if fileDist <= 1 && rankDist <= 1 then return false
+    if fileDist <= 1 && rankDist <= 1 then break(false)
 
     // Symmetric colour check: no bishop can ever attack the opposing king.
     !sameSquareColor(wkSq, blackBishops, state.bishops & state.blackPieces) &&
     !sameSquareColor(bkSq, whiteBishops, state.bishops & state.whitePieces)
+  }
 
   private def sameSquareColor(kingSq: Square, bishopCount: Int, bishops: Bitboard): Boolean =
     bishopCount == 1 && {

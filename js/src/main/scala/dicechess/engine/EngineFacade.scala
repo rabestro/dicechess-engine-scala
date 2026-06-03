@@ -33,46 +33,46 @@ object EngineFacade {
   def getBotMove(
       dfen: String,
       seed: js.UndefOr[Int] = js.undefined
-  ): js.UndefOr[js.Dictionary[String]] = {
-    if (dfen == null) return js.undefined
-    FenParser.parse(dfen) match {
-      case Right(state) =>
-        val moves = MoveGenerator.generateMoves(state)
-        if (moves.isEmpty) {
-          js.undefined
-        } else {
-          // The user specifically requested: "Always beat the king if it possible in legal moves"
-          val kingCapture = moves.find(m => state.mailbox.get(m.toSquare).exists(_.pieceType == PieceType.King))
+  ): js.UndefOr[js.Dictionary[String]] =
+    if Option(dfen).isEmpty then js.undefined
+    else
+      FenParser.parse(dfen) match {
+        case Right(state) =>
+          val moves = MoveGenerator.generateMoves(state)
+          if moves.isEmpty then {
+            js.undefined
+          } else {
+            // The user specifically requested: "Always beat the king if it possible in legal moves"
+            val kingCapture = moves.find(m => state.mailbox.get(m.toSquare).exists(_.pieceType == PieceType.King))
 
-          val chosenMove = kingCapture.getOrElse {
-            val rng = seed.toOption.map(new Random(_)).getOrElse(Random)
-            moves(rng.nextInt(moves.length))
-          }
-
-          val isPromotion = chosenMove.isPromotion
-          val dict        = js.Dictionary[String](
-            "from" -> chosenMove.fromSquare.toNotation,
-            "to"   -> chosenMove.toSquare.toNotation
-          )
-
-          if (isPromotion) {
-            // Chessground promotion format is "q", "r", "b", "n"
-            val promChar = chosenMove.flags match {
-              case Move.KnightPromotion | Move.KnightPromoCapture => "n"
-              case Move.BishopPromotion | Move.BishopPromoCapture => "b"
-              case Move.RookPromotion | Move.RookPromoCapture     => "r"
-              case Move.QueenPromotion | Move.QueenPromoCapture   => "q"
-              case _                                              => "q"
+            val chosenMove = kingCapture.getOrElse {
+              val rng = seed.toOption.map(new Random(_)).getOrElse(Random)
+              moves(rng.nextInt(moves.length))
             }
-            dict.put("promotion", promChar)
-          }
 
-          dict
-        }
-      case Left(_) =>
-        js.undefined
-    }
-  }
+            val isPromotion = chosenMove.isPromotion
+            val dict        = js.Dictionary[String](
+              "from" -> chosenMove.fromSquare.toNotation,
+              "to"   -> chosenMove.toSquare.toNotation
+            )
+
+            if isPromotion then {
+              // Chessground promotion format is "q", "r", "b", "n"
+              val promChar = chosenMove.flags match {
+                case Move.KnightPromotion | Move.KnightPromoCapture => "n"
+                case Move.BishopPromotion | Move.BishopPromoCapture => "b"
+                case Move.RookPromotion | Move.RookPromoCapture     => "r"
+                case Move.QueenPromotion | Move.QueenPromoCapture   => "q"
+                case _                                              => "q"
+              }
+              dict.put("promotion", promChar)
+            }
+
+            dict
+          }
+        case Left(_) =>
+          js.undefined
+      }
 
   /** Retrieves the dice value (1-6) of the piece at the specified square.
     *
@@ -89,21 +89,21 @@ object EngineFacade {
     *   ```
     */
   @JSExport
-  def getPieceTypeAt(dfen: String, square: String): js.UndefOr[Int] = {
-    if (dfen == null || square == null) return js.undefined
-    FenParser.parse(dfen) match {
-      case Right(state) =>
-        Square.fromNotation(square) match {
-          case Some(sq) =>
-            state.mailbox
-              .get(sq)
-              .map(_.pieceType.diceValue)
-              .fold(js.undefined)(v => v)
-          case None => js.undefined
-        }
-      case Left(_) => js.undefined
-    }
-  }
+  def getPieceTypeAt(dfen: String, square: String): js.UndefOr[Int] =
+    if Option(dfen).isEmpty || Option(square).isEmpty then js.undefined
+    else
+      FenParser.parse(dfen) match {
+        case Right(state) =>
+          Square.fromNotation(square) match {
+            case Some(sq) =>
+              state.mailbox
+                .get(sq)
+                .map(_.pieceType.diceValue)
+                .fold(js.undefined)(v => v)
+            case None => js.undefined
+          }
+        case Left(_) => js.undefined
+      }
 
   /** Applies a move to the given DFEN and returns the resulting state.
     *
@@ -123,42 +123,42 @@ object EngineFacade {
     *   ```
     */
   @JSExport
-  def applyMove(dfen: String, from: String, to: String, promotion: js.UndefOr[String]): js.UndefOr[String] = {
-    if (dfen == null || from == null || to == null) return js.undefined
-    FenParser.parse(dfen) match {
-      case Right(state) =>
-        (Square.fromNotation(from), Square.fromNotation(to)) match {
-          case (Some(fromSq), Some(toSq)) =>
-            // Generate all pseudo-legal moves for standard generation (no dice roll constraint to find the human's move)
-            val moves = MoveGenerator.generateAllMoves(state)
+  def applyMove(dfen: String, from: String, to: String, promotion: js.UndefOr[String]): js.UndefOr[String] =
+    if Option(dfen).isEmpty || Option(from).isEmpty || Option(to).isEmpty then js.undefined
+    else
+      FenParser.parse(dfen) match {
+        case Right(state) =>
+          (Square.fromNotation(from), Square.fromNotation(to)) match {
+            case (Some(fromSq), Some(toSq)) =>
+              // Generate all pseudo-legal moves for standard generation (no dice roll constraint to find the human's move)
+              val moves = MoveGenerator.generateAllMoves(state)
 
-            val moveOpt = moves.find { m =>
-              m.fromSquare == fromSq && m.toSquare == toSq &&
-              (!m.isPromotion || promotion.isEmpty || {
-                val promChar = m.flags match {
-                  case Move.KnightPromotion | Move.KnightPromoCapture => "n"
-                  case Move.BishopPromotion | Move.BishopPromoCapture => "b"
-                  case Move.RookPromotion | Move.RookPromoCapture     => "r"
-                  case Move.QueenPromotion | Move.QueenPromoCapture   => "q"
-                  case _                                              => "q"
-                }
-                promChar == promotion.get
-              })
-            }
+              val moveOpt = moves.find { m =>
+                m.fromSquare == fromSq && m.toSquare == toSq &&
+                (!m.isPromotion || promotion.isEmpty || {
+                  val promChar = m.flags match {
+                    case Move.KnightPromotion | Move.KnightPromoCapture => "n"
+                    case Move.BishopPromotion | Move.BishopPromoCapture => "b"
+                    case Move.RookPromotion | Move.RookPromoCapture     => "r"
+                    case Move.QueenPromotion | Move.QueenPromoCapture   => "q"
+                    case _                                              => "q"
+                  }
+                  promChar == promotion.get
+                })
+              }
 
-            moveOpt match {
-              case Some(move) =>
-                val newState = state.makeMove(move)
-                FenParser.serialize(newState)
-              case None =>
-                js.undefined
-            }
-          case _ => js.undefined
-        }
-      case Left(_) =>
-        js.undefined
-    }
-  }
+              moveOpt match {
+                case Some(move) =>
+                  val newState = state.makeMove(move)
+                  FenParser.serialize(newState)
+                case None =>
+                  js.undefined
+              }
+            case _ => js.undefined
+          }
+        case Left(_) =>
+          js.undefined
+      }
 
   /** Explicitly ends the current turn to mark a clear boundary between players in a multi-micro-move sequence.
     *
@@ -173,11 +173,11 @@ object EngineFacade {
     *   The updated DFEN string finalized for the next player, or `undefined` if invalid.
     */
   @JSExport
-  def endTurn(dfen: String): js.UndefOr[String] = {
-    if (dfen == null) return js.undefined
-    FenParser.parse(dfen) match {
-      case Right(state) => FenParser.serialize(state.endTurn())
-      case Left(_)      => js.undefined
-    }
-  }
+  def endTurn(dfen: String): js.UndefOr[String] =
+    if Option(dfen).isEmpty then js.undefined
+    else
+      FenParser.parse(dfen) match {
+        case Right(state) => FenParser.serialize(state.endTurn())
+        case Left(_)      => js.undefined
+      }
 }

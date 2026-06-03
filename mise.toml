@@ -44,7 +44,7 @@ run = "sbt clean coverage rootJVM/test coverageReport"
 
 [tasks.check]
 description = "✅ Run a full validation cycle"
-run = "sbt scalafmtCheckAll test"
+run = "sbt scalafmtCheckAll 'scalafixAll --check' clean coverage test coverageReport"
 
 [tasks.console]
 description = "💻 Launch an interactive Scala REPL"
@@ -72,7 +72,7 @@ run = "sbt clean"
 
 [tasks.format]
 description = "✨ Reformat codebase"
-run = "sbt scalafmtAll"
+run = "sbt scalafmtAll scalafixAll"
 
 [tasks."format:check"]
 description = "🔍 Verify code formatting"

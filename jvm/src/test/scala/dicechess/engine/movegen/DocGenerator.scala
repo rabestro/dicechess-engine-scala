@@ -14,12 +14,12 @@ object DocGenerator:
   private def loadTestCases(resourcePath: String): List[MoveGenTestCase] =
     val source = Option(getClass.getClassLoader.getResourceAsStream(resourcePath))
       .map(Source.fromInputStream)
-      .getOrElse(throw new IllegalArgumentException(s"Resource not found: $resourcePath"))
+      .getOrElse(sys.error(s"Resource not found: $resourcePath"))
     val jsonStr = try source.mkString
     finally source.close()
     decode[List[MoveGenTestCase]](jsonStr) match
       case Right(cases) => cases
-      case Left(error)  => throw new RuntimeException(s"Failed to parse $resourcePath: $error")
+      case Left(error)  => sys.error(s"Failed to parse $resourcePath: $error")
 
   private def diceToSymbol(die: Int): String = die match
     case 1 => "⚀ Pawn (1)"
@@ -97,12 +97,12 @@ object DocGenerator:
           val fenParts    = tc.fen.split(" ")
 
           val isWhite     = fenParts.lift(1).contains("w")
-          val boardColor  = if (isWhite) "white" else "black"
-          val activeColor = if (isWhite) "White" else "Black"
+          val boardColor  = if isWhite then "white" else "black"
+          val activeColor = if isWhite then "White" else "Black"
 
           val castlingRaw = fenParts.lift(2).getOrElse("-")
           val castlingStr =
-            if (isWhite) (castlingRaw.contains('K'), castlingRaw.contains('Q'))
+            if isWhite then (castlingRaw.contains('K'), castlingRaw.contains('Q'))
             else (castlingRaw.contains('k'), castlingRaw.contains('q'))
           val castlingText: Option[String] = castlingStr match
             case (true, true)  => Some("Kingside & Queenside")
@@ -115,7 +115,7 @@ object DocGenerator:
             case Some(state) =>
               var bb     = state.enPassant.value
               var result = List.empty[String]
-              while (bb != 0) {
+              while bb != 0 do {
                 val idx = java.lang.Long.numberOfTrailingZeros(bb)
                 result = Square.fromIndex(idx).toNotation :: result
                 bb &= bb - 1
@@ -127,9 +127,9 @@ object DocGenerator:
             .map(c => s"""\n      <li style="margin-bottom: 8px;"><strong>Castling Rights:</strong> $c</li>""")
             .getOrElse("")
           val epLi =
-            if (epSquares.isEmpty) ""
+            if epSquares.isEmpty then ""
             else
-              val label        = if (epSquares.size == 1) "En Passant Target" else "En Passant Targets"
+              val label        = if epSquares.size == 1 then "En Passant Target" else "En Passant Targets"
               val squaresCodes = epSquares.map(s => s"<code>$s</code>").mkString(", ")
               s"""\n      <li style="margin-bottom: 8px;"><strong>$label:</strong> $squaresCodes</li>"""
 

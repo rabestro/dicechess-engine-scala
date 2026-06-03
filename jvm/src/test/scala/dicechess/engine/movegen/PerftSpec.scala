@@ -19,12 +19,12 @@ class PerftSpec extends FunSuite:
   private def loadTestCases(resourceName: String): List[PerftTestCase] =
     val source = Option(getClass.getClassLoader.getResourceAsStream(resourceName))
       .map(Source.fromInputStream)
-      .getOrElse(throw new IllegalArgumentException(s"Resource not found: $resourceName"))
+      .getOrElse(sys.error(s"Resource not found: $resourceName"))
     val jsonStr = try source.mkString
     finally source.close()
     decode[List[PerftTestCase]](jsonStr) match
       case Right(cases) => cases
-      case Left(error)  => throw new RuntimeException(s"Failed to parse $resourceName: $error")
+      case Left(error)  => sys.error(s"Failed to parse $resourceName: $error")
 
   private val cases = try loadTestCases("movegen/perft_suite.json")
   catch

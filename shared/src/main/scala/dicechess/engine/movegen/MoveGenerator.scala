@@ -2,6 +2,7 @@ package dicechess.engine.movegen
 
 import dicechess.engine.domain.*
 import scala.collection.mutable
+import scala.util.boundary, boundary.break
 
 /** Unified move generator for Dice Chess. Coordinates between specialized generators for pawns, leapers, and sliding
   * pieces.
@@ -18,7 +19,7 @@ object MoveGenerator {
     * @return
     *   pseudo-legal moves for all available dice
     */
-  def generateMoves(state: GameState): List[Move] = {
+  def generateMoves(state: GameState): List[Move] =
     state.dicePool.distinct.flatMap { diceRoll =>
       PieceType
         .fromDice(diceRoll)
@@ -27,7 +28,6 @@ object MoveGenerator {
         }
         .getOrElse(Nil)
     }
-  }
 
   /** Generates all pseudo-legal moves for all pieces of the active color (standard chess).
     *
@@ -48,7 +48,7 @@ object MoveGenerator {
   private def generatePieceMoves(state: GameState, pieceType: PieceType): List[Move] = {
     val color        = state.activeColor
     val isWhite      = color.isWhite
-    val enemyPieces  = if (isWhite) state.blackPieces else state.whitePieces
+    val enemyPieces  = if isWhite then state.blackPieces else state.whitePieces
     val allPieces    = state.whitePieces | state.blackPieces
     val emptySquares = ~allPieces
 
@@ -79,16 +79,16 @@ object MoveGenerator {
       color: Color,
       emptySquares: Bitboard,
       enemies: Bitboard
-  ): List[Move] = {
+  ): List[Move] = boundary {
     val isWhite = color.isWhite
-    val myPawns = if (isWhite) state.whitePieces & state.pawns else state.blackPieces & state.pawns
-    if (myPawns.isEmpty) return Nil
+    val myPawns = if isWhite then state.whitePieces & state.pawns else state.blackPieces & state.pawns
+    if myPawns.isEmpty then break(Nil)
 
     val enemyKings = enemies & state.kings
 
     val moves = List.newBuilder[Move]
     var p     = myPawns.value
-    while (p != 0) {
+    while p != 0 do {
       val fromIdx = java.lang.Long.numberOfTrailingZeros(p)
       val from    = Square.fromIndex(fromIdx)
       val fromBB  = Bitboard.fromSquare(from)
@@ -98,7 +98,7 @@ object MoveGenerator {
       val push1Prom = PawnGeneration.promotionSquares(push1, color)
       val push1Std  = PawnGeneration.nonPromotionSquares(push1, color)
 
-      if (!push1Prom.isEmpty) {
+      if !push1Prom.isEmpty then {
         val to = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(push1Prom.value))
         moves += Move(from, to, Move.QueenPromotion)
         moves += Move(from, to, Move.RookPromotion)
@@ -106,13 +106,13 @@ object MoveGenerator {
         moves += Move(from, to, Move.KnightPromotion)
       }
 
-      if (!push1Std.isEmpty) {
+      if !push1Std.isEmpty then {
         val to1 = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(push1Std.value))
         moves += Move(from, to1, Move.QuietMove)
 
         // Double Push
         val push2 = PawnGeneration.doublePushes(push1Std, emptySquares, color)
-        if (!push2.isEmpty) {
+        if !push2.isEmpty then {
           val to2 = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(push2.value))
           moves += Move(from, to2, Move.DoublePawnPush)
         }
@@ -125,17 +125,17 @@ object MoveGenerator {
       addPawnCaptures(from, west, color, enemyKings, moves)
 
       // --- En Passant ---
-      val validEPRank = if (color.isWhite) 6 else 3
+      val validEPRank = if color.isWhite then 6 else 3
       var ep          = state.enPassant.value
-      while (ep != 0) {
+      while ep != 0 do {
         val epIdx    = java.lang.Long.numberOfTrailingZeros(ep)
         val epSquare = Square.fromIndex(epIdx)
-        if (epSquare.rank == validEPRank) {
+        if epSquare.rank == validEPRank then {
           val epBB     = Bitboard.fromSquare(epSquare)
           val epEast   = PawnGeneration.eastCaptures(fromBB, epBB, color)
           val epWest   = PawnGeneration.westCaptures(fromBB, epBB, color)
           val epTarget = epEast | epWest
-          if (!epTarget.isEmpty) {
+          if !epTarget.isEmpty then {
             moves += Move(from, epSquare, Move.EnPassantCapture)
           }
         }
@@ -153,31 +153,31 @@ object MoveGenerator {
     * moves. When `pt` is `King`, also calls [[generateCastlingMoves]] after the normal attack enumeration.
     */
   private def generateLeaperMoves(state: GameState, pt: PieceType, color: Color, enemies: Bitboard): List[Move] = {
-    val myPieces     = if (color.isWhite) state.whitePieces else state.blackPieces
-    val typeBB       = if (pt == PieceType.Knight) state.knights else state.kings
+    val myPieces     = if color.isWhite then state.whitePieces else state.blackPieces
+    val typeBB       = if pt == PieceType.Knight then state.knights else state.kings
     val activePieces = myPieces & typeBB
 
     val moves = List.newBuilder[Move]
     var p     = activePieces.value
-    while (p != 0) {
+    while p != 0 do {
       val fromIdx = java.lang.Long.numberOfTrailingZeros(p)
       val from    = Square.fromIndex(fromIdx)
 
       val attacks =
-        if (pt == PieceType.Knight) LeaperAttacks.knightAttacksFor(from) else LeaperAttacks.kingAttacksFor(from)
+        if pt == PieceType.Knight then LeaperAttacks.knightAttacksFor(from) else LeaperAttacks.kingAttacksFor(from)
       val legal = attacks & ~myPieces
 
       var a = legal.value
-      while (a != 0) {
+      while a != 0 do {
         val toIdx = java.lang.Long.numberOfTrailingZeros(a)
         val to    = Square.fromIndex(toIdx)
-        val flags = if (enemies.contains(to)) Move.Capture else Move.QuietMove
+        val flags = if enemies.contains(to) then Move.Capture else Move.QuietMove
         moves += Move(from, to, flags)
         a &= a - 1
       }
 
       // --- Castling (only for King) ---
-      if (pt == PieceType.King) {
+      if pt == PieceType.King then {
         generateCastlingMoves(state, color, moves)
       }
 
@@ -243,7 +243,7 @@ object MoveGenerator {
       allPieces: Bitboard,
       enemies: Bitboard
   ): List[Move] = {
-    val myPieces = if (color.isWhite) state.whitePieces else state.blackPieces
+    val myPieces = if color.isWhite then state.whitePieces else state.blackPieces
     val typeBB   = pt match {
       case PieceType.Bishop => state.bishops
       case PieceType.Rook   => state.rooks
@@ -254,7 +254,7 @@ object MoveGenerator {
 
     val moves = List.newBuilder[Move]
     var p     = activePieces.value
-    while (p != 0) {
+    while p != 0 do {
       val fromIdx = java.lang.Long.numberOfTrailingZeros(p)
       val from    = Square.fromIndex(fromIdx)
 
@@ -267,10 +267,10 @@ object MoveGenerator {
       val legal = attacks & ~myPieces
 
       var a = legal.value
-      while (a != 0) {
+      while a != 0 do {
         val toIdx = java.lang.Long.numberOfTrailingZeros(a)
         val to    = Square.fromIndex(toIdx)
-        val flags = if (enemies.contains(to)) Move.Capture else Move.QuietMove
+        val flags = if enemies.contains(to) then Move.Capture else Move.QuietMove
         moves += Move(from, to, flags)
         a &= a - 1
       }
@@ -309,7 +309,7 @@ object MoveGenerator {
     val prom = PawnGeneration.promotionSquares(normalTargets, color)
     val std  = PawnGeneration.nonPromotionSquares(normalTargets, color) | kingTargets
     var cp   = prom.value
-    while (cp != 0) {
+    while cp != 0 do {
       val to = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(cp))
       moves += Move(from, to, Move.QueenPromoCapture)
       moves += Move(from, to, Move.RookPromoCapture)
@@ -318,7 +318,7 @@ object MoveGenerator {
       cp &= cp - 1
     }
     var cs = std.value
-    while (cs != 0) {
+    while cs != 0 do {
       val to = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(cs))
       moves += Move(from, to, Move.Capture)
       cs &= cs - 1
@@ -341,9 +341,9 @@ object MoveGenerator {
     * @return
     *   bitboard of attacking pieces, or [[Bitboard.empty]] if the square is safe
     */
-  def isSquareAttacked(state: GameState, sq: Square, attackerColor: Color): Bitboard = {
+  def isSquareAttacked(state: GameState, sq: Square, attackerColor: Color): Bitboard = boundary {
     val allPieces       = state.whitePieces | state.blackPieces
-    val attackers       = if (attackerColor.isWhite) state.whitePieces else state.blackPieces
+    val attackers       = if attackerColor.isWhite then state.whitePieces else state.blackPieces
     val attackerPawns   = attackers & state.pawns
     val attackerKnights = attackers & state.knights
     val attackerBishops = attackers & (state.bishops | state.queens)
@@ -352,22 +352,22 @@ object MoveGenerator {
 
     // Pawn attacks (from the perspective of the square being attacked)
     val pawnAttacks = PawnGeneration.anyAttacks(Bitboard.fromSquare(sq), attackerColor.opponent) & attackerPawns
-    if (!pawnAttacks.isEmpty) return pawnAttacks
+    if !pawnAttacks.isEmpty then break(pawnAttacks)
 
     // Knight attacks
     val knightAttacks = LeaperAttacks.knightAttacksFor(sq) & attackerKnights
-    if (!knightAttacks.isEmpty) return knightAttacks
+    if !knightAttacks.isEmpty then break(knightAttacks)
 
     // Sliding attacks
     val bishopAttacks = MagicBitboards.bishopAttacks(sq, allPieces) & attackerBishops
-    if (!bishopAttacks.isEmpty) return bishopAttacks
+    if !bishopAttacks.isEmpty then break(bishopAttacks)
 
     val rookAttacks = MagicBitboards.rookAttacks(sq, allPieces) & attackerRooks
-    if (!rookAttacks.isEmpty) return rookAttacks
+    if !rookAttacks.isEmpty then break(rookAttacks)
 
     // King attacks
     val kingAttacks = LeaperAttacks.kingAttacksFor(sq) & attackerKings
-    if (!kingAttacks.isEmpty) return kingAttacks
+    if !kingAttacks.isEmpty then break(kingAttacks)
 
     Bitboard.empty
   }

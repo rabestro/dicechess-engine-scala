@@ -1,6 +1,7 @@
 package dicechess.engine.domain
 
 import scala.collection.mutable
+import scala.util.boundary, boundary.break
 
 /** Parser and serialiser for Forsyth-Edwards Notation (FEN).
   *
@@ -44,50 +45,50 @@ object FenParser {
     * @return
     *   `Right(state)` on success, or `Left(errorMessage)` describing the first parse failure
     */
-  def parse(fen: String): Either[String, GameState] = {
-    try {
+  def parse(fen: String): Either[String, GameState] = try {
+    boundary {
       val parts = fen.split(" ")
-      if (parts.length < 4) return Left("Invalid FEN: insufficient parts")
+      if parts.length < 4 then break(Left("Invalid FEN: insufficient parts"))
 
       val board       = parts(0)
-      val activeColor = if (parts(1) == "w") Color.White else Color.Black
+      val activeColor = if parts(1) == "w" then Color.White else Color.Black
       val castling    = parts(2)
       var castlingInt = 0
-      if (castling.contains('K')) castlingInt |= 1
-      if (castling.contains('Q')) castlingInt |= 2
-      if (castling.contains('k')) castlingInt |= 4
-      if (castling.contains('q')) castlingInt |= 8
+      if castling.contains('K') then castlingInt |= 1
+      if castling.contains('Q') then castlingInt |= 2
+      if castling.contains('k') then castlingInt |= 4
+      if castling.contains('q') then castlingInt |= 8
 
       val enPassantField = parts(3)
       var epFiles        = 0
       var enPassantBb    = Bitboard.empty
-      if (enPassantField != "-") {
+      if enPassantField != "-" then {
         var idx = 0
-        while (idx < enPassantField.length) {
-          if (idx + 2 <= enPassantField.length) {
+        while idx < enPassantField.length do {
+          if idx + 2 <= enPassantField.length then {
             val notation = enPassantField.substring(idx, idx + 2)
             Square.fromNotation(notation) match {
               case Some(sq) =>
                 epFiles |= (1 << (sq.file - 'a'))
                 enPassantBb = enPassantBb.add(sq)
-              case None => return Left(s"Invalid en-passant notation '$notation'")
+              case None => break(Left(s"Invalid en-passant notation '$notation'"))
             }
           } else {
-            return Left(s"Invalid en-passant field '$enPassantField'")
+            break(Left(s"Invalid en-passant field '$enPassantField'"))
           }
           idx += 2
         }
       }
-      val halfMove = if (parts.length > 4) parts(4).toInt else 0
-      val fullMove = if (parts.length > 5) parts(5).toInt else 1
+      val halfMove = if parts.length > 4 then parts(4).toInt else 0
+      val fullMove = if parts.length > 5 then parts(5).toInt else 1
 
-      val dicePool = if (parts.length >= 7) {
+      val dicePool = if parts.length >= 7 then {
         val poolField = parts(6)
-        if (poolField == "-") Nil
+        if poolField == "-" then Nil
         else {
           val list = mutable.ListBuffer.empty[Int]
           var idx  = 0
-          while (idx < poolField.length) {
+          while idx < poolField.length do {
             val char  = poolField.charAt(idx).toLower
             val digit = char match {
               case 'p' => 1
@@ -98,10 +99,10 @@ object FenParser {
               case 'k' => 6
               case _   => 0
             }
-            if (digit > 0) {
+            if digit > 0 then {
               list += digit
             } else {
-              return Left(s"Invalid dice-pool character '${poolField.charAt(idx)}'")
+              break(Left(s"Invalid dice-pool character '${poolField.charAt(idx)}'"))
             }
             idx += 1
           }
@@ -114,7 +115,7 @@ object FenParser {
       val flags = GameFlags.fromList(activeColor, castlingInt, epFiles, dicePool, halfMove)
 
       val ranks = board.split("/")
-      if (ranks.length != 8) return Left(s"Invalid FEN: board must have 8 ranks, found ${ranks.length}")
+      if ranks.length != 8 then break(Left(s"Invalid FEN: board must have 8 ranks, found ${ranks.length}"))
 
       var whitePieces = Bitboard.empty
       var blackPieces = Bitboard.empty
@@ -127,19 +128,19 @@ object FenParser {
       val mailbox     = new Array[Piece](64)
 
       var r = 0
-      while (r < ranks.length) {
+      while r < ranks.length do {
         val rankStr   = ranks(r)
         val rankIndex = 7 - r
         var file      = 0
         var i         = 0
-        while (i < rankStr.length) {
+        while i < rankStr.length do {
           val char = rankStr.charAt(i)
-          if (char.isDigit) {
+          if char.isDigit then {
             file += char.asDigit
           } else {
-            if (file >= 8) return Left(s"Rank $rankIndex overflows 8 files")
+            if file >= 8 then break(Left(s"Rank $rankIndex overflows 8 files"))
             val sq    = Square.fromIndex(rankIndex * 8 + file)
-            val color = if (char.isUpper) Color.White else Color.Black
+            val color = if char.isUpper then Color.White else Color.Black
             val pt    = char.toLower match {
               case 'p' => PieceType.Pawn
               case 'n' => PieceType.Knight
@@ -147,14 +148,14 @@ object FenParser {
               case 'r' => PieceType.Rook
               case 'q' => PieceType.Queen
               case 'k' => PieceType.King
-              case _   => return Left(s"Unknown piece character '$char'")
+              case _   => break(Left(s"Unknown piece character '$char'"))
             }
 
             val piece = Piece(color, pt)
             mailbox(sq.index) = piece
 
             val bb = Bitboard.fromSquare(sq)
-            if (color.isWhite) whitePieces |= bb else blackPieces |= bb
+            if color.isWhite then whitePieces |= bb else blackPieces |= bb
 
             pt match {
               case PieceType.Pawn   => pawns |= bb
@@ -170,7 +171,7 @@ object FenParser {
           }
           i += 1
         }
-        if (file != 8) return Left(s"Rank $rankIndex must have 8 files, found $file")
+        if file != 8 then break(Left(s"Rank $rankIndex must have 8 files, found $file"))
         r += 1
       }
 
@@ -190,9 +191,9 @@ object FenParser {
           fullMoveNumber = fullMove
         )
       )
-    } catch {
-      case e: Exception => Left(s"FEN parsing error: ${e.getMessage}")
     }
+  } catch {
+    case e: Exception => Left(s"FEN parsing error: ${e.getMessage}")
   }
 
   /** Serialises a [[GameState]] back to a FEN string.
@@ -209,46 +210,46 @@ object FenParser {
   def serialize(state: GameState): String = {
     val res = new StringBuilder()
     var r   = 7
-    while (r >= 0) {
+    while r >= 0 do {
       var empty = 0
       var f     = 0
-      while (f < 8) {
+      while f < 8 do {
         val sq    = Square.fromIndex(r * 8 + f)
         val piece = state.mailbox(sq)
-        if (!piece.isEmpty) {
-          if (empty > 0) res.append(empty.toString)
+        if !piece.isEmpty then {
+          if empty > 0 then res.append(empty.toString)
           empty = 0
           val char = piece.pieceType.asNotation
-          res.append(if (piece.color.isWhite) char.toUpperCase else char.toLowerCase)
+          res.append(if piece.color.isWhite then char.toUpperCase else char.toLowerCase)
         } else {
           empty += 1
         }
         f += 1
       }
-      if (empty > 0) res.append(empty.toString)
-      if (r > 0) res.append("/")
+      if empty > 0 then res.append(empty.toString)
+      if r > 0 then res.append("/")
       r -= 1
     }
 
     res.append(" ")
-    res.append(if (state.flags.activeColor.isWhite) "w" else "b")
+    res.append(if state.flags.activeColor.isWhite then "w" else "b")
     res.append(" ")
 
     val cr = state.flags.castlingRights
-    if (cr == 0) res.append("-")
+    if cr == 0 then res.append("-")
     else {
-      if ((cr & 1) != 0) res.append("K")
-      if ((cr & 2) != 0) res.append("Q")
-      if ((cr & 4) != 0) res.append("k")
-      if ((cr & 8) != 0) res.append("q")
+      if (cr & 1) != 0 then res.append("K")
+      if (cr & 2) != 0 then res.append("Q")
+      if (cr & 4) != 0 then res.append("k")
+      if (cr & 8) != 0 then res.append("q")
     }
 
     res.append(" ")
-    if (state.enPassant.isEmpty) {
+    if state.enPassant.isEmpty then {
       res.append("-")
     } else {
       var ep = state.enPassant.value
-      while (ep != 0) {
+      while ep != 0 do {
         val sqIdx = java.lang.Long.numberOfTrailingZeros(ep)
         res.append(Square.fromIndex(sqIdx).toNotation)
         ep &= ep - 1
@@ -260,7 +261,7 @@ object FenParser {
     res.append(state.fullMoveNumber.toString)
 
     val pool = state.flags.dicePool
-    if (pool.nonEmpty) {
+    if pool.nonEmpty then {
       res.append(" ")
       pool.sorted.foreach { d =>
         val char = d match {
@@ -272,7 +273,7 @@ object FenParser {
           case 6 => 'k'
           case _ => '?'
         }
-        res.append(if (state.flags.activeColor.isWhite) char.toUpper else char)
+        res.append(if state.flags.activeColor.isWhite then char.toUpper else char)
       }
     }
 

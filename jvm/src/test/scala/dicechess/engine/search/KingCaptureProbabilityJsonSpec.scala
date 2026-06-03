@@ -23,12 +23,12 @@ class KingCaptureProbabilityJsonSpec extends FunSuite:
   private def loadTestCases(resourceName: String): List[KingCaptureProbabilityTestCase] =
     val source = Option(getClass.getClassLoader.getResourceAsStream(resourceName))
       .map(Source.fromInputStream)
-      .getOrElse(throw new IllegalArgumentException(s"Resource not found: $resourceName"))
+      .getOrElse(sys.error(s"Resource not found: $resourceName"))
     val jsonStr = try source.mkString
     finally source.close()
     decode[KingCaptureProbabilityTestSuite](jsonStr) match
       case Right(suite) => suite.testCases
-      case Left(error)  => throw new RuntimeException(s"Failed to parse $resourceName: $error")
+      case Left(error)  => sys.error(s"Failed to parse $resourceName: $error")
 
   private val testCases = loadTestCases("search/king_capture_probabilities.json")
 

@@ -91,14 +91,14 @@ class PropertySpec extends ScalaCheckSuite:
     fullMoveNumber <- Gen.choose(1, 500)
   yield
     var castlingInt = 0
-    if (castlingRights.contains('K')) castlingInt |= 1
-    if (castlingRights.contains('Q')) castlingInt |= 2
-    if (castlingRights.contains('k')) castlingInt |= 4
-    if (castlingRights.contains('q')) castlingInt |= 8
+    if castlingRights.contains('K') then castlingInt |= 1
+    if castlingRights.contains('Q') then castlingInt |= 2
+    if castlingRights.contains('k') then castlingInt |= 4
+    if castlingRights.contains('q') then castlingInt |= 8
 
     var epFiles = 0
     var epV     = enPassantBB.value
-    while (epV != 0) {
+    while epV != 0 do {
       val fileIdx = java.lang.Long.numberOfTrailingZeros(epV) % 8
       epFiles |= (1 << fileIdx)
       epV &= epV - 1

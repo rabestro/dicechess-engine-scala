@@ -57,7 +57,7 @@ object Evaluator:
 
     var isAttacked = false
     var p          = myKings.value
-    while (p != 0L && !isAttacked) {
+    while p != 0L && !isAttacked do {
       val sqIdx = java.lang.Long.numberOfTrailingZeros(p)
       val sq    = Square.fromIndex(sqIdx)
       if !MoveGenerator.isSquareAttacked(state, sq, oppColor).isEmpty then isAttacked = true
@@ -140,7 +140,7 @@ object Evaluator:
       // 1. Pawn Storm Heuristic
       var pawnStormBonus = 0
       var pw             = friendlyPawns.value
-      while (pw != 0L) {
+      while pw != 0L do {
         val sqIdx       = java.lang.Long.numberOfTrailingZeros(pw)
         val sq          = Square.fromIndex(sqIdx)
         val advancement = if color.isWhite then sq.rank - 2 else 7 - sq.rank
@@ -152,7 +152,7 @@ object Evaluator:
       val attackers      = (state.knights | state.bishops | state.rooks | state.queens) & myPieces
       var proximityBonus = 0
       var p              = attackers.value
-      while (p != 0L) {
+      while p != 0L do {
         val sqIdx  = java.lang.Long.numberOfTrailingZeros(p)
         val sq     = Square.fromIndex(sqIdx)
         val dist   = Math.max(Math.abs(sq.rank - ekRank), Math.abs(sq.file.toInt - ekFile))

@@ -13,12 +13,12 @@ object KingCaptureDocGenerator:
   private def loadTestCases(resourcePath: String): List[KingCaptureProbabilityTestCase] =
     val source = Option(getClass.getClassLoader.getResourceAsStream(resourcePath))
       .map(Source.fromInputStream)
-      .getOrElse(throw new IllegalArgumentException(s"Resource not found: $resourcePath"))
+      .getOrElse(sys.error(s"Resource not found: $resourcePath"))
     val jsonStr = try source.mkString
     finally source.close()
     decode[KingCaptureProbabilityTestSuite](jsonStr) match
       case Right(suite) => suite.testCases
-      case Left(error)  => throw new RuntimeException(s"Failed to parse $resourcePath: $error")
+      case Left(error)  => sys.error(s"Failed to parse $resourcePath: $error")
 
   def main(args: Array[String]): Unit =
     println("Starting documentation generation for KingCaptureProbability Test Cases...")
@@ -46,7 +46,7 @@ object KingCaptureDocGenerator:
       val standardFen = tc.fen.split(" ").take(6).mkString(" ")
       val cleanFen    = standardFen.replace(' ', '_')
       val encodedFen  = URLEncoder.encode(cleanFen, "UTF-8")
-      val boardColor  = if (tc.fen.split(" ").lift(1).contains("w")) "white" else "black"
+      val boardColor  = if tc.fen.split(" ").lift(1).contains("w") then "white" else "black"
       val imgUrl      =
         s"https://lichess1.org/export/fen.gif?fen=$encodedFen&color=$boardColor&theme=brown&piece=cburnett"
 

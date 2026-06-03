@@ -53,4 +53,4 @@ object Commands:
       try
         val actualFen = fen.getOrElse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
         BotMatchRunner.runArena(base, Some(opponent), games, actualFen)
-      catch case e: IllegalArgumentException => println(e.getMessage)
+      catch case e: RuntimeException => println(e.getMessage)

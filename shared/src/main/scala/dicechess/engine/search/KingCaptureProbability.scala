@@ -2,6 +2,7 @@ package dicechess.engine.search
 
 import dicechess.engine.domain.*
 import dicechess.engine.movegen.MoveGenerator
+import scala.util.boundary, boundary.break
 
 /** Probabilistic king (and queen) capture analysis for Dice Chess.
   *
@@ -27,7 +28,7 @@ object KingCaptureProbability:
   private val weightedRolls: Array[(List[Int], Int)] =
     val seen = collection.mutable.Set.empty[List[Int]]
     val b    = List.newBuilder[(List[Int], Int)]
-    for (d1 <- 1 to 6; d2 <- 1 to 6; d3 <- 1 to 6) {
+    for d1 <- 1 to 6; d2 <- 1 to 6; d3 <- 1 to 6 do {
       val ms = List(d1, d2, d3).sorted
       if seen.add(ms) then
         val weight = ms.distinct.size match
@@ -52,10 +53,10 @@ object KingCaptureProbability:
   def queenCaptureProbability(state: GameState, defenderColor: Color): Double =
     captureProbability(state, defenderColor, state.queens)
 
-  private def captureProbability(state: GameState, defenderColor: Color, targetBB: Bitboard): Double =
+  private def captureProbability(state: GameState, defenderColor: Color, targetBB: Bitboard): Double = boundary {
     val defenderPieces = if defenderColor.isWhite then state.whitePieces else state.blackPieces
     val targets        = targetBB & defenderPieces
-    if targets.isEmpty then return 0.0
+    if targets.isEmpty then break(0.0)
 
     val opponent = defenderColor.opponent
     var count    = 0
@@ -66,6 +67,7 @@ object KingCaptureProbability:
       if captureDFS(testState, targets) then count += weight
       i += 1
     count / TotalRolls
+  }
 
   /** Depth‑first search over all micro‑move sequences.
     *
@@ -73,15 +75,15 @@ object KingCaptureProbability:
     * paths are always legal regardless of the Maximum Micro‑moves Rule, an early exit is correct for kings. For queens
     * the result may slightly overestimate the true probability.
     */
-  private def captureDFS(state: GameState, targets: Bitboard): Boolean =
-    if state.dicePool.isEmpty then return false
+  private def captureDFS(state: GameState, targets: Bitboard): Boolean = boundary {
+    if state.dicePool.isEmpty then break(false)
     val moves = MoveGenerator.generateMoves(state)
     var i     = 0
     while i < moves.length do
       val move = moves(i)
 
       // Direct capture of a target piece
-      if !(targets & Bitboard.fromSquare(move.toSquare)).isEmpty then return true
+      if !(targets & Bitboard.fromSquare(move.toSquare)).isEmpty then break(true)
 
       // Recurse — the dice the move consumes depends on whether it is castling
       val nextState =
@@ -96,8 +98,9 @@ object KingCaptureProbability:
           Some(state.makeMove(move).withDicePool(afterPool))
 
       nextState match
-        case Some(s) => if captureDFS(s, targets) then return true
+        case Some(s) => if captureDFS(s, targets) then break(true)
         case None    => ()
 
       i += 1
     false
+  }

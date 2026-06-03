@@ -39,10 +39,16 @@ lazy val root = crossProject(JSPlatform, JVMPlatform)
       "org.scalameta" %%% "munit"            % "1.3.0" % Test,
       "org.scalameta" %%% "munit-scalacheck" % "1.3.0" % Test
     ),
+    semanticdbEnabled := true,
+    semanticdbVersion := scalafixSemanticdb.revision,
     coverageExcludedFiles := ".*Main\\.scala",
+    coverageMinimumStmtTotal := 85,
+    coverageFailOnMinimum := true,
     scalacOptions ++= Seq(
       "-Werror",           // Fail the compilation if there are any warnings
       "-Wunused:all",      // Fail on unused imports, privates, locals, and implicits
+      "-language:strictEquality", // Prevent comparing different types
+      "-Yexplicit-nulls",  // Make null explicit
       "-explain",          // Explain type errors in more detail
       "-feature",          // Emit warning and location for usages of features that should be imported explicitly
       "-deprecation"       // Emit warning and location for usages of deprecated APIs

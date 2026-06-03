@@ -81,11 +81,11 @@ class GameFlagsSpec extends FunSuite {
     flags = flags.addDie(2)
     assertEquals(flags.dicePool, List(6, 2, 2))
 
-    intercept[IllegalArgumentException] {
+    intercept[RuntimeException] {
       flags.addDie(7)
     }
 
-    intercept[IllegalStateException] {
+    intercept[RuntimeException] {
       flags.addDie(1)
     }
 

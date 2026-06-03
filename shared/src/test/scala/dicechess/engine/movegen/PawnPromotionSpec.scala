@@ -13,7 +13,7 @@ class PawnPromotionSpec extends FunSuite:
 
   /** Parses a FEN string and panics on failure — safe for test fixtures. */
   private def parseUnsafe(fen: String) =
-    FenParser.parse(fen).fold(err => throw new RuntimeException(err), identity)
+    FenParser.parse(fen).fold(err => sys.error(err), identity)
 
   // Dice value for Pawn
   private val PawnDice = 1
