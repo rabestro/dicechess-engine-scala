@@ -28,6 +28,8 @@ export default defineConfig({
 						{ label: 'Domain Modeling', slug: 'architecture/domain-modeling' },
 						{ label: 'Dice Chess FEN (DFEN)', slug: 'architecture/dice-chess-fen' },
 						{ label: 'Primitive Best-Move Search', slug: 'architecture/primitive-search' },
+						{ label: 'Search Roadmap & Evaluation', slug: 'architecture/search-roadmap' },
+						{ label: 'King Capture Test Cases', slug: 'architecture/search/king-capture-probability-test-cases' },
 						{
 							label: 'Move Generation',
 							collapsed: true,
@@ -41,6 +43,7 @@ export default defineConfig({
 						{ label: 'Testing Strategy & DSL', slug: 'architecture/testing' },
 						{ label: 'CI/CD & Releases', slug: 'architecture/releases' },
 						{ label: 'Automated Code Reviews', slug: 'architecture/code-reviews' },
+						{ label: 'Security Policy', slug: 'architecture/security' },
 					],
 				},
 				{
