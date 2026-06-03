@@ -17,7 +17,7 @@ graph LR
         A["pre-commit hooks"] --> B["mise run check"]
     end
     subgraph CI
-        B --> C["scalafmt + MUnit"]
+        B --> C["scalafmt + scalafix + MUnit"]
         C --> D["SonarCloud"]
         C --> E["CodeRabbit"]
         C --> F["JetBrains Qodana"]
@@ -29,10 +29,27 @@ graph LR
 | Pre-commit | `gitleaks` | Intercept leaked secrets before they reach Git history |
 | Pre-commit | `pre-commit-hooks` | Trailing whitespace, YAML syntax, merge conflicts |
 | CI | `scalafmt` | Enforce consistent Scala code formatting |
-| CI | `MUnit` + `scoverage` | Unit tests with coverage reporting |
+| CI | `scalafix` | Enforce strict syntax rules (ban null, throw, return) |
+| CI | `MUnit` + `scoverage` | Unit tests with coverage reporting (>85%) |
 | CI | **CodeRabbit** | AI-powered PR review with domain-specific instructions |
 | CI | SonarCloud | Static analysis: code smells, vulnerabilities, coverage metrics |
 | CI | Qodana | JetBrains deep code inspection |
+
+---
+
+## Strict Typing & Linting (Scalafix & Compiler Flags)
+
+To ensure memory safety, functional purity, and a high-performance codebase, we enforce strict compiler and linter rules. These constraints prevent common anti-patterns like `NullPointerException`s and obscure control flow bugs.
+
+### Scala 3 Compiler Flags
+- **`-Yexplicit-nulls`**: Changes the Scala 3 type system so that reference types (like `String` or `AnyRef`) are non-nullable by default. This forces developers to use `Option[T]` to safely represent the absence of a value, eliminating implicit nulls at the compiler level.
+- **`-language:strictEquality`**: Requires explicit opt-in (via `CanEqual` typeclasses) to compare two objects with `==`. This catches bug-prone comparisons (like comparing a `Square` to a `Piece`) at compile-time instead of silently returning `false` at runtime.
+
+### Scalafix Rules (`DisableSyntax`)
+We actively ban problematic keywords through `.scalafix.conf`:
+- **`null`**: The `null` keyword is strictly forbidden. This protects the JS boundary (where JS might pass `null`), forcing us to safely wrap it via `Option(value)` instead.
+- **`throw`**: Throwing exceptions breaks referential transparency and control flow. We use `sys.error` for truly unrecoverable fatal errors, or `Either`/`Option` for business logic errors.
+- **`return`**: Explicit `return` statements are banned because they can cause unintended behavior inside lambdas and closures. We instead rely on Scala 3's `boundary`/`break` constructs for early exit logic, or simply standard functional expressions (`if`/`else`).
 
 ---
 
