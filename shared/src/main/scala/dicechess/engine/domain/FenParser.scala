@@ -51,8 +51,8 @@ object FenParser {
 
       val board       = parts(0)
       val activeColor = parts(1) match {
-        case "w" => Color.White
-        case "b" => Color.Black
+        case "w"   => Color.White
+        case "b"   => Color.Black
         case other => scala.util.boundary.break(Left(s"Invalid active color: $other"))
       }
       val castling    = parts(2)
@@ -93,12 +93,12 @@ object FenParser {
           var idx  = 0
           while (idx < poolField.length) {
             poolField.charAt(idx).toLower match {
-              case 'p' => list += 1
-              case 'n' => list += 2
-              case 'b' => list += 3
-              case 'r' => list += 4
-              case 'q' => list += 5
-              case 'k' => list += 6
+              case 'p'   => list += 1
+              case 'n'   => list += 2
+              case 'b'   => list += 3
+              case 'r'   => list += 4
+              case 'q'   => list += 5
+              case 'k'   => list += 6
               case other => scala.util.boundary.break(Left(s"Invalid dice-pool character '$other'"))
             }
             idx += 1
@@ -112,7 +112,8 @@ object FenParser {
       val flags = GameFlags.fromList(activeColor, castlingInt, epFiles, dicePool, halfMove)
 
       val ranks = board.split("/")
-      if (ranks.length != 8) scala.util.boundary.break(Left(s"Invalid FEN: board must have 8 ranks, found ${ranks.length}"))
+      if (ranks.length != 8)
+        scala.util.boundary.break(Left(s"Invalid FEN: board must have 8 ranks, found ${ranks.length}"))
 
       var whitePieces = Bitboard.empty
       var blackPieces = Bitboard.empty
