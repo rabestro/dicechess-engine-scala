@@ -52,8 +52,8 @@ object FenParser {
 
       val board       = parts(0)
       val activeColor = parts(1) match
-        case "w" => Color.White
-        case "b" => Color.Black
+        case "w"   => Color.White
+        case "b"   => Color.Black
         case other => break(Left(s"Invalid active color '$other'"))
       val castling    = parts(2)
       var castlingInt = 0
