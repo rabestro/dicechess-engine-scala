@@ -44,13 +44,17 @@ object FenParser {
     * @return
     *   `Right(state)` on success, or `Left(errorMessage)` describing the first parse failure
     */
-  def parse(fen: String): Either[String, GameState] = {
+  def parse(fen: String): Either[String, GameState] = scala.util.boundary {
     try {
       val parts = fen.split(" ")
-      if (parts.length < 4) return Left("Invalid FEN: insufficient parts")
+      if (parts.length < 4) scala.util.boundary.break(Left("Invalid FEN: insufficient parts"))
 
       val board       = parts(0)
-      val activeColor = if (parts(1) == "w") Color.White else Color.Black
+      val activeColor = parts(1) match {
+        case "w" => Color.White
+        case "b" => Color.Black
+        case other => scala.util.boundary.break(Left(s"Invalid active color: $other"))
+      }
       val castling    = parts(2)
       var castlingInt = 0
       if (castling.contains('K')) castlingInt |= 1
@@ -70,16 +74,16 @@ object FenParser {
               case Some(sq) =>
                 epFiles |= (1 << (sq.file - 'a'))
                 enPassantBb = enPassantBb.add(sq)
-              case None => return Left(s"Invalid en-passant notation '$notation'")
+              case None => scala.util.boundary.break(Left(s"Invalid en-passant notation '$notation'"))
             }
           } else {
-            return Left(s"Invalid en-passant field '$enPassantField'")
+            scala.util.boundary.break(Left(s"Invalid en-passant field '$enPassantField'"))
           }
           idx += 2
         }
       }
-      val halfMove = if (parts.length > 4) parts(4).toInt else 0
-      val fullMove = if (parts.length > 5) parts(5).toInt else 1
+      val halfMove = if (parts.length > 4) parts(4).toIntOption.getOrElse(0) else 0
+      val fullMove = if (parts.length > 5) parts(5).toIntOption.getOrElse(1) else 1
 
       val dicePool = if (parts.length >= 7) {
         val poolField = parts(6)
@@ -88,20 +92,14 @@ object FenParser {
           val list = mutable.ListBuffer.empty[Int]
           var idx  = 0
           while (idx < poolField.length) {
-            val char  = poolField.charAt(idx).toLower
-            val digit = char match {
-              case 'p' => 1
-              case 'n' => 2
-              case 'b' => 3
-              case 'r' => 4
-              case 'q' => 5
-              case 'k' => 6
-              case _   => 0
-            }
-            if (digit > 0) {
-              list += digit
-            } else {
-              return Left(s"Invalid dice-pool character '${poolField.charAt(idx)}'")
+            poolField.charAt(idx).toLower match {
+              case 'p' => list += 1
+              case 'n' => list += 2
+              case 'b' => list += 3
+              case 'r' => list += 4
+              case 'q' => list += 5
+              case 'k' => list += 6
+              case other => scala.util.boundary.break(Left(s"Invalid dice-pool character '$other'"))
             }
             idx += 1
           }
@@ -114,7 +112,7 @@ object FenParser {
       val flags = GameFlags.fromList(activeColor, castlingInt, epFiles, dicePool, halfMove)
 
       val ranks = board.split("/")
-      if (ranks.length != 8) return Left(s"Invalid FEN: board must have 8 ranks, found ${ranks.length}")
+      if (ranks.length != 8) scala.util.boundary.break(Left(s"Invalid FEN: board must have 8 ranks, found ${ranks.length}"))
 
       var whitePieces = Bitboard.empty
       var blackPieces = Bitboard.empty
@@ -137,7 +135,7 @@ object FenParser {
           if (char.isDigit) {
             file += char.asDigit
           } else {
-            if (file >= 8) return Left(s"Rank $rankIndex overflows 8 files")
+            if (file >= 8) scala.util.boundary.break(Left(s"Rank $rankIndex overflows 8 files"))
             val sq    = Square.fromIndex(rankIndex * 8 + file)
             val color = if (char.isUpper) Color.White else Color.Black
             val pt    = char.toLower match {
@@ -147,7 +145,7 @@ object FenParser {
               case 'r' => PieceType.Rook
               case 'q' => PieceType.Queen
               case 'k' => PieceType.King
-              case _   => return Left(s"Unknown piece character '$char'")
+              case _   => scala.util.boundary.break(Left(s"Unknown piece character '$char'"))
             }
 
             val piece = Piece(color, pt)
@@ -170,7 +168,7 @@ object FenParser {
           }
           i += 1
         }
-        if (file != 8) return Left(s"Rank $rankIndex must have 8 files, found $file")
+        if (file != 8) scala.util.boundary.break(Left(s"Rank $rankIndex must have 8 files, found $file"))
         r += 1
       }
 
