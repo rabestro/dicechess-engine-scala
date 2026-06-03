@@ -423,7 +423,7 @@ class MutableLegalMovesFilterSpec extends ScalaCheckSuite:
       val legalMoves = filterMoves(state, dice)
       // Any returned move must achieve the global maximum sequence length (or capture the king)
       // Since it's ignored/skipped for now, we just assert true
-      Option(legalMoves).isDefined
+      assert(legalMoves.size >= 0)
     }
   }
 

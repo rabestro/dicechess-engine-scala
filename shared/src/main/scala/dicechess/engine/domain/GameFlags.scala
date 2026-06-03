@@ -133,13 +133,13 @@ object GameFlags:
       val d3   = diceSlot3; if d3 != 0 then pool += d3
       pool.result()
 
-    /** Adds a single die to the pool. Throws if the pool is already full (3 dice). */
-    def addDie(die: Int): GameFlags =
-      require(die >= 1 && die <= 6, s"Invalid die: $die")
-      if diceSlot1 == 0 then flags | (die << 13)
-      else if diceSlot2 == 0 then flags | (die << 16)
-      else if diceSlot3 == 0 then flags | (die << 19)
-      else sys.error(s"Dice pool is full: $diceSlot1, $diceSlot2, $diceSlot3")
+    /** Adds a single die to the pool. Returns Left if the pool is already full or the die is invalid. */
+    def addDie(die: Int): Either[String, GameFlags] =
+      if die < 1 || die > 6 then Left(s"Invalid die: $die")
+      else if diceSlot1 == 0 then Right((flags | (die << 13)): GameFlags)
+      else if diceSlot2 == 0 then Right((flags | (die << 16)): GameFlags)
+      else if diceSlot3 == 0 then Right((flags | (die << 19)): GameFlags)
+      else Left(s"Dice pool is full: $diceSlot1, $diceSlot2, $diceSlot3")
 
     /** Removes a single occurrence of the specified die from the pool. Does nothing if the die is not present.
       */

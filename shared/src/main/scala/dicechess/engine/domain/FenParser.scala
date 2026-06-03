@@ -82,8 +82,17 @@ object FenParser {
           idx += 2
         }
       }
-      val halfMove = if parts.length > 4 then parts(4).toInt else 0
-      val fullMove = if parts.length > 5 then parts(5).toInt else 1
+      val halfMove = if parts.length > 4 then
+        parts(4).toIntOption match
+          case Some(v) if v >= 0 => v
+          case _                 => break(Left(s"Invalid half-move clock '${parts(4)}'"))
+      else 0
+
+      val fullMove = if parts.length > 5 then
+        parts(5).toIntOption match
+          case Some(v) if v >= 1 => v
+          case _                 => break(Left(s"Invalid full-move number '${parts(5)}'"))
+      else 1
 
       val dicePool = if parts.length >= 7 then {
         val poolField = parts(6)
