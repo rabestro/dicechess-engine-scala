@@ -96,7 +96,7 @@ object TurnGenerator:
         else
           val afterMove = state.dicePool.diff(List(moverType.diceValue))
           if afterMove.size >= state.dicePool.size then
-            throw new RuntimeException(
+            sys.error(
               s"CRITICAL: Dice pool ${state.dicePool} does not decrease! moverType=$moverType, moverType.diceValue=${moverType.diceValue}, move=${move.fromSquare.toNotation}${move.toSquare.toNotation}, state.activeColor=${state.activeColor}, state.mailbox(move.fromSquare)=${state.mailbox(move.fromSquare)}"
             )
           val next     = state.makeMove(move).withDicePool(afterMove)

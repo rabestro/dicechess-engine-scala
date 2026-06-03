@@ -87,9 +87,18 @@ class JsApiSpec extends FunSuite:
 
   test("applyMove: handles null parameters gracefully by returning undefined") {
     val initialFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-    assertEquals(JsApi.applyMove(null, "e2", "e4", js.undefined).toOption, None)
-    assertEquals(JsApi.applyMove(initialFen, null, "e4", js.undefined).toOption, None)
-    assertEquals(JsApi.applyMove(initialFen, "e2", null, js.undefined).toOption, None)
+    assertEquals(
+      JsApi.applyMove(null.asInstanceOf[String], "e2", "e4", js.undefined).toOption,
+      None
+    ) // scalafix:ok(DisableSyntax.null)
+    assertEquals(
+      JsApi.applyMove(initialFen, null.asInstanceOf[String], "e4", js.undefined).toOption,
+      None
+    ) // scalafix:ok(DisableSyntax.null)
+    assertEquals(
+      JsApi.applyMove(initialFen, "e2", null.asInstanceOf[String], js.undefined).toOption,
+      None
+    ) // scalafix:ok(DisableSyntax.null)
   }
 
   test("applyMove: handles malformed FEN or coordinates by returning undefined") {
@@ -101,7 +110,7 @@ class JsApiSpec extends FunSuite:
   }
 
   test("endTurn: handles null parameter gracefully by returning undefined") {
-    assertEquals(JsApi.endTurn(null).toOption, None)
+    assertEquals(JsApi.endTurn(null.asInstanceOf[String]).toOption, None) // scalafix:ok(DisableSyntax.null)
   }
 
   test("endTurn: handles malformed FEN gracefully by returning undefined") {
@@ -109,7 +118,7 @@ class JsApiSpec extends FunSuite:
   }
 
   test("getLegalUciMoves: handles null parameters gracefully by returning empty array") {
-    assertEquals(JsApi.getLegalUciMoves(null).length, 0)
+    assertEquals(JsApi.getLegalUciMoves(null.asInstanceOf[String]).length, 0) // scalafix:ok(DisableSyntax.null)
   }
 
   test("getLegalUciMoves: handles FEN without dice by returning empty array if no moves possible") {
@@ -122,14 +131,14 @@ class JsApiSpec extends FunSuite:
   }
 
   test("getPieceFromDice: returns null for invalid dice values") {
-    assertEquals(JsApi.getPieceFromDice(0), null)
-    assertEquals(JsApi.getPieceFromDice(7), null)
+    assertEquals(JsApi.getPieceFromDice(0), null) // scalafix:ok(DisableSyntax.null)
+    assertEquals(JsApi.getPieceFromDice(7), null) // scalafix:ok(DisableSyntax.null)
   }
 
   test("getBestMove: handles null parameters gracefully by returning zero structure") {
-    val res1 = JsApi.getBestMove(null, js.undefined)
-    assertEquals(res1.moves.length.asInstanceOf[Int], 0)
-    assertEquals(res1.score.asInstanceOf[Int], 0)
+    val res1 = JsApi.getBestMove(null.asInstanceOf[String], js.undefined) // scalafix:ok(DisableSyntax.null)
+    assert(res1.moves.length.asInstanceOf[Int] == 0)
+    assert(res1.score.asInstanceOf[Int] == 0)
   }
 
   test("getBestMove: handles invalid FEN gracefully by returning zero structure") {

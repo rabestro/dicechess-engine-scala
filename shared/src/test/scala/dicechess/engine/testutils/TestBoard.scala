@@ -19,14 +19,14 @@ object TestBoard:
 
     var pieces = Map.empty[Char, Bitboard]
 
-    for (rankIdx <- 0 until 8) do
+    for rankIdx <- 0 until 8 do
       val rankChars = lines(rankIdx).replace(" ", "")
       require(
         rankChars.length == 8,
         s"Rank must have exactly 8 files, but got ${rankChars.length} at rank ${8 - rankIdx}"
       )
 
-      for (fileIdx <- 0 until 8) do
+      for fileIdx <- 0 until 8 do
         val c = rankChars(fileIdx)
         if c != '.' && c != '-' then
           val sq        = Square((fileIdx + 'a').toChar, 8 - rankIdx)
@@ -41,7 +41,7 @@ object TestBoard:
 
   extension (s: String)
     /** Converts a 2-character algebraic notation string to a Square. */
-    def sq: Square = Square.fromNotation(s).getOrElse(throw new IllegalArgumentException(s"Invalid square: $s"))
+    def sq: Square = Square.fromNotation(s).getOrElse(sys.error(s"Invalid square: $s"))
 
     /** Converts a 2-character algebraic notation string to a Bitboard. */
     def bb: Bitboard = Bitboard.fromSquare(s.sq)

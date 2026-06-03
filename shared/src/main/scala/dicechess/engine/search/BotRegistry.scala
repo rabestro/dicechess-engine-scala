@@ -101,7 +101,7 @@ object BotRegistry:
     *   The algorithm if found, or None.
     */
   def getAlgorithm(id: String): Option[SearchAlgorithm] =
-    if id == null then None else bots.get(id.toLowerCase).map(_._2)
+    Option(id).flatMap(i => bots.get(i.toLowerCase)).map(_._2)
 
   /** Returns the default algorithm (Greedy). */
   def defaultAlgorithm: SearchAlgorithm = GreedySearch

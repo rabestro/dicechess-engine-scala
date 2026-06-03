@@ -43,7 +43,7 @@ object JsApi:
     */
   @JSExport
   def getLegalUciMoves(dfen: String): js.Array[String] =
-    if dfen == null then js.Array()
+    if Option(dfen).isEmpty then js.Array()
     else
       FenParser.parse(dfen) match
         case Left(_)      => js.Array()
@@ -62,7 +62,7 @@ object JsApi:
     *   The piece notation (p, n, b, r, q, k) or null if invalid.
     */
   @JSExport
-  def getPieceFromDice(dice: Int): String =
+  def getPieceFromDice(dice: Int): String | Null =
     PieceType.fromDice(dice).map(_.asNotation).orNull
 
   /** Computes the best sequence of micro-moves for the given position.
@@ -80,7 +80,7 @@ object JsApi:
     */
   @JSExport
   def getBestMove(dfen: String, options: js.UndefOr[js.Dynamic]): js.Dynamic =
-    if dfen == null then js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
+    if Option(dfen).isEmpty then js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
     else
       val searchAlgo = resolveAlgorithm(options)
 
@@ -100,7 +100,7 @@ object JsApi:
                 js.Dynamic.literal(
                   from = m.fromSquare.toNotation,
                   to = m.toSquare.toNotation,
-                  promotion = m.promotionPieceType.map(_.asNotation).orNull
+                  promotion = m.promotionPieceType.map(_.asNotation).orUndefined
                 )
               }.toJSArray
               js.Dynamic.literal(
@@ -146,7 +146,7 @@ object JsApi:
     */
   @JSExport
   def shouldBotOfferDouble(dfen: String, currentStake: Int, options: js.UndefOr[js.Dynamic]): Boolean =
-    if dfen == null then false
+    if Option(dfen).isEmpty then false
     else
       val searchAlgo = resolveAlgorithm(options)
       FenParser.parse(dfen) match
@@ -157,7 +157,7 @@ object JsApi:
     */
   @JSExport
   def shouldBotAcceptDouble(dfen: String, currentStake: Int, options: js.UndefOr[js.Dynamic]): Boolean =
-    if dfen == null then false
+    if Option(dfen).isEmpty then false
     else
       val searchAlgo = resolveAlgorithm(options)
       FenParser.parse(dfen) match
@@ -168,7 +168,7 @@ object JsApi:
     */
   @JSExport
   def shouldBotOfferDraw(dfen: String, options: js.UndefOr[js.Dynamic]): Boolean =
-    if dfen == null then false
+    if Option(dfen).isEmpty then false
     else
       val searchAlgo = resolveAlgorithm(options)
       FenParser.parse(dfen) match
@@ -179,7 +179,7 @@ object JsApi:
     */
   @JSExport
   def shouldBotAcceptDraw(dfen: String, options: js.UndefOr[js.Dynamic]): Boolean =
-    if dfen == null then false
+    if Option(dfen).isEmpty then false
     else
       val searchAlgo = resolveAlgorithm(options)
       FenParser.parse(dfen) match
@@ -188,7 +188,7 @@ object JsApi:
 
   private def resolveAlgorithm(options: js.UndefOr[js.Dynamic]): dicechess.engine.search.SearchAlgorithm =
     val algoName = options.toOption
-      .filter(_ != null)
+      .filter(Option(_).isDefined)
       .flatMap { opt =>
         val alg = opt.selectDynamic("algorithm")
         if scala.scalajs.js.typeOf(alg) == "string" then Some(alg.asInstanceOf[String])

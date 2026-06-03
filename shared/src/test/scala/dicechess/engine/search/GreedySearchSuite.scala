@@ -184,7 +184,7 @@ class GreedySearchSuite extends FunSuite:
       )
 
     var chosenTargets = Set.empty[String]
-    for (_ <- 1 to 50) {
+    for _ <- 1 to 50 do {
       val bestMoveOpt = GreedySearch.findBestMove(state.withDicePool(List(5)))
       bestMoveOpt.foreach { bm =>
         chosenTargets += bm.moves.head.toSquare.toNotation

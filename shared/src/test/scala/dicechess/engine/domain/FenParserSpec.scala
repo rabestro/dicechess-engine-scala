@@ -9,7 +9,7 @@ class FenParserSpec extends FunSuite:
     val parsed = FenParser.parse(fen)
 
     assert(parsed.isRight)
-    val state = parsed.getOrElse(throw new Exception("Parsing failed"))
+    val state = parsed.getOrElse(sys.error("Parsing failed"))
 
     assertEquals(state.activeColor, Color.White)
     assertEquals(state.castlingRights, "KQkq")

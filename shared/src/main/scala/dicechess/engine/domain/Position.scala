@@ -186,7 +186,7 @@ extension (state: GameState)
       from.file != to.file &&
       state.mailbox(to).isEmpty
 
-    if (isEnPassantCapture) {
+    if isEnPassantCapture then {
       val victimSq    = Square.fromIndex(to.index + rankOffset)
       val victimPiece = state.mailbox.get(victimSq)
       val victimBB    = Bitboard.fromSquare(victimSq)
@@ -206,7 +206,7 @@ extension (state: GameState)
 
     val isDoublePush   = movingPiece.pieceType == PieceType.Pawn && math.abs(to.rank - from.rank) == 2
     var finalEnPassant = state.enPassant.remove(to)
-    if (isDoublePush) {
+    if isDoublePush then {
       finalEnPassant = finalEnPassant.add(Square.fromIndex(to.index + rankOffset))
     } else {
       val epRank = if isWhite then 6 else 3
@@ -216,15 +216,15 @@ extension (state: GameState)
         if sq.rank == epRank then finalEnPassant = finalEnPassant.remove(sq)
         ep &= ep - 1L
 
-      if (movingPiece.pieceType == PieceType.Pawn) {
+      if movingPiece.pieceType == PieceType.Pawn then {
         finalEnPassant = finalEnPassant.remove(Square.fromIndex(from.index + rankOffset))
       }
 
-      if (isEnPassantCapture) {
+      if isEnPassantCapture then {
         finalEnPassant = finalEnPassant.remove(to)
       } else {
         targetPiece.foreach { p =>
-          if (p.pieceType == PieceType.Pawn) {
+          if p.pieceType == PieceType.Pawn then {
             finalEnPassant = finalEnPassant.remove(Square.fromIndex(to.index - rankOffset))
           }
         }
@@ -233,7 +233,7 @@ extension (state: GameState)
 
     val diceVal      = movingPiece.pieceType.diceValue
     val idx          = state.dicePool.indexOf(diceVal)
-    val nextDicePool = if (idx >= 0) {
+    val nextDicePool = if idx >= 0 then {
       state.dicePool.patch(idx, Nil, 1)
     } else {
       require(state.dicePool.isEmpty, s"Active dice pool ${state.dicePool} does not contain piece type $diceVal")
@@ -248,7 +248,7 @@ extension (state: GameState)
 
     var epFiles = 0
     var ep      = finalEnPassant.value
-    while (ep != 0) {
+    while ep != 0 do {
       val fileIdx = java.lang.Long.numberOfTrailingZeros(ep) % 8
       epFiles |= (1 << fileIdx)
       ep &= ep - 1
@@ -374,7 +374,7 @@ extension (state: GameState)
 
     var epFiles = 0
     var epV     = newEnPassant.value
-    while (epV != 0L) {
+    while epV != 0L do {
       val fileIdx = java.lang.Long.numberOfTrailingZeros(epV) % 8
       epFiles |= (1 << fileIdx)
       epV &= epV - 1L

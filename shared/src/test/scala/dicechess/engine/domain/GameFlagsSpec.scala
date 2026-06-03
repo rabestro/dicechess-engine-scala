@@ -51,7 +51,7 @@ class GameFlagsSpec extends FunSuite {
     assertEquals(step4.enPassantFiles, 255)
     assertEquals(step4.halfMoveClock, 100)
 
-    val step5 = step4.addDie(3)
+    val step5 = step4.addDie(3).toOption.get
     assertEquals(step5.dicePool, List(3))
     assertEquals(step5.halfMoveClock, 100)
   }
@@ -72,22 +72,17 @@ class GameFlagsSpec extends FunSuite {
     var flags = GameFlags.empty
     assertEquals(flags.dicePool, Nil)
 
-    flags = flags.addDie(6)
+    flags = flags.addDie(6).toOption.get
     assertEquals(flags.dicePool, List(6))
 
-    flags = flags.addDie(2)
+    flags = flags.addDie(2).toOption.get
     assertEquals(flags.dicePool, List(6, 2))
 
-    flags = flags.addDie(2)
+    flags = flags.addDie(2).toOption.get
     assertEquals(flags.dicePool, List(6, 2, 2))
 
-    intercept[IllegalArgumentException] {
-      flags.addDie(7)
-    }
-
-    intercept[IllegalStateException] {
-      flags.addDie(1)
-    }
+    assert(flags.addDie(7).isLeft)
+    assert(flags.addDie(1).isLeft)
 
     flags = flags.removeDie(2)
     assertEquals(flags.dicePool, List(6, 2))

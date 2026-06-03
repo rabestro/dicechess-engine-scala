@@ -7,6 +7,8 @@ opaque type Color = Int
   * Uses bitwise XOR for fast toggling between opponents.
   */
 object Color:
+  given CanEqual[Color, Color] = CanEqual.derived
+
   val White: Color = 0
   val Black: Color = 1
 
@@ -36,6 +38,8 @@ opaque type PieceType = Int
   * Values are 1: Pawn, 2: Knight, 3: Bishop, 4: Rook, 5: Queen, 6: King.
   */
 object PieceType:
+  given CanEqual[PieceType, PieceType] = CanEqual.derived
+
   val Pawn: PieceType   = 1
   val Knight: PieceType = 2
   val Bishop: PieceType = 3
@@ -78,6 +82,8 @@ opaque type Piece = Int
   *   - Bits 0-2: PieceType (1-6)
   */
 object Piece:
+  given CanEqual[Piece, Piece] = CanEqual.derived
+
   val Empty: Piece = 0
 
   def apply(color: Color, pieceType: PieceType): Piece =
@@ -95,6 +101,8 @@ opaque type Square = Int
   * The index ranges from 0 (a1) to 63 (h8), mapped row by row (a1, b1... h8).
   */
 object Square:
+  given CanEqual[Square, Square] = CanEqual.derived
+
   /** Builds a square from coordinate syntax.
     */
   def apply(file: Char, rank: Int): Square =
@@ -146,6 +154,8 @@ opaque type MicroMove = Int
   *   - Bits 0-5: Origin [[Square]] (0-63)
   */
 object MicroMove:
+  given CanEqual[MicroMove, MicroMove] = CanEqual.derived
+
   def apply(from: Square, to: Square, promotion: Option[PieceType] = None): MicroMove =
     val promValue = promotion.getOrElse(0) // 0 indicates no promotion
     (promValue << 12) | (to << 6) | from
@@ -207,6 +217,8 @@ opaque type Bitboard = Long
   * Uses Little-Endian Rank-File (LERF) mapping, where bit 0 is a1 and bit 63 is h8.
   */
 object Bitboard:
+  given CanEqual[Bitboard, Bitboard] = CanEqual.derived
+
   /** An empty bitboard (no squares occupied). */
   val empty: Bitboard = 0L
 
@@ -263,7 +275,7 @@ object Bitboard:
   * @param microMoves
   *   The list of 1 to 3 moves executed within this turn.
   */
-case class Turn(diceRoll: Int, microMoves: List[MicroMove]):
+case class Turn(diceRoll: Int, microMoves: List[MicroMove]) derives CanEqual:
   require(microMoves.nonEmpty, "Turn must contain at least one micro-move")
   require(microMoves.length <= 3, "Turn cannot contain more than 3 micro-moves")
 
@@ -313,7 +325,7 @@ case class GameState(
     flags: GameFlags,
     enPassant: Bitboard,
     fullMoveNumber: Int
-):
+) derives CanEqual:
   inline def activeColor: Color = flags.activeColor
 
   /** Removes all en-passant targets created by the specified color.
@@ -324,9 +336,9 @@ case class GameState(
     val targetRank = if color.isWhite then 3 else 6
     var ep         = enPassant.value
     var newEp      = Bitboard.empty
-    while (ep != 0) {
+    while ep != 0 do {
       val sq = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(ep))
-      if (sq.rank != targetRank) {
+      if sq.rank != targetRank then {
         newEp = newEp.add(sq)
       }
       ep &= ep - 1
@@ -335,13 +347,13 @@ case class GameState(
 
   def castlingRights: String =
     val cr = flags.castlingRights
-    if (cr == 0) "-"
+    if cr == 0 then "-"
     else
       val sb = new StringBuilder()
-      if ((cr & 1) != 0) sb.append("K")
-      if ((cr & 2) != 0) sb.append("Q")
-      if ((cr & 4) != 0) sb.append("k")
-      if ((cr & 8) != 0) sb.append("q")
+      if (cr & 1) != 0 then sb.append("K")
+      if (cr & 2) != 0 then sb.append("Q")
+      if (cr & 4) != 0 then sb.append("k")
+      if (cr & 8) != 0 then sb.append("q")
       sb.toString()
 
   // enPassant is now a dedicated field because GameFlags (8 bits) is lossy

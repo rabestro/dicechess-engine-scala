@@ -24,22 +24,20 @@ object BotMatchRunner:
         sys.exit(1)
 
   def runArena(baseBotId: String, opponentBotId: Option[String], gamesPerColor: Int, startFen: String): Unit =
-    if gamesPerColor <= 0 then
-      throw new IllegalArgumentException(s"Invalid gamesPerColor '$gamesPerColor'. Must be greater than 0.")
+    if gamesPerColor <= 0 then sys.error(s"Invalid gamesPerColor '$gamesPerColor'. Must be greater than 0.")
 
     val parsedFen =
-      FenParser.parse(startFen).getOrElse(throw new IllegalArgumentException(s"Invalid start FEN: $startFen"))
+      FenParser.parse(startFen).getOrElse(sys.error(s"Invalid start FEN: $startFen"))
 
     val baseAlgorithmOpt = BotRegistry.getAlgorithm(baseBotId)
-    if baseAlgorithmOpt.isEmpty then
-      throw new IllegalArgumentException(s"Baseline bot with ID '$baseBotId' not found in BotRegistry!")
+    if baseAlgorithmOpt.isEmpty then sys.error(s"Baseline bot with ID '$baseBotId' not found in BotRegistry!")
 
     val baseAlgorithm = baseAlgorithmOpt.get
     val baseBotIdNorm = baseBotId.toLowerCase
     val baseBotInfo   = BotRegistry.availableBots
       .find(_.id.toLowerCase == baseBotIdNorm)
       .getOrElse {
-        throw new IllegalArgumentException(
+        sys.error(
           s"Baseline bot details with ID '$baseBotId' not found in BotRegistry!"
         )
       }
@@ -56,7 +54,7 @@ object BotMatchRunner:
         BotRegistry.availableBots
           .find(_.id.toLowerCase == id.toLowerCase)
           .map(List(_))
-          .getOrElse(throw new IllegalArgumentException(s"Opponent bot with ID '$id' not found!"))
+          .getOrElse(sys.error(s"Opponent bot with ID '$id' not found!"))
       case None => BotRegistry.availableBots
 
     val results = for opponentInfo <- opponents yield
@@ -86,7 +84,7 @@ object BotMatchRunner:
     val startTime = System.currentTimeMillis()
 
     // 1. Play games with Opponent as White and Base Bot as Black
-    for (_ <- 1 to gamesPerColor) do
+    for _ <- 1 to gamesPerColor do
       simulateGame(opponentAlgo, baseAlgo, rand, startFen) match
         case GameOutcome.Win(color) =>
           if color.isWhite then winsAsWhite += 1 else lossesAsWhite += 1
@@ -94,7 +92,7 @@ object BotMatchRunner:
           drawsAsWhite += 1
 
     // 2. Play games with Base Bot as White and Opponent as Black
-    for (_ <- 1 to gamesPerColor) do
+    for _ <- 1 to gamesPerColor do
       simulateGame(baseAlgo, opponentAlgo, rand, startFen) match
         case GameOutcome.Win(color) =>
           if color.isBlack then winsAsBlack += 1 else lossesAsBlack += 1
@@ -165,7 +163,7 @@ object BotMatchRunner:
     outcome
 
   private val enableVerifySync =
-    sys.props.getOrElse("dicechess.bench.verifySync", "false").toBooleanOption.getOrElse(false)
+    sys.props.get("dicechess.bench.verifySync").flatMap(_.toBooleanOption).getOrElse(false)
 
   private def verifySync(state: GameState, lastMove: String): Unit =
     if enableVerifySync then verifySyncInternal(state, lastMove)
@@ -176,35 +174,35 @@ object BotMatchRunner:
       val piece = state.mailbox(sq)
       if piece.isEmpty then
         if state.whitePieces.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox empty but whitePieces set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if state.blackPieces.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox empty but blackPieces set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if state.pawns.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox empty but pawns set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if state.knights.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox empty but knights set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if state.bishops.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox empty but bishops set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if state.rooks.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox empty but rooks set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if state.queens.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox empty but queens set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if state.kings.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox empty but kings set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
       else
@@ -212,70 +210,70 @@ object BotMatchRunner:
         val pt    = piece.pieceType
         if color.isWhite then
           if !state.whitePieces.contains(sq) then
-            throw new RuntimeException(
+            sys.error(
               s"Desync: mailbox has white $pt but whitePieces not set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
             )
           if state.blackPieces.contains(sq) then
-            throw new RuntimeException(
+            sys.error(
               s"Desync: mailbox has white $pt but blackPieces set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
             )
         else
           if !state.blackPieces.contains(sq) then
-            throw new RuntimeException(
+            sys.error(
               s"Desync: mailbox has black $pt but blackPieces not set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
             )
           if state.whitePieces.contains(sq) then
-            throw new RuntimeException(
+            sys.error(
               s"Desync: mailbox has black $pt but whitePieces set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
             )
 
         if pt == PieceType.Pawn && !state.pawns.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox has Pawn but pawns not set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if pt == PieceType.Knight && !state.knights.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox has Knight but knights not set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if pt == PieceType.Bishop && !state.bishops.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox has Bishop but bishops not set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if pt == PieceType.Rook && !state.rooks.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox has Rook but rooks not set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if pt == PieceType.Queen && !state.queens.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox has Queen but queens not set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if pt == PieceType.King && !state.kings.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox has King but kings not set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
 
         if pt != PieceType.Pawn && state.pawns.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox has $pt but pawns set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if pt != PieceType.Knight && state.knights.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox has $pt but knights set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if pt != PieceType.Bishop && state.bishops.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox has $pt but bishops set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if pt != PieceType.Rook && state.rooks.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox has $pt but rooks set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if pt != PieceType.Queen && state.queens.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox has $pt but queens set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
         if pt != PieceType.King && state.kings.contains(sq) then
-          throw new RuntimeException(
+          sys.error(
             s"Desync: mailbox has $pt but kings set at ${sq.toNotation} (after $lastMove) in FEN: ${FenParser.serialize(state)}"
           )
 
@@ -313,6 +311,6 @@ case class MatchResult(
     durationMs: Long
 )
 
-enum GameOutcome:
+enum GameOutcome derives CanEqual:
   case Win(color: Color)
   case Draw
