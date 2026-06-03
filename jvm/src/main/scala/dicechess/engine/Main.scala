@@ -5,6 +5,11 @@ import org.jline.reader.{LineReaderBuilder, UserInterruptException, EndOfFileExc
 import org.jline.reader.impl.completer.StringsCompleter
 import org.jline.terminal.TerminalBuilder
 
+/** Primary entry point for the Dice Chess Engine JVM CLI.
+  *
+  * Initializes the interactive REPL shell with JLine-based tab-completion and parses execution inputs. Runs command
+  * loops until the user requests an exit.
+  */
 object Main:
   def main(args: Array[String]): Unit =
     val terminal = TerminalBuilder

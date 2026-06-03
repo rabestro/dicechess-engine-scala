@@ -6,10 +6,12 @@ import dicechess.engine.bench.BotMatchRunner
 import dicechess.engine.domain.FenParser
 import dicechess.engine.search.KingCaptureProbability
 
+/** Sealed CLI command hierarchy representing parsed REPL actions. */
 sealed trait CliCommand
 case class EvalCommand(fen: String, unicode: Boolean)                                    extends CliCommand
 case class ArenaCommand(base: String, opponent: String, games: Int, fen: Option[String]) extends CliCommand
 
+/** Declares command parse schemas, completions, and execution logic using the `decline` library. */
 object Commands:
 
   val fenOpt = Opts.arguments[String]("FEN").map(_.toList.mkString(" "))
