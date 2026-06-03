@@ -2,6 +2,11 @@ package dicechess.engine.cli
 
 import dicechess.engine.domain.{GameState, PieceType, Square}
 
+/** Renders [[dicechess.engine.domain.GameState]] boards to the terminal.
+  *
+  * Renders 8x8 boards to text using standard ASCII representations (e.g., 'K' / 'k') or high-resolution Unicode chess
+  * glyphs (e.g., '♔' / '♚').
+  */
 object BoardPrinter:
   def printBoard(state: GameState, useUnicode: Boolean): String =
     val sb = new StringBuilder()
