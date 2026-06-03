@@ -27,9 +27,11 @@ export default defineConfig({
 						{ label: 'Glossary', slug: 'architecture/glossary' },
 						{ label: 'Domain Modeling', slug: 'architecture/domain-modeling' },
 						{ label: 'Dice Chess FEN (DFEN)', slug: 'architecture/dice-chess-fen' },
-						{ label: 'Primitive Best-Move Search', slug: 'architecture/primitive-search' },
-						{ label: 'Search Roadmap & Evaluation', slug: 'architecture/search-roadmap' },
-						{ label: 'King Capture Test Cases', slug: 'architecture/search/king-capture-probability-test-cases' },
+						{
+							label: 'Search & AI Bots',
+							collapsed: true,
+							items: [{ autogenerate: { directory: 'architecture/search' } }],
+						},
 						{
 							label: 'Move Generation',
 							collapsed: true,
