@@ -298,12 +298,16 @@ object FenParser {
     if castling == "-" then 0
     else {
       var castlingInt = 0
-      castling.foreach {
-        case 'K' => castlingInt |= 1
-        case 'Q' => castlingInt |= 2
-        case 'k' => castlingInt |= 4
-        case 'q' => castlingInt |= 8
-        case c   => break(Left(s"Invalid castling character '$c'"))
+      castling.foreach { c =>
+        val bit = c match {
+          case 'K' => 1
+          case 'Q' => 2
+          case 'k' => 4
+          case 'q' => 8
+          case _   => break(Left(s"Invalid castling character '$c'"))
+        }
+        if (castlingInt & bit) != 0 then break(Left(s"Duplicate castling character '$c'"))
+        castlingInt |= bit
       }
       castlingInt
     }

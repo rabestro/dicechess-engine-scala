@@ -55,6 +55,16 @@ class FenParserSpec extends FunSuite:
       assertEquals(parsed.flags.castlingRights, expectedInt)
   }
 
+  test("return Left for duplicate castling characters (KK)") {
+    val result = FenParser.parse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KK - 0 1")
+    assertEquals(result, Left("Duplicate castling character 'K'"))
+  }
+
+  test("return Left for duplicate castling characters (KQqQ)") {
+    val result = FenParser.parse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQqQ - 0 1")
+    assertEquals(result, Left("Duplicate castling character 'Q'"))
+  }
+
   test("FenParser should return Left for invalid castling characters") {
     val invalidFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQx - 0 1"
     val parsed     = FenParser.parse(invalidFen)
