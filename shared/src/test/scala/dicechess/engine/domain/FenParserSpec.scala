@@ -33,6 +33,54 @@ class FenParserSpec extends FunSuite:
     assertEquals(serialized, fen)
   }
 
+  test("FenParser should correctly parse various castling rights") {
+    val base = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w "
+    val tail = " - 0 1"
+
+    val rights = List("KQkq", "KQ", "kq", "Kk", "Q", "-", "q")
+    for r <- rights do
+      val fen    = base + r + tail
+      val parsed = FenParser.parse(fen).toOption.get
+
+      assertEquals(FenParser.serialize(parsed), fen)
+
+      val expectedInt = r.foldLeft(0) { (acc, c) =>
+        c match
+          case 'K' => acc | 1
+          case 'Q' => acc | 2
+          case 'k' => acc | 4
+          case 'q' => acc | 8
+          case _   => acc
+      }
+      assertEquals(parsed.flags.castlingRights, expectedInt)
+  }
+
+  test("FenParser should return Left for invalid castling characters") {
+    val invalidFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQx - 0 1"
+    val parsed     = FenParser.parse(invalidFen)
+
+    assert(parsed.isLeft)
+    assert(parsed.left.toOption.get.contains("Invalid castling character 'x'"))
+
+    val hyphenInsideFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w K-q - 0 1"
+    val parsedHyphen    = FenParser.parse(hyphenInsideFen)
+    assert(parsedHyphen.isLeft)
+    assert(parsedHyphen.left.toOption.get.contains("Invalid castling character '-'"))
+  }
+
+  test("FenParser should return Left for invalid castling field length") {
+    val emptyCastlingFen =
+      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w  - 0 1" // Notice the double space making an empty field
+    val emptyParsed = FenParser.parse(emptyCastlingFen)
+    assert(emptyParsed.isLeft)
+    assert(emptyParsed.left.toOption.get.contains("Invalid castling field length"))
+
+    val tooLongFen    = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkqK - 0 1"
+    val tooLongParsed = FenParser.parse(tooLongFen)
+    assert(tooLongParsed.isLeft)
+    assert(tooLongParsed.left.toOption.get.contains("Invalid castling field length: 5"))
+  }
+
   test("FenParser should correctly handle complex mid-game positions") {
     val complexFen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
     val parsed     = FenParser.parse(complexFen)

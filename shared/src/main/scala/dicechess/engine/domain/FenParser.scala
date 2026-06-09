@@ -56,11 +56,7 @@ object FenParser {
         case "b"   => Color.Black
         case other => break(Left(s"Invalid active color '$other'"))
       val castling    = parts(2)
-      var castlingInt = 0
-      if castling.contains('K') then castlingInt |= 1
-      if castling.contains('Q') then castlingInt |= 2
-      if castling.contains('k') then castlingInt |= 4
-      if castling.contains('q') then castlingInt |= 8
+      val castlingInt = parseCastling(castling)
 
       val enPassantField = parts(3)
       var epFiles        = 0
@@ -290,5 +286,26 @@ object FenParser {
     }
 
     res.toString
+  }
+
+  /** Parses the castling FEN string to an integer bitmask. Uses a single pass `foreach` which is highly optimized in
+    * Scala 3. Directly breaks the enclosing boundary on invalid characters.
+    */
+  private inline def parseCastling(castling: String)(using boundary.Label[Either[String, GameState]]): Int = {
+    val len = castling.length
+    if len < 1 || len > 4 then break(Left(s"Invalid castling field length: $len"))
+
+    if castling == "-" then 0
+    else {
+      var castlingInt = 0
+      castling.foreach {
+        case 'K' => castlingInt |= 1
+        case 'Q' => castlingInt |= 2
+        case 'k' => castlingInt |= 4
+        case 'q' => castlingInt |= 8
+        case c   => break(Left(s"Invalid castling character '$c'"))
+      }
+      castlingInt
+    }
   }
 }
