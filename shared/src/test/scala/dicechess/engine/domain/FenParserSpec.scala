@@ -61,6 +61,11 @@ class FenParserSpec extends FunSuite:
 
     assert(parsed.isLeft)
     assert(parsed.left.toOption.get.contains("Invalid castling character 'x'"))
+
+    val hyphenInsideFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w K-q - 0 1"
+    val parsedHyphen    = FenParser.parse(hyphenInsideFen)
+    assert(parsedHyphen.isLeft)
+    assert(parsedHyphen.left.toOption.get.contains("Invalid castling character '-'"))
   }
 
   test("FenParser should return Left for invalid castling field length") {

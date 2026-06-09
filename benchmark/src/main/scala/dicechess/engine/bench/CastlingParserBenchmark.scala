@@ -3,6 +3,8 @@ package dicechess.engine.bench
 import org.openjdk.jmh.annotations.*
 import java.util.concurrent.TimeUnit
 import scala.compiletime.uninitialized
+import scala.util.boundary
+import boundary.break
 
 @BenchmarkMode(Array(Mode.Throughput, Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -16,39 +18,35 @@ class CastlingParserBenchmark:
   var castling: String = uninitialized
 
   @Benchmark
-  def parseContains(): Int = {
+  def parseOriginal(): Either[String, Int] = {
     var castlingInt = 0
     if castling.contains('K') then castlingInt |= 1
     if castling.contains('Q') then castlingInt |= 2
     if castling.contains('k') then castlingInt |= 4
     if castling.contains('q') then castlingInt |= 8
-    castlingInt
+    // The original didn't even do validation, so we just return Right
+    Right(castlingInt)
   }
 
-  @Benchmark
-  def parseWhileLoop(): Int = {
-    var castlingInt = 0
-    var i           = 0
-    while i < castling.length do
-      castling.charAt(i) match
+  private inline def parseCastlingNew(cStr: String)(using boundary.Label[Either[String, Int]]): Int = {
+    val len = cStr.length
+    if len < 1 || len > 4 then break(Left(s"Invalid castling field length: $len"))
+
+    if cStr == "-" then 0
+    else {
+      var castlingInt = 0
+      cStr.foreach {
         case 'K' => castlingInt |= 1
         case 'Q' => castlingInt |= 2
         case 'k' => castlingInt |= 4
         case 'q' => castlingInt |= 8
-        case _   =>
-      i += 1
-    castlingInt
+        case c   => break(Left(s"Invalid castling character '$c'"))
+      }
+      castlingInt
+    }
   }
 
   @Benchmark
-  def parseForeach(): Int = {
-    var castlingInt = 0
-    castling.foreach {
-      case 'K' => castlingInt |= 1
-      case 'Q' => castlingInt |= 2
-      case 'k' => castlingInt |= 4
-      case 'q' => castlingInt |= 8
-      case _   =>
-    }
-    castlingInt
+  def parseNew(): Either[String, Int] = boundary {
+    Right(parseCastlingNew(castling))
   }
