@@ -1,6 +1,5 @@
 package dicechess.engine.domain
 
-import scala.collection.mutable
 import scala.util.boundary, boundary.break
 
 /** Parser and serialiser for Forsyth-Edwards Notation (FEN).
@@ -45,7 +44,7 @@ object FenParser {
     * @return
     *   `Right(state)` on success, or `Left(errorMessage)` describing the first parse failure
     */
-  def parse(fen: String): Either[String, GameState] = try {
+  def parse(fen: String): Either[String, GameState] = try
     boundary {
       val parts = fen.split(" ")
       if parts.length < 4 then break(Left("Invalid FEN: insufficient parts"))
@@ -59,47 +58,9 @@ object FenParser {
       val castlingInt = parseCastling(castling)
 
       val (epFiles, enPassantBb) = parseEnPassant(parts(3))
-      val halfMove               = if parts.length > 4 then
-        parts(4).toIntOption match
-          case Some(v) if v >= 0 => v
-          case _                 => break(Left(s"Invalid half-move clock '${parts(4)}'"))
-      else 0
-
-      val fullMove = if parts.length > 5 then
-        parts(5).toIntOption match
-          case Some(v) if v >= 1 => v
-          case _                 => break(Left(s"Invalid full-move number '${parts(5)}'"))
-      else 1
-
-      val dicePool = if parts.length >= 7 then {
-        val poolField = parts(6)
-        if poolField == "-" then Nil
-        else {
-          val list = mutable.ListBuffer.empty[Int]
-          var idx  = 0
-          while idx < poolField.length do {
-            val char  = poolField.charAt(idx).toLower
-            val digit = char match {
-              case 'p' => 1
-              case 'n' => 2
-              case 'b' => 3
-              case 'r' => 4
-              case 'q' => 5
-              case 'k' => 6
-              case _   => 0
-            }
-            if digit > 0 then {
-              list += digit
-            } else {
-              break(Left(s"Invalid dice-pool character '${poolField.charAt(idx)}'"))
-            }
-            idx += 1
-          }
-          list.toList.sorted
-        }
-      } else {
-        Nil
-      }
+      val halfMove               = if parts.length > 4 then parseHalfMove(parts(4)) else 0
+      val fullMove               = if parts.length > 5 then parseFullMove(parts(5)) else 1
+      val dicePool               = if parts.length >= 7 then parseDicePool(parts(6)) else Nil
 
       val flags = GameFlags.fromList(activeColor, castlingInt, epFiles, dicePool, halfMove)
 
@@ -181,7 +142,7 @@ object FenParser {
         )
       )
     }
-  } catch {
+  catch {
     case e: Exception => Left(s"FEN parsing error: ${e.getMessage}")
   }
 
@@ -324,4 +285,60 @@ object FenParser {
       }
       (epFiles, enPassantBb)
     }
+
+  /** Parses the dice pool FEN string into a sorted list of dice values. */
+  private inline def parseDicePool(
+      poolField: String
+  )(using boundary.Label[Either[String, GameState]]): List[Int] =
+    if poolField == "-" then Nil
+    else {
+      var list: List[Int] = Nil
+      var idx             = 0
+      val len             = poolField.length
+
+      while idx < len do {
+        val c     = poolField.charAt(idx)
+        val digit = c match {
+          case 'p' | 'P' => 1
+          case 'n' | 'N' => 2
+          case 'b' | 'B' => 3
+          case 'r' | 'R' => 4
+          case 'q' | 'Q' => 5
+          case 'k' | 'K' => 6
+          case _         => break(Left(s"Invalid dice-pool character '$c'"))
+        }
+        list = digit :: list
+        idx += 1
+      }
+      list.sorted
+    }
+
+  private inline def parseHalfMove(
+      s: String
+  )(using boundary.Label[Either[String, GameState]]): Int = {
+    val v = parsePositiveInt(s)
+    if v >= 0 then v else break(Left(s"Invalid half-move clock '$s'"))
+  }
+
+  private inline def parseFullMove(
+      s: String
+  )(using boundary.Label[Either[String, GameState]]): Int = {
+    val v = parsePositiveInt(s)
+    if v >= 1 then v else break(Left(s"Invalid full-move number '$s'"))
+  }
+
+  /** Parses a positive integer from a string without allocating Option or throwing exceptions. */
+  private inline def parsePositiveInt(s: String): Int = {
+    var res   = 0
+    var i     = 0
+    val len   = s.length
+    var valid = len > 0
+    while i < len && valid do {
+      val c = s.charAt(i)
+      if c >= '0' && c <= '9' then res = res * 10 + (c - '0')
+      else valid = false
+      i += 1
+    }
+    if valid then res else -1
+  }
 }
