@@ -58,27 +58,8 @@ object FenParser {
       val castling    = parts(2)
       val castlingInt = parseCastling(castling)
 
-      val enPassantField = parts(3)
-      var epFiles        = 0
-      var enPassantBb    = Bitboard.empty
-      if enPassantField != "-" then {
-        var idx = 0
-        while idx < enPassantField.length do {
-          if idx + 2 <= enPassantField.length then {
-            val notation = enPassantField.substring(idx, idx + 2)
-            Square.fromNotation(notation) match {
-              case Some(sq) =>
-                epFiles |= (1 << (sq.file - 'a'))
-                enPassantBb = enPassantBb.add(sq)
-              case None => break(Left(s"Invalid en-passant notation '$notation'"))
-            }
-          } else {
-            break(Left(s"Invalid en-passant field '$enPassantField'"))
-          }
-          idx += 2
-        }
-      }
-      val halfMove = if parts.length > 4 then
+      val (epFiles, enPassantBb) = parseEnPassant(parts(3))
+      val halfMove               = if parts.length > 4 then
         parts(4).toIntOption match
           case Some(v) if v >= 0 => v
           case _                 => break(Left(s"Invalid half-move clock '${parts(4)}'"))
@@ -312,4 +293,35 @@ object FenParser {
       castlingInt
     }
   }
+
+  /** Parses the en-passant FEN string. Returns a tuple `(epFiles, enPassantBb)`. Uses an optimized direct character
+    * scan instead of creating intermediate strings and objects.
+    */
+  private inline def parseEnPassant(
+      enPassantField: String
+  )(using boundary.Label[Either[String, GameState]]): (Int, Bitboard) =
+    if enPassantField == "-" then (0, Bitboard.empty)
+    else {
+      val len = enPassantField.length
+      if len == 0 || len % 2 != 0 then break(Left(s"Invalid en-passant field '$enPassantField'"))
+
+      var epFiles     = 0
+      var enPassantBb = Bitboard.empty
+      var idx         = 0
+      while idx < len do {
+        val fileChar = enPassantField.charAt(idx)
+        val rankChar = enPassantField.charAt(idx + 1)
+
+        if fileChar < 'a' || fileChar > 'h' || rankChar < '1' || rankChar > '8' then
+          break(Left(s"Invalid en-passant notation '$fileChar$rankChar'"))
+
+        val sq = Square.fromIndex((rankChar - '1') * 8 + (fileChar - 'a'))
+        if enPassantBb.contains(sq) then break(Left(s"Duplicate en-passant square '$fileChar$rankChar'"))
+
+        epFiles |= (1 << (fileChar - 'a'))
+        enPassantBb = enPassantBb.add(sq)
+        idx += 2
+      }
+      (epFiles, enPassantBb)
+    }
 }
