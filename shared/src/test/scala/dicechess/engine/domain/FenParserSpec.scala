@@ -55,6 +55,27 @@ class FenParserSpec extends FunSuite:
       assertEquals(parsed.flags.castlingRights, expectedInt)
   }
 
+  test("FenParser should return Left for invalid castling characters") {
+    val invalidFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQx - 0 1"
+    val parsed     = FenParser.parse(invalidFen)
+
+    assert(parsed.isLeft)
+    assert(parsed.left.toOption.get.contains("Invalid castling character 'x'"))
+  }
+
+  test("FenParser should return Left for invalid castling field length") {
+    val emptyCastlingFen =
+      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w  - 0 1" // Notice the double space making an empty field
+    val emptyParsed = FenParser.parse(emptyCastlingFen)
+    assert(emptyParsed.isLeft)
+    assert(emptyParsed.left.toOption.get.contains("Invalid castling field length"))
+
+    val tooLongFen    = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkqK - 0 1"
+    val tooLongParsed = FenParser.parse(tooLongFen)
+    assert(tooLongParsed.isLeft)
+    assert(tooLongParsed.left.toOption.get.contains("Invalid castling field length: 5"))
+  }
+
   test("FenParser should correctly handle complex mid-game positions") {
     val complexFen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
     val parsed     = FenParser.parse(complexFen)
