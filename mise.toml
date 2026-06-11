@@ -78,6 +78,10 @@ run = "sbt scalafmtAll scalafixAll"
 description = "🔍 Verify code formatting"
 run = "sbt scalafmtCheckAll"
 
+[tasks."publish:local"]
+description = "📦 Publish the JVM artifact to the local Ivy repository (for downstream development)"
+run = "sbt rootJVM/publishLocal"
+
 [tasks."build:js"]
 description = "📦 Build optimized JavaScript bundle"
 run = "sbt rootJS/fullOptJS"

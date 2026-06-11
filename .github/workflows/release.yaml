@@ -124,6 +124,11 @@ jobs:
           git tag ${{ steps.bump_version.outputs.new_tag }}
           git push origin ${{ steps.bump_version.outputs.new_tag }}
 
+      - name: Publish JVM artifact to GitHub Packages (Maven)
+        run: sbt "set ThisBuild / version := \"${{ steps.bump_version.outputs.new_version }}\"" rootJVM/publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:

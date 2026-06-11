@@ -91,6 +91,36 @@ const bots = DiceChess.getAvailableBots();
 
 ---
 
+## 📦 Using the Engine as a JVM Library (Maven)
+
+Every release also publishes the JVM artifact `lv.id.jc:dicechess-engine-scala_3` to the
+[GitHub Packages Maven registry](https://github.com/rabestro/dicechess-engine-scala/packages).
+This is the integration path for JVM backends (e.g. `dicechess-analytics`) that need the engine
+as the source of truth for rules validation.
+
+GitHub Packages requires authentication even for public packages, so consumers need a token
+with `read:packages` scope (locally: `GITHUB_ACTOR` + `GITHUB_TOKEN` environment variables):
+
+```scala
+resolvers += "GitHub Packages (dicechess-engine)" at
+  "https://maven.pkg.github.com/rabestro/dicechess-engine-scala"
+
+credentials ++= (for {
+  user  <- sys.env.get("GITHUB_ACTOR")
+  token <- sys.env.get("GITHUB_TOKEN")
+} yield Credentials("GitHub Package Registry", "maven.pkg.github.com", user, token)).toSeq
+
+libraryDependencies += "lv.id.jc" %% "dicechess-engine-scala" % "<latest release>"
+```
+
+For local development against unreleased changes, publish to the local Ivy repository:
+
+```bash
+mise run publish:local
+```
+
+---
+
 ## 🗺️ Roadmap & Hackathon Milestones
 
 ```

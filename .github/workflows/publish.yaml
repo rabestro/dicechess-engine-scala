@@ -32,6 +32,11 @@ jobs:
       - name: Run checks
         run: mise run check
 
+      - name: Publish JVM artifact to GitHub Packages (Maven)
+        run: sbt "set ThisBuild / version := \"${GITHUB_REF_NAME#v}\"" rootJVM/publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build JavaScript package
         run: mise run package:prepare
 

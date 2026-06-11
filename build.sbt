@@ -22,6 +22,17 @@ ThisBuild / developers := List(
   )
 )
 
+// Publishing (JVM artifact → GitHub Packages Maven registry).
+// CI overrides the version with the clean tag value, e.g. `set ThisBuild / version := "1.2.4"`.
+ThisBuild / versionScheme := Some("early-semver")
+ThisBuild / publishTo := Some(
+  "GitHub Packages" at "https://maven.pkg.github.com/rabestro/dicechess-engine-scala"
+)
+ThisBuild / credentials ++= (for {
+  user  <- sys.env.get("GITHUB_ACTOR")
+  token <- sys.env.get("GITHUB_TOKEN")
+} yield Credentials("GitHub Package Registry", "maven.pkg.github.com", user, token)).toSeq
+
 lazy val root = crossProject(JSPlatform, JVMPlatform)
   .in(file("."))
   .settings(
@@ -88,5 +99,6 @@ lazy val benchmark = project
     name := "dicechess-benchmark",
     Compile / doc / sources := Seq.empty,
     coverageEnabled := false,
+    publish / skip := true,
     scalacOptions -= "-Werror"
   )
