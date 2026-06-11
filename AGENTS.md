@@ -1,21 +1,65 @@
 # AGENTS.md
 
-Branch naming rules and agent guidance
+Guidance for AI agents and contributors working on the Dice Chess engine.
 
-Allowed branch prefixes:
-- `task` — work items / tasks
-- `feat`  — new features
-- `bug`   — bug fixes
+## Project Context & Ecosystem Role
 
-Branch name pattern (required):
-  (task|feat|bug)/<issue-number>-<short-description>
-Example: `task/1234-fen-parser`
+This engine is the **single source of truth for Dice Chess rules** across the whole ecosystem.
+Complex game logic (move legality, the Maximum Micro-moves Rule, DFEN parsing/validation,
+probability calculations) lives here, in Scala 3 — downstream projects must consume it rather
+than re-implement it.
 
-Agent rules (Copilot / automation):
-- Do not implement or open a PR unless an issue exists and the branch is named according to the pattern.
-- Agents may create draft changes, suggest code, and open the PR linked to the issue.
-- Agents should run `mise run format` on any generated code and ensure `mise run check` passes successfully locally before proposing a PR.
-- Human retains the ultimate authority to review, approve, and merge the PR.
+Published artifacts and their consumers:
+
+| Artifact | Registry | Consumers |
+|---|---|---|
+| `@rabestro/dicechess-engine` (npm, Scala.js ES module) | GitHub Packages npm | `dicechess-analytics-ui`, web frontends |
+| `lv.id.jc:dicechess-engine-scala_3` (JVM jar) | GitHub Packages Maven | `dicechess-analytics` (Scala 3 backend), ETL, bots |
+
+Consequences for development:
+
+- **Public API stability matters.** Breaking changes to the JS API (`js/src/.../api/JsApi.scala`),
+  the DFEN format, or public JVM types require a deliberate decision and a minor/major version bump.
+- The DFEN format is the shared contract:
+  `<placement> <activeColor> <castling> <enPassant> <halfMove> <fullMove> [<dicePool>]`.
+- Sibling repositories: `dicechess-analytics` (PostgreSQL + Scala 3 backend, the games database),
+  `dicechess-analytics-ui` (SvelteKit frontend), `dicechess-bots`.
+  `dicechess-lab` is frozen and serves only as an experiments archive.
+
+## Architecture Map
+
+Cross-compiled sbt project (JVM + Scala.js) — shared core, thin platform layers:
+
+- `shared/src/main/scala/dicechess/engine/domain/` — immutable game state: opaque types
+  (`Bitboard`, `Square`, `Piece`, `Color`), `Position`, `GameFlags`, `FenParser` (DFEN).
+- `shared/.../movegen/` — bitboard move generation: `MagicBitboards` (sliding pieces),
+  `LeaperAttacks`, `PawnGeneration`, `LegalMovesFilter` (Maximum Micro-moves Rule).
+- `shared/.../search/` — `TurnGenerator` (exhaustive micro-move paths), `Evaluator`,
+  `BotRegistry` (six strategies), `KingCaptureProbability` (216 dice outcomes).
+- `jvm/` — JLine REPL CLI (`Main.scala`), bot arena (`bench/BotMatchRunner.scala`).
+- `js/` — `api/JsApi.scala`: the `@JSExportTopLevel("DiceChess")` public JS API.
+- `benchmark/` — JMH micro-benchmarks (excluded from coverage and publishing).
+
+## Quality Gates (non-negotiable)
+
+- `mise run check` must pass before any PR: scalafmt + scalafix checks, full test suite, coverage.
+- The compiler is strict: `-Werror`, `-Wunused:all`, `-language:strictEquality`, `-Yexplicit-nulls`.
+- Statement coverage minimum: **85%** (`coverageFailOnMinimum := true`).
+- Hot paths (movegen, search) are allocation-sensitive: prefer opaque types, `inline def`,
+  bitwise ops; validate performance-affecting changes with JMH (`mise run bench:quick`).
+- SonarQube scans run in CI; use the `sonar` CLI locally for pre-checks.
+
+## Releases & Publishing
+
+- Releases are cut via the manual **"Ops: Release"** workflow (`release.yaml`): version bump in
+  `build.sbt` → git tag `vX.Y.Z` → npm package + Maven artifact + GitHub Release assets.
+- `publish.yaml` handles manually pushed tags. Tags pushed by `release.yaml` via `GITHUB_TOKEN`
+  do **not** trigger `publish.yaml` (GitHub recursion guard) — that is why both workflows
+  contain the same publish steps.
+- Both registries receive the clean version (no `-SNAPSHOT`); CI overrides the sbt version
+  from the tag.
+- Downstream development against unreleased changes: `mise run publish:local` publishes the
+  JVM artifact to the local Ivy repository.
 
 ## Developer Workflows
 
@@ -27,6 +71,23 @@ Agent rules (Copilot / automation):
   - `sonar list issues --project rabestro_dicechess-engine-scala`: List all current issues.
   - `sonar verify --file <path>`: Run a server-side analysis on a specific file.
   - `sonar help`: Show all available commands.
+
+## Branch Naming & Agent Rules
+
+Allowed branch prefixes:
+- `task` — work items / tasks
+- `feat` — new features
+- `bug` — bug fixes
+
+Branch name pattern (required):
+  (task|feat|bug)/<issue-number>-<short-description>
+Example: `task/1234-fen-parser`
+
+Agent rules (Claude / Copilot / automation):
+- Do not implement or open a PR unless an issue exists and the branch is named according to the pattern.
+- Agents may create draft changes, suggest code, and open the PR linked to the issue.
+- Agents should run `mise run format` on any generated code and ensure `mise run check` passes successfully locally before proposing a PR.
+- Human retains the ultimate authority to review, approve, and merge the PR.
 
 ## Issue & Branch Management
 
@@ -107,7 +168,7 @@ Assign tasks to these milestones logically. Each milestone must be fully tested 
 > [!IMPORTANT]
 > You MUST strictly assign tasks ONLY to the following milestones. Do not create or invent new milestone names.
 
-* **v0.1 - Foundation & Core Types**: Project setup (SBT 1.x / Scala 3), configuration, `mise` setup. Implementation of basic Opaque Types (`Bitboard`, `Square`, `Piece`, `Color`). Basic FEN parsing and serialization.
+* **v0.1 - Foundation & Core Types**: Project setup (SBT 1.x / Scala 3), configuration, `mise` setup. Implementation of basic Opaque Types (`Bitboard`, `Square`, `Piece`, `Color`). Basic FEN parsing and serialization. *(closed)*
 * **v0.2 - Move Generation (Classic)**: Bitwise operations, precomputed attack tables (Magic Bitboards). Pawn, knight, king, and sliding piece move generation. Perft (Performance Test) framework integration to verify move correctness.
 * **v0.3 - Dice Chess Mechanics**: Dice roll representations, filtering pseudo-legal moves based on dice outcomes. Game state management with random events.
 * **v0.4 - Basic Bot & Gameplay**: Dedicated test harness (Svelte/Vite PWA). Implementation of a simple random or greedy bot using Scala.js to validate game state transitions and dice mechanics in a live browser environment.
@@ -140,8 +201,6 @@ Use ONLY these labels when generating `gh` commands. Do not use any labels outsi
 
 * **System**: 
   * `ai-ready` — Mandatory for well-scoped tasks. Acts as a strict contract that the Definition of Done is absolute and ready for an AI agent to implement.
-
-
 
 ## Documentation Standards (Scaladoc 3)
 
