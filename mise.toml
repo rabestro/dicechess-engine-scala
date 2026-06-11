@@ -101,15 +101,21 @@ run = "sbt \"project rootJVM\" \"Test / runMain dicechess.engine.movegen.DocGene
 description = "📝 Generate visual test cases catalog for King Capture Probability"
 run = "sbt \"project rootJVM\" \"Test / runMain dicechess.engine.search.KingCaptureDocGenerator\""
 
+# Single sbt session for all generators: parallel depends would boot two sbt
+# instances in the same project and collide on the server socket (#326).
+[tasks."docs:generate:all"]
+description = "📝 Generate all visual test-case catalogs in a single sbt session"
+run = "sbt \"project rootJVM\" \"Test / runMain dicechess.engine.movegen.DocGenerator\" \"Test / runMain dicechess.engine.search.KingCaptureDocGenerator\""
+
 [tasks."docs:dev"]
 description = "🚀 Run the documentation site dev server"
-depends = ["docs:generate", "docs:search:generate"]
+depends = ["docs:generate:all"]
 run = "npm run dev"
 dir = "docs"
 
 [tasks."docs:build"]
 description = "📦 Build production-ready documentation static site"
-depends = ["docs:generate", "docs:search:generate"]
+depends = ["docs:generate:all"]
 run = "npm run build"
 dir = "docs"
 
