@@ -15,7 +15,6 @@ ripgrep = "latest"             # High-performance code search (grep replacement)
 ast-grep = "latest"            # Structural AST code search and rewrite utility
 tokei = "latest"               # Code statistics engine (LOC, complexity analysis)
 "aqua:tealdeer-rs/tealdeer" = "latest"      # Simplified man pages (tldr)
-"aqua:SonarSource/sonarqube-cli" = "latest" # SonarQube CLI for static analysis
 
 [tasks."setup:tools"]
 description = "🛠️  Install system and build dependencies (SBT, universal-ctags, tree)"
