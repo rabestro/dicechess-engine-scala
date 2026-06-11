@@ -3,7 +3,7 @@ title: CI/CD & Automated Releases
 description: In-depth guide on the automated release pipeline, continuous integration, and release workflows for the Dice Chess Engine.
 ---
 
-The Dice Chess Engine is a high-performance cross-platform library compiled for both the JVM and Scala.js (NPM). To ensure absolute stability and ease of deployment, the repository implements a highly automated **CI/CD and Release pipeline** split into two primary workflows: **CI (Continuous Integration)** and **Ops (Release Automation & Delivery)**.
+The Dice Chess Engine is a high-performance cross-platform library compiled for both the JVM and Scala.js. Every release delivers **two artifacts**: the NPM package `@rabestro/dicechess-engine` (Scala.js, for web consumers) and the Maven artifact `lv.id.jc:dicechess-engine-scala_3` (JVM, for backends such as `dicechess-analytics`). To ensure absolute stability and ease of deployment, the repository implements a highly automated **CI/CD and Release pipeline** split into two primary workflows: **CI (Continuous Integration)** and **Ops (Release Automation & Delivery)**.
 
 ---
 
@@ -17,7 +17,8 @@ sequenceDiagram
     actor Dev as Developer
     participant Ops as GitHub Actions<br/>(Ops: Release)
     participant Git as Git Repository<br/>(main)
-    participant Reg as GitHub Packages<br/>(NPM Registry)
+    participant Npm as GitHub Packages<br/>(NPM Registry)
+    participant Mvn as GitHub Packages<br/>(Maven Registry)
 
     Dev->>Ops: Triggers Release (patch/minor/major)
     activate Ops
@@ -26,8 +27,9 @@ sequenceDiagram
     Ops->>Ops: Calculates next version (e.g. 0.1.3)
     Ops->>Git: Updates build.sbt to 0.1.3-SNAPSHOT, commits & pushes
     Ops->>Git: Creates & pushes Git tag v0.1.3
+    Ops->>Mvn: Publishes lv.id.jc:dicechess-engine-scala_3 (JVM jar)
     Ops->>Ops: Setup NodeJS 26 & builds JS package (mise run package:prepare)
-    Ops->>Reg: Publishes @rabestro/dicechess-engine package
+    Ops->>Npm: Publishes @rabestro/dicechess-engine package
     Ops->>Ops: Creates GitHub Release & uploads assets (js/d.ts)
     deactivate Ops
 ```
@@ -55,6 +57,7 @@ sequenceDiagram
   * **Version Calculation**: Bumps the latest tag (e.g. `v0.1.2` ➡️ `v0.1.3` for a `patch` bump).
   * **Descriptor Sync**: Programmatically updates the `version` variable inside `build.sbt` to the new `-SNAPSHOT` format (e.g., `0.1.3-SNAPSHOT`).
   * **Commit & Tag**: Commits the updated `build.sbt` back to the repository and pushes to `main`, then pushes a new Git tag (e.g., `v0.1.3`) pointing to this commit.
+  * **Maven Registry Publish**: Publishes the JVM artifact `lv.id.jc:dicechess-engine-scala_3` to the GitHub Packages Maven registry with the clean release version (the `-SNAPSHOT` suffix is overridden from the tag). See [Maven Artifact & JVM Integration](/dicechess-engine-scala/guidelines/maven-artifact/).
   * **NPM Compilation**: Sets up Node.js 26 and builds the optimized Scala.js Javascript package and TypeScript declarations via `mise run package:prepare`.
   * **NPM Registry Publish**: Publishes the package `@rabestro/dicechess-engine` to the GitHub Packages registry.
   * **Release Creation & Upload**: Creates the GitHub Release (generating release notes automatically) and uploads the generated `dicechess-engine.js` and `dicechess-engine.d.ts` directly as release assets.

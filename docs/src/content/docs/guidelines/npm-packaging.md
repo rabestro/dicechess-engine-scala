@@ -1,10 +1,10 @@
 ---
 title: NPM Packaging & Local Integration
-description: How the Scala.js engine is packaged for NPM, why the logic lives in mise, and how to test changes locally with dicechess-lab.
+description: How the Scala.js engine is packaged for NPM, why the logic lives in mise, and how to test changes locally in downstream frontends.
 ---
 
 The Dice Chess Engine is a **cross-platform library** compiled for both the JVM and **Scala.js**.
-The Scala.js output is published as the [`@rabestro/dicechess-engine`](https://github.com/rabestro/dicechess-engine-scala/pkgs/npm/dicechess-engine) NPM package to the GitHub Package Registry and consumed by the [dicechess-lab](https://github.com/rabestro/dicechess-lab) frontend.
+The Scala.js output is published as the [`@rabestro/dicechess-engine`](https://github.com/rabestro/dicechess-engine-scala/pkgs/npm/dicechess-engine) NPM package to the GitHub Package Registry and consumed by web frontends — primarily [dicechess-analytics-ui](https://github.com/rabestro/dicechess-analytics-ui) (the frozen [dicechess-lab](https://github.com/rabestro/dicechess-lab) was the original consumer). JVM backends consume the engine via the [Maven artifact](/dicechess-engine-scala/guidelines/maven-artifact/) instead.
 
 Two `mise` tasks manage the packaging lifecycle:
 
