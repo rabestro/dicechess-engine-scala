@@ -47,7 +47,8 @@ Cross-compiled sbt project (JVM + Scala.js) — shared core, thin platform layer
 - Statement coverage minimum: **85%** (`coverageFailOnMinimum := true`).
 - Hot paths (movegen, search) are allocation-sensitive: prefer opaque types, `inline def`,
   bitwise ops; validate performance-affecting changes with JMH (`mise run bench:quick`).
-- SonarQube scans run in CI; use the `sonar` CLI locally for pre-checks.
+- SonarCloud scans run in CI; locally, agents can query issues and quality gates via the
+  SonarQube MCP server configured in `.mcp.json` (requires `SONARQUBE_TOKEN` in the environment).
 
 ## Releases & Publishing
 
@@ -67,10 +68,10 @@ Cross-compiled sbt project (JVM + Scala.js) — shared core, thin platform layer
 - **Code Formatting**: `mise run format` will run scalafmt across all sources.
 - **Local CI validation**: `mise run check` automatically runs formatting checks, compiles everything, and executes the tests.
 - **Interactive Shell**: `mise run console` spins up a Scala 3 REPL pre-configured with your project context.
-- **Static Analysis (SonarQube)**: Use the `sonar` CLI for detecting code quality and security issues.
-  - `sonar list issues --project rabestro_dicechess-engine-scala`: List all current issues.
-  - `sonar verify --file <path>`: Run a server-side analysis on a specific file.
-  - `sonar help`: Show all available commands.
+- **Static Analysis (SonarCloud)**: Use the SonarQube MCP server (configured in `.mcp.json`,
+  Docker-based) to list issues and check quality gates for project
+  `rabestro_dicechess-engine-scala`. Requires the `SONARQUBE_TOKEN` environment variable
+  (generate at https://sonarcloud.io/account/security).
 
 ## Branch Naming & Agent Rules
 
