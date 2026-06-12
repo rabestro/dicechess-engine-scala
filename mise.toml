@@ -4,7 +4,9 @@ java = "temurin-25"            # Primary runtime, aligned with CI (Java 25)
 node = "26"                    # Required for Astro/Starlight documentation
 
 # --- Security & Hygiene ---
-"pipx:pre-commit" = "4.6.0"    # Local git hooks for security and linting
+lefthook = "latest"            # Git hooks manager (language-agnostic, parallel)
+betterleaks = "latest"         # Secret scanning for staged/pushed commits
+scalafmt = "3.11.1"            # native CLI; MUST match version in .scalafmt.conf
 
 # --- AI & Automation (Agentic Tools) ---
 gh = "latest"                  # GitHub CLI for PRs, issues and workflow management
@@ -124,9 +126,9 @@ run = "npm run build"
 dir = "docs"
 
 [tasks."hook:install"]
-description = "🪝 Install configured pre-commit hooks into local .git config"
-run = "pre-commit install"
+description = "🪝 Register Git hooks via lefthook"
+run = "lefthook install"
 
 [tasks."hook:run"]
-description = "🏃 Run all configured pre-commit hooks manually across the entire codebase"
-run = "pre-commit run --all-files"
+description = "🏃 Run all pre-commit hook jobs manually across the entire codebase"
+run = "lefthook run pre-commit --all-files"
