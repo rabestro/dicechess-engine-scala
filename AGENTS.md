@@ -73,6 +73,23 @@ Cross-compiled sbt project (JVM + Scala.js) — shared core, thin platform layer
   `rabestro_dicechess-engine-scala`. Requires the `SONARQUBE_TOKEN` environment variable
   (generate at https://sonarcloud.io/account/security).
 
+## Task Routing & Model Economy
+
+Tasks differ in the AI-model capability they require; route deliberately instead of
+defaulting to the strongest model:
+
+- **Frontier tier** — architecture decisions, engine algorithms, cross-repo work,
+  ambiguous problems, high blast radius (schema, public APIs, release pipelines).
+- **Mid tier** — well-scoped features following existing patterns, refactors under
+  good test coverage, addressing review feedback.
+- **Routine tier** — config rollouts, documentation fixes, mechanical edits, tests
+  written from a complete spec. The quality gates (`mise run check`, CI, review
+  bots) catch failures cheaply, which is what makes this tier safe.
+
+Orchestrating agents should delegate routine sub-tasks to cheaper models where the
+harness supports it. When in doubt, escalate one tier up: reviewer time is more
+expensive than tokens.
+
 ## Branch Naming & Agent Rules
 
 Allowed branch prefixes:
