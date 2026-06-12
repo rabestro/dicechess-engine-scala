@@ -30,7 +30,7 @@ graph LR
     E --> F["Generate publish-ready package.json"]
 ```
 
-1. **Compiles Scala.js** — the task depends on `build:js`, which runs `sbt rootJS/fullOptJS`
+1. **Compiles Scala.js** — the task depends on `js:build`, which runs `sbt rootJS/fullOptJS`
    to produce an optimized JavaScript bundle.
 
 2. **Synchronizes versioning** — reads the current project version from `build.sbt`

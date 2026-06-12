@@ -72,7 +72,7 @@ git push origin --tags          # Push tags
 Once your PR is merged to `main`:
 - GitHub Actions `publish.yml` workflow triggers automatically
 - `mise run check` validates the build
-- `mise run build:js` compiles the JavaScript
+- `mise run js:build` compiles the JavaScript
 - `mise run package:prepare` prepares the npm package
 - Package is published to GitHub Package Registry
 - GitHub Release is created with auto-generated release notes

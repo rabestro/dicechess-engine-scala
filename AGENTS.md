@@ -65,6 +65,10 @@ Cross-compiled sbt project (JVM + Scala.js) — shared core, thin platform layer
 ## Developer Workflows
 
 - **Core Runner**: Use `mise run <task>` from the root of the repository for all development tasks.
+- **Task Naming Convention**: bare verbs for repo-wide lifecycle tasks (`setup`, `compile`,
+  `test`, `check`, `format`, `run`, `clean`); `domain:action` with a colon for namespaced
+  tasks (`js:build`, `docs:dev`, `bench:quick`, `hook:install`). Same convention across all
+  Dice Chess repositories.
 - **Code Formatting**: `mise run format` will run scalafmt across all sources.
 - **Local CI validation**: `mise run check` automatically runs formatting checks, compiles everything, and executes the tests.
 - **Interactive Shell**: `mise run console` spins up a Scala 3 REPL pre-configured with your project context.
