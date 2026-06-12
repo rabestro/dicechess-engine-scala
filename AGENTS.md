@@ -188,7 +188,7 @@ Use ONLY these labels when generating `gh` commands. Do not use any labels outsi
   * `testing` — Adding unit, property-based, or integration tests.
   * `performance` — Micro-optimizations and engine search speedups.
   * `ci-cd` — GitHub Actions, build scripts, or mise configuration.
-  * `dependencies` — Dependency updates (applied by dependabot).
+  * `dependencies` — Dependency updates (applied by Dependabot).
 
 * **Domains** (this repository only):
   * `core-types` — Board, Bitboards, Pieces, and FEN parser.
