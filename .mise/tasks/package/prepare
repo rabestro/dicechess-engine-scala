@@ -12,7 +12,8 @@ CLEAN_VERSION=$(echo "$VERSION" | sed 's/-SNAPSHOT//')
 mkdir -p dist
 
 # Sync version in the root package.json
-sed -i.bak "s/\"version\": \"[^\"]*\"/\"version\": \"$CLEAN_VERSION\"\/" package.json && rm package.json.bak
+sed -i.bak "s/\"version\": \"[^\"]*\"/\"version\": \"$CLEAN_VERSION\"/" package.json
+rm package.json.bak
 
 # Copy assets to the distribution folder
 cp js/target/scala-3.8.3/dicechess-engine-scala-opt/main.js dist/dicechess-engine.js

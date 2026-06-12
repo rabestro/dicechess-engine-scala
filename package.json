@@ -1,34 +1,34 @@
 {
-  "name": "@rabestro/dicechess-engine",
-  "version": "1.0.2",
-  "type": "module",
-  "description": "High-performance Dice Chess engine in Scala.js",
-  "main": "dist/dicechess-engine.js",
-  "types": "dist/dicechess-engine.d.ts",
-  "files": [
-    "dist"
-  ],
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
-  "homepage": "https://jc.id.lv/dicechess-engine-scala/",
-  "bugs": {
-    "url": "https://github.com/rabestro/dicechess-engine-scala/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/rabestro/dicechess-engine-scala.git"
-  },
-  "keywords": [
-    "chess",
-    "dice-chess",
-    "engine",
-    "scala-js"
-  ],
-  "author": "Jegors Čemisovs",
-  "license": "AGPL-3.0",
-  "engines": {
-    "node": ">=18"
-  },
-  "sideEffects": false
+	"name": "@rabestro/dicechess-engine",
+	"version": "1.2.4",
+	"type": "module",
+	"description": "High-performance Dice Chess engine in Scala.js",
+	"main": "dist/dicechess-engine.js",
+	"types": "dist/dicechess-engine.d.ts",
+	"files": [
+		"dist"
+	],
+	"publishConfig": {
+		"registry": "https://npm.pkg.github.com"
+	},
+	"homepage": "https://jc.id.lv/dicechess-engine-scala/",
+	"bugs": {
+		"url": "https://github.com/rabestro/dicechess-engine-scala/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/rabestro/dicechess-engine-scala.git"
+	},
+	"keywords": [
+		"chess",
+		"dice-chess",
+		"engine",
+		"scala-js"
+	],
+	"author": "Jegors Čemisovs",
+	"license": "AGPL-3.0",
+	"engines": {
+		"node": ">=18"
+	},
+	"sideEffects": false
 }
