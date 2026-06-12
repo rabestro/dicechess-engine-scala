@@ -1,0 +1,48 @@
+# Domain labels from package paths
+core-types:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'shared/src/main/scala/dicechess/engine/domain/**'
+move-gen:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'shared/src/main/scala/dicechess/engine/movegen/**'
+search:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'shared/src/main/scala/dicechess/engine/search/**'
+evaluation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/Evaluator*.scala'
+api:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'js/**'
+performance:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'benchmark/**'
+
+# Type labels from paths
+testing:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/src/test/**'
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.md'
+          - 'docs/**'
+ci-cd:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - 'mise.toml'
+          - '.pre-commit-config.yaml'
+
+# Type labels from the branch naming convention: (task|feat|bug)/<issue>-<desc>
+enhancement:
+  - head-branch: ['^feat/']
+bug:
+  - head-branch: ['^bug/']
