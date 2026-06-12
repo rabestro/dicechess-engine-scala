@@ -16,6 +16,9 @@ ast-grep = "latest"            # Structural AST code search and rewrite utility
 tokei = "latest"               # Code statistics engine (LOC, complexity analysis)
 "aqua:tealdeer-rs/tealdeer" = "latest"      # Simplified man pages (tldr)
 "aqua:SonarSource/sonarqube-cli" = "latest" # SonarQube CLI for static analysis
+[tasks.setup]
+description = "📦 Install all project dependencies and register Git hooks locally"
+depends = ["setup:tools", "hook:install"]
 
 [tasks."setup:tools"]
 description = "🛠️  Install system and build dependencies (SBT, universal-ctags, tree)"
@@ -78,11 +81,11 @@ run = "sbt scalafmtAll scalafixAll"
 description = "🔍 Verify code formatting"
 run = "sbt scalafmtCheckAll"
 
-[tasks."build:js"]
+[tasks."js:build"]
 description = "📦 Build optimized JavaScript bundle"
 run = "sbt rootJS/fullOptJS"
 
-[tasks."build:js:dev"]
+[tasks."js:dev"]
 description = "📦 Build fast JavaScript bundle for local dev"
 run = "sbt rootJS/fastOptJS"
 
@@ -94,19 +97,19 @@ run = "rm -rf dist"
 description = "📝 Generate visual test cases catalog from JSON files"
 run = "sbt \"project rootJVM\" \"Test / runMain dicechess.engine.movegen.DocGenerator\""
 
-[tasks."docs:search:generate"]
+[tasks."docs:generate-search"]
 description = "📝 Generate visual test cases catalog for King Capture Probability"
 run = "sbt \"project rootJVM\" \"Test / runMain dicechess.engine.search.KingCaptureDocGenerator\""
 
 [tasks."docs:dev"]
 description = "🚀 Run the documentation site dev server"
-depends = ["docs:generate", "docs:search:generate"]
+depends = ["docs:generate", "docs:generate-search"]
 run = "npm run dev"
 dir = "docs"
 
 [tasks."docs:build"]
 description = "📦 Build production-ready documentation static site"
-depends = ["docs:generate", "docs:search:generate"]
+depends = ["docs:generate", "docs:generate-search"]
 run = "npm run build"
 dir = "docs"
 

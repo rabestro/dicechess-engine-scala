@@ -20,6 +20,9 @@ Agent rules (Copilot / automation):
 ## Developer Workflows
 
 - **Core Runner**: Use `mise run <task>` from the root of the repository for all development tasks.
+- **Task Naming Convention**: bare verbs for repo-wide lifecycle tasks (`setup`, `format`,
+  `check`, `test`, `dev`, `clean`); `domain:action` with a colon for namespaced tasks (`js:build`,
+  `docs:build`, `bench:quick`). Same convention is shared across all Dice Chess repositories.
 - **Code Formatting**: `mise run format` will run scalafmt across all sources.
 - **Local CI validation**: `mise run check` automatically runs formatting checks, compiles everything, and executes the tests.
 - **Interactive Shell**: `mise run console` spins up a Scala 3 REPL pre-configured with your project context.
