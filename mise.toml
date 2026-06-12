@@ -16,6 +16,10 @@ ast-grep = "latest"            # Structural AST code search and rewrite utility
 tokei = "latest"               # Code statistics engine (LOC, complexity analysis)
 "aqua:tealdeer-rs/tealdeer" = "latest"      # Simplified man pages (tldr)
 
+[tasks.setup]
+description = "📦 Install tooling and register Git hooks locally"
+depends = ["setup:tools", "hook:install"]
+
 [tasks."setup:tools"]
 description = "🛠️  Install system and build dependencies (SBT, universal-ctags, tree)"
 run_windows = """
@@ -81,11 +85,11 @@ run = "sbt scalafmtCheckAll"
 description = "📦 Publish the JVM artifact to the local Ivy repository (for downstream development)"
 run = "sbt rootJVM/publishLocal"
 
-[tasks."build:js"]
+[tasks."js:build"]
 description = "📦 Build optimized JavaScript bundle"
 run = "sbt rootJS/fullOptJS"
 
-[tasks."build:js:dev"]
+[tasks."js:dev"]
 description = "📦 Build fast JavaScript bundle for local dev"
 run = "sbt rootJS/fastOptJS"
 

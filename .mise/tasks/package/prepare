@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #MISE description="📦 Prepare the distribution folder for the npm package"
-#MISE depends=["build:js"]
+#MISE depends=["js:build"]
 
 set -euo pipefail
 
