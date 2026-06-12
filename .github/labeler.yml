@@ -40,6 +40,8 @@ ci-cd:
           - '.github/**'
           - 'mise.toml'
           - '.pre-commit-config.yaml'
+          - 'build.sbt'
+          - 'project/**'
 
 # Type labels from the branch naming convention: (task|feat|bug)/<issue>-<desc>
 enhancement:
