@@ -126,8 +126,7 @@ Agent rules (Claude / Copilot / automation):
     --body-file "temp_issue.md" \
     --milestone "v0.1 - Foundation & Core Types" \
     --label "enhancement" \
-    --label "core-types" \
-    --label "ai-ready"
+    --label "core-types"
 
   rm temp_issue.md
   ```
@@ -154,8 +153,7 @@ Agent rules (Claude / Copilot / automation):
     --body-file "temp_issue.md" `
     --milestone "v0.1 - Foundation & Core Types" `
     --label "enhancement" `
-    --label "core-types" `
-    --label "ai-ready"
+    --label "core-types"
 
   Remove-Item "temp_issue.md"
   ```
@@ -182,26 +180,23 @@ Assign tasks to these milestones logically. Each milestone must be fully tested 
 
 Use ONLY these labels when generating `gh` commands. Do not use any labels outside of this list.
 
-* **Types**: 
+* **Shared core** (identical across all Dice Chess repositories):
   * `bug` — Code issues, logical defects, or runtime failures.
   * `enhancement` — Functional improvements or new features.
   * `refactoring` — Design restructuring without behavioral changes.
   * `documentation` — Inline docstrings, guides, or AGENTS.md updates.
   * `testing` — Adding unit, property-based, or integration tests.
   * `performance` — Micro-optimizations and engine search speedups.
-  * `architecture` — Global module design or tech stack switches.
   * `ci-cd` — GitHub Actions, build scripts, or mise configuration.
+  * `dependencies` — Dependency updates (applied by dependabot).
 
-* **Domains**:
+* **Domains** (this repository only):
   * `core-types` — Board, Bitboards, Pieces, and FEN parser.
   * `move-gen` — Move generator, Bitwise operations, attack tables.
   * `search` — Expectimax, Loom/Virtual Threads, pruning, Transposition Tables.
   * `evaluation` — Static board evaluators, Piece-Square tables.
   * `api` — HTTP, WebSockets, JSON serialization.
   * `infrastructure` — Docker, cloud hosting, VM configurations.
-
-* **System**: 
-  * `ai-ready` — Mandatory for well-scoped tasks. Acts as a strict contract that the Definition of Done is absolute and ready for an AI agent to implement.
 
 ## Documentation Standards (Scaladoc 3)
 
