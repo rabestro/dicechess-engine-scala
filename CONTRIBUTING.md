@@ -68,14 +68,14 @@ git push origin --tags          # Push tags
 - Reference the release commit: `Closes #XX`
 - Wait for CI checks to pass
 
-#### 6. Merge & Auto-Publish
-Once your PR is merged to `main`:
-- GitHub Actions `publish.yml` workflow triggers automatically
-- `mise run check` validates the build
-- `mise run js:build` compiles the JavaScript
-- `mise run package:prepare` prepares the npm package
-- Package is published to GitHub Package Registry
-- GitHub Release is created with auto-generated release notes
+#### 6. Auto-Publish
+When the version tag is pushed, the GitHub Actions `publish.yaml` workflow triggers
+automatically. It runs sbt directly (no mise on the runner — see the
+[Releases](docs/src/content/docs/architecture/releases.md) doc):
+- Validation: `sbt scalafmtCheckAll 'scalafixAll --check' clean coverage test coverageReport`
+- Publishes the JVM artifact to GitHub Packages (Maven)
+- Builds the npm package (`sbt rootJS/fullOptJS` + the `package/prepare` script) and publishes it
+- Creates a GitHub Release with auto-generated release notes
 
 ### Workflow Diagram
 ```
