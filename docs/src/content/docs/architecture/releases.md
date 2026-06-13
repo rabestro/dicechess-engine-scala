@@ -22,13 +22,13 @@ sequenceDiagram
 
     Dev->>Ops: Triggers Release (patch/minor/major)
     activate Ops
-    Ops->>Ops: 🛡️ Runs validation checks (mise run check)
+    Ops->>Ops: 🛡️ Runs validation checks (sbt scalafmt + scalafix + coverage)
     Note over Ops: If all tests and styles pass:
     Ops->>Ops: Calculates next version (e.g. 0.1.3)
     Ops->>Git: Updates build.sbt to 0.1.3-SNAPSHOT, commits & pushes
     Ops->>Git: Creates & pushes Git tag v0.1.3
     Ops->>Mvn: Publishes lv.id.jc:dicechess-engine-scala_3 (JVM jar)
-    Ops->>Ops: Setup NodeJS 26 & builds JS package (mise run package:prepare)
+    Ops->>Ops: Setup NodeJS 26 & builds JS package (sbt rootJS/fullOptJS + package script)
     Ops->>Npm: Publishes @rabestro/dicechess-engine package
     Ops->>Ops: Creates GitHub Release & uploads assets (js/d.ts)
     deactivate Ops
@@ -53,7 +53,7 @@ sequenceDiagram
   * `bump`: Choose version increment type (`patch`, `minor`, `major`).
 * **Permissions**: Requires `contents: write` (to push commits, tags, and create releases) and `packages: write` (to publish NPM packages).
 * **Responsibilities**:
-  * **Safety Gate**: Installs Java 25 and Mise, and runs `mise run check` (compilation & tests). If any checks fail, the release is aborted *before* modifying Git history.
+  * **Safety Gate**: Installs Java 25 and SBT, then runs `sbt scalafmtCheckAll 'scalafixAll --check' clean coverage test coverageReport` (the same checks as `mise run check`, invoked directly so CI needs only the JVM toolchain). If any checks fail, the release is aborted *before* modifying Git history.
   * **Version Calculation**: Bumps the latest tag (e.g. `v0.1.2` ➡️ `v0.1.3` for a `patch` bump).
   * **Descriptor Sync**: Programmatically updates the `version` variable inside `build.sbt` to the new `-SNAPSHOT` format (e.g., `0.1.3-SNAPSHOT`).
   * **Commit & Tag**: Commits the updated `build.sbt` back to the repository and pushes to `main`, then pushes a new Git tag (e.g., `v0.1.3`) pointing to this commit.

@@ -1,22 +1,19 @@
 [tools]
+# Only tools the build, hooks, or release tasks actually use. CI installs the JVM
+# toolchain via setup-java/setup-sbt and runs sbt directly (see ci.yaml), so this
+# section is for local development; keep it lean.
 # --- Core Runtime & Build ---
 java = "temurin-25"            # Primary runtime, aligned with CI (Java 25)
 node = "26"                    # Required for Astro/Starlight documentation
 
-# --- Security & Hygiene ---
-lefthook = "latest"            # Git hooks manager (language-agnostic, parallel)
-betterleaks = "latest"         # Secret scanning for staged/pushed commits
+# --- Git Hooks & Formatting ---
+lefthook = "latest"            # Git hooks manager (pre-commit / pre-push)
+betterleaks = "latest"         # Secret scanning in the pre-commit hook
 scalafmt = "3.11.1"            # native CLI; MUST match version in .scalafmt.conf
 
-# --- AI & Automation (Agentic Tools) ---
-gh = "latest"                  # GitHub CLI for PRs, issues and workflow management
-fd = "latest"                  # User-friendly and fast file finder
-jq = "latest"                  # JSON processor for parsing API responses
-yq = "latest"                  # YAML processor for GitHub Actions management
-ripgrep = "latest"             # High-performance code search (grep replacement)
-ast-grep = "latest"            # Structural AST code search and rewrite utility
-tokei = "latest"               # Code statistics engine (LOC, complexity analysis)
-"aqua:tealdeer-rs/tealdeer" = "latest"      # Simplified man pages (tldr)
+# --- Workflow CLIs ---
+gh = "latest"                  # GitHub CLI: PRs, issues, releases
+jq = "latest"                  # JSON processor (used by the package:prepare task)
 
 [tasks.setup]
 description = "📦 Install tooling and register Git hooks locally"
