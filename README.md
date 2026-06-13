@@ -163,8 +163,11 @@ Ensure you have [mise](https://mise.jdx.dev/) installed for orchestrating the de
 git clone https://github.com/rabestro/dicechess-engine-scala.git
 cd dicechess-engine-scala
 
-# Installs all required tooling (JDK, Scala CLI, SBT, Formatting tools)
+# Install the mise-managed toolchain (JDK, Node, scalafmt, lefthook, …)
 mise install
+
+# Install sbt and register git hooks (brew install sbt; lefthook install)
+mise run setup
 
 # Run the test suite and formatter checks
 mise run check

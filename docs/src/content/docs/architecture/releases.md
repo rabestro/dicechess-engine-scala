@@ -58,7 +58,7 @@ sequenceDiagram
   * **Descriptor Sync**: Programmatically updates the `version` variable inside `build.sbt` to the new `-SNAPSHOT` format (e.g., `0.1.3-SNAPSHOT`).
   * **Commit & Tag**: Commits the updated `build.sbt` back to the repository and pushes to `main`, then pushes a new Git tag (e.g., `v0.1.3`) pointing to this commit.
   * **Maven Registry Publish**: Publishes the JVM artifact `lv.id.jc:dicechess-engine-scala_3` to the GitHub Packages Maven registry with the clean release version (the `-SNAPSHOT` suffix is overridden from the tag). See [Maven Artifact & JVM Integration](/dicechess-engine-scala/guidelines/maven-artifact/).
-  * **NPM Compilation**: Sets up Node.js 26 and builds the optimized Scala.js Javascript package and TypeScript declarations via `mise run package:prepare`.
+  * **NPM Compilation**: Sets up Node.js 26 and builds the optimized Scala.js JavaScript package and TypeScript declarations via `sbt rootJS/fullOptJS` followed by the `package/prepare` task script (run directly, no mise needed on the runner).
   * **NPM Registry Publish**: Publishes the package `@rabestro/dicechess-engine` to the GitHub Packages registry.
   * **Release Creation & Upload**: Creates the GitHub Release (generating release notes automatically) and uploads the generated `dicechess-engine.js` and `dicechess-engine.d.ts` directly as release assets.
 

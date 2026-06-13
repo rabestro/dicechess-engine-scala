@@ -14,14 +14,14 @@ CodeRabbit is one layer in a multi-stage quality pipeline:
 ```mermaid
 graph LR
     subgraph Local
-        A["pre-commit hooks"] --> B["mise run check"]
+        A["pre-commit hooks<br/>(scalafmt + betterleaks)"] --> B["mise run check<br/>(full gate, before PR)"]
     end
     subgraph CI
-        B --> C["scalafmt + scalafix + MUnit"]
-        C --> D["SonarCloud"]
+        C["sbt scalafmt + scalafix + MUnit"] --> D["SonarCloud"]
         C --> E["CodeRabbit"]
         C --> F["JetBrains Qodana"]
     end
+    B -.->|same checks| C
 ```
 
 | Layer | Tool | Purpose |
@@ -106,7 +106,7 @@ CodeRabbit supports **path-based review instructions** — targeted guidance tha
 | `shared/**/domain/**` | Opaque type contracts, zero-cost abstraction, bitwise correctness |
 | `shared/**/movegen/**` | Magic Bitboards, GC-free hot paths, Dice Chess rule enforcement |
 | `shared/src/test/**` | Test DSL usage, edge case coverage, JSON fixture validity |
-| `.github/workflows/**` | Pinned action SHAs, consistent Java/Node versions, mise task usage |
+| `.github/workflows/**` | Pinned action SHAs, consistent Java/Node versions, no redundant tool installs |
 | `docs/**` | Starlight frontmatter, Mermaid syntax, internal link integrity |
 | `build.sbt` | Cross-compilation consistency, plugin configuration |
 

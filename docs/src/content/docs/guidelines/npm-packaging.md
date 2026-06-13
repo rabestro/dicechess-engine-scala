@@ -1,6 +1,6 @@
 ---
 title: NPM Packaging & Local Integration
-description: How the Scala.js engine is packaged for NPM, why the logic lives in mise, and how to test changes locally in downstream frontends.
+description: How the Scala.js engine is packaged for NPM, why the packaging logic lives in a single task script, and how to test changes locally in downstream frontends.
 ---
 
 The Dice Chess Engine is a **cross-platform library** compiled for both the JVM and **Scala.js**.
@@ -54,10 +54,11 @@ graph LR
 
 ---
 
-## Why This Lives in mise (Not in GitHub Actions)
+## Why This Lives in a Task Script (Not in GitHub Actions YAML)
 
-The packaging logic is intentionally kept in `mise.toml` rather than embedded
-directly in CI workflow YAML. This follows the **Local-First CI** principle:
+The packaging logic is intentionally kept in a dedicated task script
+(`.mise/tasks/package/prepare`) rather than spread across CI workflow YAML.
+This follows the **Local-First CI** principle:
 
 ### Local debugging
 If the packaging script breaks (e.g., a Scala.js output path changes after
@@ -66,24 +67,34 @@ and fix it instantly — instead of pushing speculative commits to trigger remot
 CI runs.
 
 ### Cross-project testing
-You can build the package locally and link it into `dicechess-lab` without
+You can build the package locally and link it into a frontend without
 publishing a release to the registry. This is essential for testing engine
-changes end-to-end in the frontend before committing to a release.
+changes end-to-end before committing to a release.
 
 ### Single source of truth
-The CI workflow (`.github/workflows/publish.yaml`) simply calls
-`mise run package:prepare`, keeping the YAML thin and readable:
+The packaging steps live in **one script**. Locally you invoke it through mise,
+which also runs its `js:build` dependency for you:
+
+```bash
+mise run package:prepare
+```
+
+CI runs the **same script** directly — without mise, so the release/publish jobs
+only need the JVM toolchain from `setup-java`/`setup-sbt` (and `jq`, which is
+preinstalled on GitHub runners). The `js:build` dependency is run explicitly:
 
 ```yaml
 - name: Build JavaScript package
-  run: mise run package:prepare
+  run: |
+    sbt rootJS/fullOptJS
+    bash .mise/tasks/package/prepare
 
 - name: Publish to GitHub Package Registry
   run: npm publish ./dist
 ```
 
-If the packaging steps ever need to change, you update **one place** (`mise.toml`)
-and both local and CI workflows automatically pick up the change.
+If the packaging steps ever need to change, you update **one place** (the script)
+and both the local task and CI pick up the change.
 
 ---
 
