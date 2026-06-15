@@ -9,7 +9,7 @@ import dicechess.engine.movegen.MoveGenerator
   * and filters the result to only the *legal* paths under the **Maximum Micro-moves Rule**:
   *
   *   - A path is legal if it ends with a King capture (win condition), *or*
-  *   - its length equals the globally-optimal maximum achievable length.
+  *   - it consumes the maximum achievable number of dice (castling spends two dice in a single move).
   *
   * This object is used by [[SearchAlgorithm]] implementations to obtain the candidate set before scoring.
   *
@@ -22,8 +22,8 @@ object TurnGenerator:
   /** Generates all legal full-turn paths (sequences of 1 to 3 moves) for the given state.
     *
     * A path is a `List[Move]` of 1–3 micro-moves. An empty list means no legal move exists (the player passes). The
-    * filtering guarantees that the returned paths either end with a King capture or share the maximum achievable
-    * length.
+    * filtering guarantees that the returned paths either end with a King capture or consume the maximum achievable
+    * number of dice (castling counts as two).
     *
     * @param state
     *   the current [[GameState]]; `state.activeColor` indicates who is moving
@@ -34,8 +34,15 @@ object TurnGenerator:
     val allPaths = generateAllPaths(state).filter(_.nonEmpty)
     if allPaths.isEmpty then Nil
     else
-      val maxLen = allPaths.map(_.size).maxOption.getOrElse(0)
-      allPaths.filter(p => isKingCapturePath(state, p) || p.size == maxLen)
+      val maxDice = allPaths.map(diceConsumed).maxOption.getOrElse(0)
+      allPaths.filter(p => isKingCapturePath(state, p) || diceConsumed(p) == maxDice)
+
+  /** Number of dice a path consumes: castling spends two dice (King + Rook) in a single move, while every other move
+    * spends one. Maximality is measured in dice consumed — not in move count — so a castling turn is not discarded in
+    * favor of a longer non-castling path that spends the same dice.
+    */
+  private def diceConsumed(path: List[Move]): Int =
+    path.foldLeft(0)((acc, move) => acc + (if move.isCastling then 2 else 1))
 
   /** Returns `true` when `move` captures the opponent's King from `state`. */
   private def isKingCapture(state: GameState, move: Move): Boolean =
