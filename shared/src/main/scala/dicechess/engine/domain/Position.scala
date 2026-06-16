@@ -209,13 +209,11 @@ extension (state: GameState)
     if isDoublePush then {
       finalEnPassant = finalEnPassant.add(Square.fromIndex(to.index + rankOffset))
     } else {
-      val epRank = if isWhite then 6 else 3
-      var ep     = finalEnPassant.value
-      while ep != 0L do
-        val sq = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(ep))
-        if sq.rank == epRank then finalEnPassant = finalEnPassant.remove(sq)
-        ep &= ep - 1L
-
+      // The inherited en-passant target is intentionally NOT expired here. A Dice Chess turn spans up
+      // to three micro-moves and the opponent-created target stays capturable for the whole turn
+      // (#351); that turn-boundary expiry runs once in GameState.endTurn (clearEnPassant). makeMove
+      // only drops a target this move itself invalidates: a pawn leaving its post-double-push square,
+      // the just-used ep target, or the captured pawn that owned the target.
       if movingPiece.pieceType == PieceType.Pawn then {
         finalEnPassant = finalEnPassant.remove(Square.fromIndex(from.index + rankOffset))
       }
@@ -288,8 +286,10 @@ extension (state: GameState)
     *   - **Quiet / capture** — standard piece relocation.
     *
     * According to Dice Chess micro-move semantics, this method **does not** flip the active color or increment the
-    * full-move number. Turn transitions must be explicitly managed via [[GameState.endTurn()]]. En-passant is cleared
-    * (unless a double push just occurred), castling rights are updated, and the half-move clock is maintained.
+    * full-move number. Turn transitions must be explicitly managed via [[GameState.endTurn()]]. An inherited en-passant
+    * target is retained across intra-turn micro-moves (it is cleared only at the turn boundary by
+    * [[GameState.endTurn()]]); this move drops only a target it directly invalidates. Castling rights are updated and
+    * the half-move clock is maintained.
     *
     * @param mv
     *   the move to apply (must be pseudo-legal; legality is enforced by the search layer)
@@ -314,16 +314,12 @@ extension (state: GameState)
 
     val target                 = if mv.flags != Move.EnPassantCapture then state.mailbox.get(to) else None
     var newEnPassant: Bitboard = state.enPassant.remove(to)
-    if mv.flags != Move.DoublePawnPush then
-      val epRank = if isWhite then 6 else 3
-      var ep     = newEnPassant.value
-      while ep != 0L do
-        val sq = Square.fromIndex(java.lang.Long.numberOfTrailingZeros(ep))
-        if sq.rank == epRank then newEnPassant = newEnPassant.remove(sq)
-        ep &= ep - 1L
-
-      if mover.pieceType == PieceType.Pawn then
-        newEnPassant = newEnPassant.remove(Square.fromIndex(from.index + rankOffset))
+    // The inherited ep target is NOT expired here — in Dice Chess it stays capturable for the whole
+    // turn and is cleared once at the turn boundary by GameState.endTurn (clearEnPassant), #351.
+    // makeMove only drops a target this move itself invalidates: a pawn leaving its post-double-push
+    // square, the just-used ep target (below), or a captured pawn that owned the target.
+    if mv.flags != Move.DoublePawnPush && mover.pieceType == PieceType.Pawn then
+      newEnPassant = newEnPassant.remove(Square.fromIndex(from.index + rankOffset))
     target.foreach { p =>
       b.removeCaptured(isWhite, toBB)
       b.clearPiece(p.pieceType, toBB)
