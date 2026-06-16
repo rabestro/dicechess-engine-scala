@@ -46,7 +46,10 @@ run = "sbt clean coverage rootJVM/test coverageReport"
 
 [tasks.check]
 description = "✅ Run a full validation cycle"
-run = "sbt scalafmtCheckAll 'scalafixAll --check' clean coverage test coverageReport"
+# `scalafmtCheckAll` runs AFTER `clean`: sbt-scalafmt's incremental cache can otherwise skip an
+# actually-misformatted file on a warm target/, so `check` passed locally while CI (fresh checkout)
+# failed (#354). `scalafixAll --check` stays before `clean` to reuse a warm compile — no extra build.
+run = "sbt 'scalafixAll --check' clean scalafmtCheckAll coverage test coverageReport"
 
 [tasks.console]
 description = "💻 Launch an interactive Scala REPL"
