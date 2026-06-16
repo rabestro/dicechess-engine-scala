@@ -19,9 +19,13 @@ class EnPassantMicroMoveSuite extends FunSuite:
   private def parse(fen: String): GameState =
     FenParser.parse(fen).fold(err => fail(s"Failed to parse FEN: $err"), identity)
 
-  /** True if some legal turn path plays an en-passant capture as a non-first micro-move. */
-  private def hasNonFirstEnPassant(paths: List[List[Move]]): Boolean =
-    paths.exists(path => path.zipWithIndex.exists((move, i) => i > 0 && move.isEnPassant))
+  /** True if some legal turn path ends with an en-passant capture (i.e. ep is the LAST micro-move). */
+  private def hasEnPassantLast(paths: List[List[Move]]): Boolean =
+    paths.exists(path => path.lastOption.exists(_.isEnPassant))
+
+  /** True if some legal turn path plays an en-passant capture exactly at micro-move index `slot`. */
+  private def hasEnPassantAt(paths: List[List[Move]], slot: Int): Boolean =
+    paths.exists(path => path.lift(slot).exists(_.isEnPassant))
 
   test("en passant is legal as the LAST micro-move (#351 case 1: ep d3, dice P/Q/Q)") {
     // Black to move, en-passant target d3. The real game played [d8d6, d6c6, e4d3] (ep capture
@@ -30,7 +34,7 @@ class EnPassantMicroMoveSuite extends FunSuite:
       .withDicePool(List(1, 5, 5))
     val paths = TurnGenerator.generateAllLegalTurnPaths(state)
     assert(paths.exists(_.exists(_.isEnPassant)), "en-passant capture e4d3 is not generated at all")
-    assert(hasNonFirstEnPassant(paths), "en passant is only generated as the first micro-move (#351)")
+    assert(hasEnPassantLast(paths), "en passant is not generated as the last micro-move of a legal turn (#351)")
   }
 
   test("en passant is legal as the 2nd micro-move (#351 case 2: ep d3, dice P/N/R)") {
@@ -40,5 +44,5 @@ class EnPassantMicroMoveSuite extends FunSuite:
       .withDicePool(List(1, 2, 4))
     val paths = TurnGenerator.generateAllLegalTurnPaths(state)
     assert(paths.exists(_.exists(_.isEnPassant)), "en-passant capture e4d3 is not generated at all")
-    assert(hasNonFirstEnPassant(paths), "en passant is only generated as the first micro-move (#351)")
+    assert(hasEnPassantAt(paths, 1), "en passant is not generated as the 2nd micro-move (#351)")
   }

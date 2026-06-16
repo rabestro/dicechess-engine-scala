@@ -286,8 +286,10 @@ extension (state: GameState)
     *   - **Quiet / capture** — standard piece relocation.
     *
     * According to Dice Chess micro-move semantics, this method **does not** flip the active color or increment the
-    * full-move number. Turn transitions must be explicitly managed via [[GameState.endTurn()]]. En-passant is cleared
-    * (unless a double push just occurred), castling rights are updated, and the half-move clock is maintained.
+    * full-move number. Turn transitions must be explicitly managed via [[GameState.endTurn()]]. An inherited en-passant
+    * target is retained across intra-turn micro-moves (it is cleared only at the turn boundary by
+    * [[GameState.endTurn()]]); this move drops only a target it directly invalidates. Castling rights are updated and
+    * the half-move clock is maintained.
     *
     * @param mv
     *   the move to apply (must be pseudo-legal; legality is enforced by the search layer)
