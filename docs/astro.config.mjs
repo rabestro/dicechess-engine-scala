@@ -27,6 +27,7 @@ export default defineConfig({
 						{ label: 'Glossary', slug: 'architecture/glossary' },
 						{ label: 'Domain Modeling', slug: 'architecture/domain-modeling' },
 						{ label: 'Dice Chess FEN (DFEN)', slug: 'architecture/dice-chess-fen' },
+						{ label: 'Board Symmetry & Canonicalization', slug: 'architecture/board-symmetry' },
 						{
 							label: 'Search & AI Bots',
 							collapsed: true,
