@@ -102,6 +102,13 @@ the variance rationale, and budgeting. It complements position canonicalization 
 empirical statistics across symmetric positions) for genuinely off-book positions, and shares the
 `KingCaptureProbability` machinery with the expectimax chance-node evaluation.
 
+The estimator also drives a bot: **`MonteCarloSearch`** (Level 7, registered in `BotRegistry`) scores
+every legal turn by the Monte-Carlo win probability of the resulting position and plays the best,
+preferring an immediate king capture. It is the first non-primitive bot (rollout-based lookahead
+rather than a one-ply heuristic). Per-move cost scales with the number of legal turns × the rollout
+budget, so a multi-game win-rate match is validated offline in the JVM Battle Arena — the same way
+`PrudentSearch` is benchmarked — not in CI.
+
 **Milestone fit**:
 * feeds the analytics equity guidance now; aligns with **v0.6 - Expectimax Search Engine** machinery.
 

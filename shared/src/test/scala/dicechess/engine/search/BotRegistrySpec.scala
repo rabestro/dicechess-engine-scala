@@ -7,7 +7,7 @@ class BotRegistrySpec extends FunSuite:
   test("availableBots returns a list of configured bots sorted by difficulty") {
     val bots = BotRegistry.availableBots
 
-    assertEquals(bots.size, 6)
+    assertEquals(bots.size, 7)
     assertEquals(bots.head.id, "random")
     assertEquals(bots.head.difficulty, 1)
 
@@ -25,6 +25,9 @@ class BotRegistrySpec extends FunSuite:
 
     assertEquals(bots(5).id, "prudent")
     assertEquals(bots(5).difficulty, 6)
+
+    assertEquals(bots(6).id, "monte-carlo")
+    assertEquals(bots(6).difficulty, 7)
   }
 
   test("getAlgorithm returns the correct algorithm for a given id (case-insensitive)") {
@@ -44,6 +47,9 @@ class BotRegistrySpec extends FunSuite:
 
     assertEquals(BotRegistry.getAlgorithm("prudent"), Some(PrudentSearch))
     assertEquals(BotRegistry.getAlgorithm("PRUDENT"), Some(PrudentSearch))
+
+    assertEquals(BotRegistry.getAlgorithm("monte-carlo"), Some(MonteCarloSearch))
+    assertEquals(BotRegistry.getAlgorithm("MONTE-CARLO"), Some(MonteCarloSearch))
 
     assertEquals(BotRegistry.getAlgorithm("unknown"), None)
     assertEquals(BotRegistry.getAlgorithm(null.asInstanceOf[String]), None) // scalafix:ok(DisableSyntax.null)
