@@ -34,6 +34,10 @@ class SymmetryBenchmark:
     Symmetry.colorFlip(state)
 
   @Benchmark
+  def horizontalMirror(): GameState =
+    Symmetry.horizontalMirror(state)
+
+  @Benchmark
   def canonical(): GameState =
     Symmetry.canonical(state)
 

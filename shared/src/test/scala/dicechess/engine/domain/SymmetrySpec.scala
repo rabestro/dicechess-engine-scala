@@ -87,6 +87,16 @@ class SymmetrySpec extends ScalaCheckSuite:
   )
   private val fenGen: Gen[GameState] = Gen.oneOf(curatedFens).map(parseFen)
 
+  // States with no castling rights — the only ones where horizontal mirror is a win-probability symmetry.
+  private val noCastlingStateGen: Gen[GameState] = for
+    n      <- Gen.choose(2, 24)
+    idxs   <- Gen.pick(n, 0 to 63).map(_.toList)
+    pieces <- Gen.listOfN(n, pieceGen)
+    color  <- colorGen
+    half   <- Gen.choose(0, 100)
+    full   <- Gen.choose(1, 200)
+  yield buildState(idxs.map(Square.fromIndex).zip(pieces), color, 0, half, full)
+
   // --- Structural properties (any internally consistent state) ---
 
   property("colorFlip is an involution") {
@@ -133,6 +143,36 @@ class SymmetrySpec extends ScalaCheckSuite:
     }
   }
 
+  property("horizontalMirror is an involution") {
+    forAll(stateGen)(s => assertEquals(Symmetry.horizontalMirror(Symmetry.horizontalMirror(s)), s))
+  }
+
+  property("horizontalMirror keeps the side to move") {
+    forAll(stateGen)(s => assertEquals(Symmetry.horizontalMirror(s).activeColor, s.activeColor))
+  }
+
+  property("king-capture probability is invariant under horizontalMirror (same colour)") {
+    forAll(fenGen) { s =>
+      val mirrored = Symmetry.horizontalMirror(s)
+      assertEqualsDouble(
+        KingCaptureProbability.kingCaptureProbability(s, Color.White),
+        KingCaptureProbability.kingCaptureProbability(mirrored, Color.White),
+        1e-9
+      )
+      assertEqualsDouble(
+        KingCaptureProbability.kingCaptureProbability(s, Color.Black),
+        KingCaptureProbability.kingCaptureProbability(mirrored, Color.Black),
+        1e-9
+      )
+    }
+  }
+
+  property("canonical folds horizontal mirror when there are no castling rights") {
+    forAll(noCastlingStateGen) { s =>
+      assertEquals(Symmetry.canonicalKey(s), Symmetry.canonicalKey(Symmetry.horizontalMirror(s)))
+    }
+  }
+
   // --- Example-based checks for the tricky remaps ---
 
   test("colorFlip swaps castling rights between colours, keeping the side") {
@@ -163,4 +203,17 @@ class SymmetrySpec extends ScalaCheckSuite:
   test("colorFlip is an involution on a full board (initial position)") {
     val full = parseFen(FenParser.InitialPosition)
     assertEquals(Symmetry.colorFlip(Symmetry.colorFlip(full)), full)
+  }
+
+  test("horizontalMirror swaps king-side and queen-side castling rights") {
+    assertEquals(Symmetry.horizontalMirror(parseFen("r3k2r/8/8/8/8/8/8/R3K2R w K - 0 1")).castlingRights, "Q")
+    assertEquals(Symmetry.horizontalMirror(parseFen("r3k2r/8/8/8/8/8/8/R3K2R w q - 0 1")).castlingRights, "k")
+  }
+
+  test("horizontalMirror reflects piece files (a <-> h)") {
+    // Black bishop h2, white king e5, black knight f7.
+    val mirrored = Symmetry.horizontalMirror(parseFen("8/5n2/8/4K3/8/8/7b/8 b - - 0 1"))
+    assertEquals(mirrored.mailbox(Square('a', 2)), Piece(Color.Black, PieceType.Bishop)) // h2 -> a2
+    assertEquals(mirrored.mailbox(Square('d', 5)), Piece(Color.White, PieceType.King))   // e5 -> d5
+    assertEquals(mirrored.mailbox(Square('c', 7)), Piece(Color.Black, PieceType.Knight)) // f7 -> c7
   }

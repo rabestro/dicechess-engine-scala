@@ -44,16 +44,31 @@ files are preserved, ranks reversed. The colour/side swap is layered on top:
 
 Color-flip is an **involution**: `colorFlip(colorFlip(s)) == s`.
 
+## Horizontal mirror
+
+Horizontal mirror reflects the files (a ↔ h) — a pure spatial reflection, so colours and the side to
+move are unchanged. On a LERF bitboard it is `reverseBytes(reverse(bb))`: reversing all 64 bits flips
+both rank and file, then reversing the bytes restores the rank order, leaving only the files mirrored
+(`mailbox(sq) = mailbox(sq ^ 7)`). Castling rights swap king-side ↔ queen-side and the en-passant file
+mask is reversed. It is also an **involution**.
+
+Reflection is an isometry, so it preserves win probability — **but only when there are no castling
+rights**. With castling rights the board mirror sends the king from the e-file to the d-file, which is
+not a legal castling configuration; the rights no longer mean anything in the mirror. Canonicalization
+therefore folds the mirror only when castling rights are absent (≈ 69% of positions in the database).
+
 ## Canonicalization
 
 ```scala
-Symmetry.canonical(state)    // the white-to-move representative of the color-flip class
-Symmetry.canonicalKey(state) // its DFEN — a stable key shared by a position and its flip
+Symmetry.canonical(state)    // the canonical representative of the position's symmetry class
+Symmetry.canonicalKey(state) // its DFEN — a stable key shared by all symmetry-equivalent positions
 ```
 
-`canonical` flips a black-to-move position to its white-to-move equivalent and leaves a
-white-to-move position unchanged (idempotent). Since the side-to-move win probability is unaffected,
-a position and its flip can be pooled under this single representative.
+`canonical` first color-flips a black-to-move position to its white-to-move equivalent (so a position
+and its color-flip share a representative). Then, **only when there are no castling rights**, it also
+folds horizontal mirror by picking whichever of the position and its mirror has the smaller DFEN. The
+result is deterministic and idempotent. Since neither transform changes the side-to-move win
+probability, all members of the class can be pooled under this single representative.
 
 ## What it buys
 
@@ -67,9 +82,10 @@ a position and its flip can be pooled under this single representative.
 
 ## Verification
 
-- Property tests (ScalaCheck): involution, side-to-move flip, FEN round-trip, idempotent and
-  always-white canonical, and **invariance of `KingCaptureProbability`** under the flip (the
-  defender swaps colour).
-- Example tests: castling-rights colour swap and en-passant rank mirror.
-- A JMH benchmark (`SymmetryBenchmark`) tracks `colorFlip` / `canonical` / `canonicalKey` cost, as
-  canonicalization runs on every analyzed position.
+- Property tests (ScalaCheck): involution of both transforms, side-to-move flip (color-flip) /
+  preservation (mirror), FEN round-trip, idempotent and always-white canonical, mirror folding when
+  castling rights are absent, and **invariance of `KingCaptureProbability`** under both transforms.
+- Example tests: castling-rights colour swap (color-flip) and king-side ↔ queen-side swap (mirror),
+  en-passant rank mirror, and file reflection.
+- A JMH benchmark (`SymmetryBenchmark`) tracks `colorFlip` / `horizontalMirror` / `canonical` /
+  `canonicalKey` cost, as canonicalization runs on every analyzed position.
