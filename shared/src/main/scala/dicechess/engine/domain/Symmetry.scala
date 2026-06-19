@@ -6,10 +6,10 @@ package dicechess.engine.domain
   * canonical representative lets downstream consumers pool statistics (analytics) and share results across equivalent
   * positions (search transposition tables, Monte-Carlo caches).
   *
-  * This object provides **color-flip** only — the always-legal symmetry. Horizontal mirror (legal only without castling
-  * rights) is a separate step. Horizontal *shift* is intentionally excluded: translation is not an isometry of the
-  * bounded 8x8 board (it changes a piece's distance to the edge, and therefore its mobility), so it does **not**
-  * preserve win probability.
+  * This object provides two exact symmetries: **color-flip** (always legal) and **horizontal mirror** (a
+  * win-probability symmetry only when there are no castling rights — see below). Horizontal *shift* is intentionally
+  * excluded: translation is not an isometry of the bounded 8x8 board (it changes a piece's distance to the edge, and
+  * therefore its mobility), so it does **not** preserve win probability.
   *
   * ## Color-flip
   *
@@ -69,20 +69,71 @@ object Symmetry:
       enPassant = flipVertical(state.enPassant)
     )
 
-  /** Canonical representative of a position's color-flip class: always **white to move**.
+  /** Horizontally mirrors a [[Bitboard]] (file `f` <-> file `7 - f`).
     *
-    * A black-to-move position is color-flipped to its white-to-move equivalent; a white-to-move position is returned
-    * unchanged. The transform preserves the side-to-move win probability, so a position and its flip may be pooled
-    * under this single representative. Idempotent: `canonical(canonical(s)) == canonical(s)`.
+    * Reversing all 64 bits flips both rank and file; reversing the bytes afterwards restores the rank order, leaving
+    * only the files mirrored.
+    */
+  private inline def flipHorizontal(bb: Bitboard): Bitboard =
+    Bitboard(java.lang.Long.reverseBytes(java.lang.Long.reverse(bb.value)))
+
+  /** Returns the file-mirrored position (a <-> h). A pure spatial reflection: colours and the side to move are
+    * unchanged, pieces move to the mirrored file, castling rights swap king-side <-> queen-side, and the en-passant
+    * files are mirrored.
+    *
+    * This is an **involution**, but it only preserves win probability when there are **no castling rights**: the board
+    * mirror sends the king from the e-file to the d-file, which is not a legal castling configuration. [[canonical]]
+    * therefore only folds the mirror when castling rights are absent.
+    */
+  def horizontalMirror(state: GameState): GameState =
+    val mailbox = new Array[Piece](64)
+    var i       = 0
+    while i < 64 do
+      mailbox(i) = state.mailbox(Square.fromIndex(i ^ 7)) // flip file, keep rank and colour
+      i += 1
+
+    // Swap king-side <-> queen-side within each colour: K<->Q (bits 0,1) and k<->q (bits 2,3).
+    val cr        = state.flags.castlingRights
+    val swappedCr = ((cr & 0x5) << 1) | ((cr & 0xa) >>> 1)
+    // Mirror the 8-bit en-passant file mask: file f -> 7 - f.
+    val epFiles         = state.flags.enPassantFiles
+    val mirroredEpFiles = (java.lang.Integer.reverse(epFiles) >>> 24) & 0xff
+
+    val mirroredFlags = state.flags.withCastlingRights(swappedCr).withEnPassantFiles(mirroredEpFiles)
+
+    state.copy(
+      whitePieces = flipHorizontal(state.whitePieces),
+      blackPieces = flipHorizontal(state.blackPieces),
+      pawns = flipHorizontal(state.pawns),
+      knights = flipHorizontal(state.knights),
+      bishops = flipHorizontal(state.bishops),
+      rooks = flipHorizontal(state.rooks),
+      queens = flipHorizontal(state.queens),
+      kings = flipHorizontal(state.kings),
+      mailbox = Mailbox.fromBuilder(mailbox),
+      flags = mirroredFlags,
+      enPassant = flipHorizontal(state.enPassant)
+    )
+
+  /** Canonical representative of a position's symmetry class.
+    *
+    * First color-flips to a **white-to-move** position (so a position and its color-flip share a representative). Then,
+    * **only when there are no castling rights** (where the file mirror is a valid win-probability symmetry), it also
+    * folds horizontal mirror by choosing whichever of the position and its mirror has the smaller DFEN. The result is
+    * deterministic and idempotent: `canonical(canonical(s)) == canonical(s)`.
     */
   def canonical(state: GameState): GameState =
-    if state.activeColor.isBlack then colorFlip(state) else state
+    val sideCanonical = if state.activeColor.isBlack then colorFlip(state) else state
+    if sideCanonical.flags.castlingRights == 0 then
+      val mirrored = horizontalMirror(sideCanonical)
+      if FenParser.serialize(mirrored) < FenParser.serialize(sideCanonical) then mirrored else sideCanonical
+    else sideCanonical
 
-  /** Stable canonical key for a position's color-flip class: the DFEN of [[canonical]].
+  /** Stable canonical key for a position's symmetry class: the DFEN of [[canonical]].
     *
-    * Two color-flip-equivalent positions produce the same key. The key retains the half-move/full-move counters and
-    * dice pool from the DFEN; callers that need a counter-independent identity (e.g. statistics dedup) should normalise
-    * those fields themselves.
+    * Symmetry-equivalent positions produce the same key. The key retains the half-move/full-move counters and dice pool
+    * from the DFEN; callers that need a counter-independent identity (e.g. statistics dedup) should normalise those
+    * fields themselves.
     */
   def canonicalKey(state: GameState): String =
     FenParser.serialize(canonical(state))
