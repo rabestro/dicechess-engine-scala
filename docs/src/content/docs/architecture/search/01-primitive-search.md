@@ -134,6 +134,15 @@ To evaluate the opponent's capture probability, the bot uses [[KingCaptureProbab
 2. **Opponent DFS:** For each multiset, it runs a depth-first search (DFS) over the opponent's legal micro-move sequences. If any path leads to a capture of our King (or Queen), the multiset's weight is added to the count.
 3. **Execution Bottleneck:** While this probabilistic analysis yields high-quality defensive moves, it evaluates the opponent response tree for all 216 rolls for *every* candidate path. Currently, this runs with raw, uncached DFS calls, causing severe performance issues.
 
+### Level 7: Monte-Carlo Bot (`MonteCarloSearch`)
+* **Difficulty:** 7 (Beta)
+* **Philosophy:** The first **non-primitive** bot — instead of a one-ply heuristic, it estimates the full-game win probability of each candidate turn with Rao-Blackwellized Monte-Carlo rollouts.
+* **Selection Logic:**
+  - For each legal turn, plays it and runs the [Monte-Carlo pre-roll equity estimator](/architecture/search/04-monte-carlo-equity/) on the resulting position, scoring the turn by the moving side's win probability (an immediate king capture short-circuits to the terminal win score).
+  - Selects the highest-scoring turn; ties prefer the shorter king capture.
+  - Doubling-cube decisions reuse the same Monte-Carlo estimate rather than the material sigmoid.
+* **Cost:** per-move latency scales with `(legal turns) × (rollout budget)`, so it carries a configurable budget (`MonteCarloConfig`) and a modest default. Unlike the O(1) bots above, a statistically significant win-rate match is validated **offline** in the JVM Battle Arena (a default-budget match is far too slow for CI), and a JMH benchmark tracks per-move decision latency.
+
 ---
 
 ## Comparison of O(1) Bot Strategies

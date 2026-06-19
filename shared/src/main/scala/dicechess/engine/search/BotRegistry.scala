@@ -87,6 +87,17 @@ object BotRegistry:
         isExperimental = true
       ),
       PrudentSearch
+    ),
+    "monte-carlo" -> (
+      BotInfo(
+        id = "monte-carlo",
+        name = "Monte-Carlo",
+        description =
+          "Estimates the full-game win probability of each candidate turn with Rao-Blackwellized Monte-Carlo rollouts and plays the highest.",
+        difficulty = 7,
+        isExperimental = true
+      ),
+      MonteCarloSearch
     )
   )
 
