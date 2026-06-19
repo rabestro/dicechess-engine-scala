@@ -163,3 +163,10 @@ class MonteCarloEquitySpec extends FunSuite:
     val est = MonteCarloEquity.estimate(whiteAlwaysWins)
     assertEqualsDouble(est.whiteWin, 1.0, 1e-9)
   }
+
+  test("a deadline already in the past stops the estimate after a single rollout") {
+    val past = System.nanoTime() - 1_000_000L
+    val est  = MonteCarloEquity.estimate(whiteAlwaysWins, MonteCarloConfig(rollouts = 1000), past, new Random(9))
+    assertEquals(est.rollouts, 1)
+    assertEqualsDouble(est.whiteWin, 1.0, 1e-9)
+  }
