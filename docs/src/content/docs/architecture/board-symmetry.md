@@ -22,7 +22,7 @@ preserved) and must respect file-specific rights.
 | --- | --- | --- |
 | **Color-flip** (vertical mirror + colour swap) | ✅ always | Black's downward pawns become White's upward pawns; relabels the side to move. |
 | **Horizontal mirror** (file reflection a↔h) | ✅ only without castling | Reflection is an isometry, but it swaps king-side ↔ queen-side, which are not equivalent while castling rights exist. |
-| **Horizontal shift** (translate files) | ❌ never | Translation is **not** an isometry of the bounded board: it changes a piece's distance to the edge, hence its mobility (e.g. a bishop on a1 sees 7 squares, on d1 sees 13). It does not preserve win probability and is excluded everywhere. |
+| **Horizontal shift** (translate files) | ❌ never | Translation is **not** an isometry of the bounded board: it changes a piece's distance to the edge, hence its mobility. A bishop on a4 sees 7 squares, but shifting it three files to d4 (same rank) leaves it seeing 13. It does not preserve win probability and is excluded everywhere. |
 
 ## Color-flip
 

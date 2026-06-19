@@ -19,7 +19,7 @@ class SymmetrySpec extends ScalaCheckSuite:
       halfMoveClock: Int,
       fullMoveNumber: Int
   ): GameState =
-    val mb      = new Array[Piece](64)
+    val mb      = Array.fill[Piece](64)(Piece.Empty)
     var white   = Bitboard.empty
     var black   = Bitboard.empty
     var pawns   = Bitboard.empty
@@ -149,4 +149,18 @@ class SymmetrySpec extends ScalaCheckSuite:
   test("canonical leaves a white-to-move position unchanged") {
     val s = parseFen(FenParser.InitialPosition)
     assertEquals(Symmetry.canonical(s), s)
+  }
+
+  // Edge cases: an empty board and a full (32-piece) board. Pins are not relevant here — colorFlip is
+  // a pure board transform and never consults move legality.
+
+  test("colorFlip on an empty board only flips the side to move") {
+    val empty = buildState(Nil, Color.White, 0, 0, 1)
+    assertEquals(Symmetry.colorFlip(empty).activeColor, Color.Black)
+    assertEquals(Symmetry.colorFlip(Symmetry.colorFlip(empty)), empty)
+  }
+
+  test("colorFlip is an involution on a full board (initial position)") {
+    val full = parseFen(FenParser.InitialPosition)
+    assertEquals(Symmetry.colorFlip(Symmetry.colorFlip(full)), full)
   }
