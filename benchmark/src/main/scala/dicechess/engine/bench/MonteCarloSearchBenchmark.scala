@@ -22,6 +22,9 @@ import scala.compiletime.uninitialized
 @State(Scope.Thread)
 class MonteCarloSearchBenchmark:
 
+  /** Representative per-move slice of a one-minute game clock (≈ 60s spread over the moves of a game). */
+  private val MoveBudgetNanos = 20_000_000L // 20 ms
+
   @Param(Array("initial", "kiwipete", "endgame"))
   var position: String = uninitialized
 
@@ -31,6 +34,17 @@ class MonteCarloSearchBenchmark:
   def setup(): Unit =
     state = BenchmarkPositions.parse(BenchmarkPositions.AllPositions(position)).withDicePool(List(1, 2, 3))
 
+  /** Unbounded per-move latency at the default rollout budget — the cost the time budget must cap. */
   @Benchmark
   def decideMove(): Option[ScoredSequence] =
     MonteCarloSearch.findBestMove(state, MonteCarloSearch.DefaultConfig, new Random(1))
+
+  /** The time-budgeted path: candidate ranking + cap + per-candidate deadline slicing under a fixed move budget. */
+  @Benchmark
+  def decideMoveTimeBudgeted(): Option[ScoredSequence] =
+    MonteCarloSearch.findBestMove(
+      state,
+      MonteCarloSearch.DefaultConfig,
+      System.nanoTime() + MoveBudgetNanos,
+      new Random(1)
+    )

@@ -122,3 +122,21 @@ class MonteCarloSearchSuite extends FunSuite:
       "should accept a double when winning"
     )
   }
+
+  test("a deadline already in the past returns a legal fallback move without running rollouts") {
+    val state = parseFen("4k3/8/8/3n4/3N4/8/8/4K3 w - - 0 1").withDicePool(List(2, 1, 1))
+    val best  = MonteCarloSearch
+      .findBestMove(state, tinyConfig, System.nanoTime() - 1_000_000L, new Random(1))
+      .getOrElse(fail("expected a move"))
+    assert(best.moves.nonEmpty, "expected a non-empty turn path")
+    assert(best.score < SearchScoring.TerminalWinScore, s"fallback should be non-terminal, got ${best.score}")
+  }
+
+  test("an immediate king capture is taken even when the deadline has passed") {
+    val state = parseFen("4k3/8/3N4/8/8/8/8/4K3 w - - 0 1").withDicePool(List(2, 1, 1))
+    val best  = MonteCarloSearch
+      .findBestMove(state, tinyConfig, System.nanoTime() - 1_000_000L, new Random(1))
+      .getOrElse(fail("expected a move"))
+    assertEquals(best.score, SearchScoring.TerminalWinScore)
+    assertEquals(best.moves.last.toSquare, Square('e', 8))
+  }

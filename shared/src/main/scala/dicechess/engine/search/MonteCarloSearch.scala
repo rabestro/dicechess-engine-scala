@@ -2,6 +2,7 @@ package dicechess.engine.search
 
 import dicechess.engine.domain.*
 import scala.util.Random
+import scala.util.boundary, boundary.break
 
 /** Monte-Carlo search bot (difficulty 7).
   *
@@ -25,6 +26,12 @@ object MonteCarloSearch extends SearchAlgorithm with DrawOfferLogic:
   /** Default per-move budget — a balance between playing strength and decision latency. */
   val DefaultConfig: MonteCarloConfig = MonteCarloConfig(rollouts = 120, maxPlies = 40)
 
+  /** Upper bound on the number of turns the time-budgeted search Monte-Carlo-evaluates per move. The candidate set is
+    * first ranked by a cheap material score, so under time pressure rollouts are spent on the most promising turns
+    * rather than diluted across a large branching factor.
+    */
+  private val MaxCandidates = 16
+
   private val rand = new Random()
 
   override def findBestMove(state: GameState): Option[ScoredSequence] =
@@ -39,6 +46,46 @@ object MonteCarloSearch extends SearchAlgorithm with DrawOfferLogic:
       val maxCriterion = scoredPaths.map(s => (s.score, terminalWinPreference(s))).max
       val optimalPaths = scoredPaths.filter(s => (s.score, terminalWinPreference(s)) == maxCriterion)
       Some(optimalPaths(random.nextInt(optimalPaths.length)))
+
+  /** Finds the best turn under a **wall-clock** deadline (`deadlineNanos`, a [[java.lang.System.nanoTime]] value), so a
+    * bot on a game clock never overruns. The caller allocates the game budget into a per-move deadline.
+    *
+    * Strategy: take any immediate king capture for free; otherwise rank turns by a cheap material score, keep the top
+    * [[MaxCandidates]], and Monte-Carlo-evaluate them in that order, giving each an equal slice of the remaining time
+    * and stopping at the deadline. The best material turn is the fallback, so a legal move is always returned even if
+    * the deadline elapses before any rollout completes. This path is non-deterministic by design.
+    */
+  def findBestMove(
+      state: GameState,
+      config: MonteCarloConfig,
+      deadlineNanos: Long,
+      random: Random
+  ): Option[ScoredSequence] = boundary:
+    val paths = TurnGenerator.generateAllLegalTurnPaths(state)
+    if paths.isEmpty then break(None)
+
+    // Cheap material pre-score; scorePath assigns TerminalWinScore to king-capture turns regardless of the evalFn.
+    val preScored = paths.map(p => SearchScoring.scorePath(state, p, Evaluator.evaluateMaterial))
+    val captures  = preScored.filter(_.score == SearchScoring.TerminalWinScore)
+    if captures.nonEmpty then break(Some(captures.minBy(_.moves.size))) // take the fastest win, no rollouts needed
+
+    val candidates = preScored.sortBy(s => -s.score).take(MaxCandidates)
+    val myColor    = state.activeColor
+    var best       = candidates.head // fallback: the best material turn
+    var bestWin    = Double.NegativeInfinity
+    var i          = 0
+    while i < candidates.length && System.nanoTime() < deadlineNanos do
+      val slice      = System.nanoTime() + (deadlineNanos - System.nanoTime()) / (candidates.length - i)
+      val finalState = candidates(i).moves.foldLeft(state)((s, m) => s.makeMove(m)).endTurn()
+      val est        = MonteCarloEquity.estimate(finalState, config, slice, random)
+      val win        = if myColor.isWhite then est.whiteWin else est.blackWin
+      if win > bestWin then
+        bestWin = win
+        best = candidates(i)
+      i += 1
+
+    val score = if bestWin >= 0.0 then (bestWin * ProbScoreScale).round.toInt else best.score
+    Some(ScoredSequence(best.moves, score))
 
   /** Among equal-scoring paths, prefer a shorter king capture (faster win); irrelevant for non-terminal scores. */
   private def terminalWinPreference(scored: ScoredSequence): Int =

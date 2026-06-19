@@ -91,6 +91,14 @@ object MonteCarloEquity:
 
   /** Estimates pre-roll equity with the given configuration and random source. */
   def estimate(state: GameState, config: MonteCarloConfig, random: Random): EquityEstimate =
+    estimate(state, config, Long.MaxValue, random)
+
+  /** Estimates pre-roll equity, stopping early once `deadlineNanos` (a [[java.lang.System.nanoTime]] value) is reached
+    * — but always after at least one rollout, so the result is never empty. Use for wall-clock-bounded callers such as
+    * a time-budgeted bot; unlike the rollout/targetError budgets, the deadline path is non-deterministic (it depends on
+    * machine speed), so reserve it for play, not for reproducible tests.
+    */
+  def estimate(state: GameState, config: MonteCarloConfig, deadlineNanos: Long, random: Random): EquityEstimate =
     var n     = 0
     var meanW = 0.0 // running mean of per-rollout White-win mass
     var m2W   = 0.0 // running sum of squared deviations (Welford) for White-win mass
@@ -110,6 +118,7 @@ object MonteCarloEquity:
       if config.targetError > 0 && n >= config.minRollouts then
         val se = math.sqrt(sampleVariance(m2W, n) / n)
         if se <= config.targetError then stop = true
+      if System.nanoTime() >= deadlineNanos then stop = true
 
     val variance = sampleVariance(m2W, n)
     val se       = if n > 0 then math.sqrt(variance / n) else 0.0
