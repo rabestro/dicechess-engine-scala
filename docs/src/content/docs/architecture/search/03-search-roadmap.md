@@ -97,7 +97,7 @@ rollout weighted by survival, which cuts variance sharply versus vanilla 0/1 rol
 `TurnGenerator` + the `RandomSearch` policy and exposes a configurable budget (rollouts / target CI
 width / ply horizon).
 
-See [[Monte-Carlo Pre-Roll Equity]](/architecture/search/04-monte-carlo-equity/) for the algorithm,
+See [Monte-Carlo Pre-Roll Equity](/architecture/search/04-monte-carlo-equity/) for the algorithm,
 the variance rationale, and budgeting. It complements position canonicalization (which pools
 empirical statistics across symmetric positions) for genuinely off-book positions, and shares the
 `KingCaptureProbability` machinery with the expectimax chance-node evaluation.
