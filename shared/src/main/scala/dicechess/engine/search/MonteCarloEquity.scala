@@ -41,7 +41,7 @@ final case class EquityEstimate(
   *   minimum rollouts before adaptive stopping may trigger; ignored when [[targetError]] is `0`.
   */
 final case class MonteCarloConfig(
-    rollouts: Int = 1000,
+    rollouts: Int = 500,
     maxPlies: Int = 1000,
     targetError: Double = 0.0,
     minRollouts: Int = 128

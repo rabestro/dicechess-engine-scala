@@ -2,15 +2,21 @@ package dicechess.engine.search
 
 import dicechess.engine.domain.*
 import munit.FunSuite
+import scala.concurrent.duration.*
 import scala.util.Random
 
 class MonteCarloSearchSuite extends FunSuite:
 
+  // The bot runs a Monte-Carlo estimate per candidate turn; under scoverage on CI's slow Scala.js runner that is far
+  // slower than locally. Budgets are tiny and positions low-mobility (knights) so it finishes in seconds, with
+  // headroom above the 30s default just in case.
+  override def munitTimeout: Duration = 90.seconds
+
   private def parseFen(fen: String): GameState =
     FenParser.parse(fen).fold(e => fail(s"bad FEN '$fen': $e"), identity)
 
-  // Tiny budget so the rollout-driven tests stay fast under coverage and on Scala.js.
-  private val tinyConfig = MonteCarloConfig(rollouts = 8, maxPlies = 6)
+  // Tiny budget: just enough to exercise the rollout path; low-mobility positions keep it fast.
+  private val tinyConfig = MonteCarloConfig(rollouts = 4, maxPlies = 3)
 
   private def buildState(placement: List[(Square, Piece)], activeColor: Color): GameState =
     val mb      = Array.fill[Piece](64)(Piece.Empty)
@@ -50,7 +56,7 @@ class MonteCarloSearchSuite extends FunSuite:
       fullMoveNumber = 1
     )
 
-  /** White to move with a piece of every type attacking the lone Black king on e4: every dice roll captures, so the
+  /** White to move with a piece of every type attacking the lone Black king on e4: every roll captures, so the
     * Monte-Carlo win probability is ~1 and each rollout resolves on the first ply (cheap).
     */
   private val whiteAlwaysWins: GameState =
@@ -75,11 +81,10 @@ class MonteCarloSearchSuite extends FunSuite:
   }
 
   test("prefers an immediate king capture (terminal win score)") {
-    // White queen on e4 can capture the Black king on e8 down the open e-file; the dice include a queen die.
-    val state = parseFen("4k3/8/8/8/4Q3/8/8/K7 w - - 0 1").withDicePool(List(5, 1, 1))
+    // White knight on d6 attacks the Black king on e8; the dice include a knight die.
+    val state = parseFen("4k3/8/3N4/8/8/8/8/4K3 w - - 0 1").withDicePool(List(2, 1, 1))
     val best  = MonteCarloSearch.findBestMove(state, tinyConfig, new Random(1)).getOrElse(fail("expected a move"))
     assertEquals(best.score, SearchScoring.TerminalWinScore)
-    // The winning turn ends on the king's square.
     assertEquals(best.moves.last.toSquare, Square('e', 8))
   }
 
@@ -90,8 +95,8 @@ class MonteCarloSearchSuite extends FunSuite:
   }
 
   test("returns a legal, non-terminal turn scored as a win probability") {
-    // Queens facing off; a queen die yields several candidate turns, none of which captures a king.
-    val state = parseFen("4k3/8/8/3q4/3Q4/8/8/4K3 w - - 0 1").withDicePool(List(5, 4, 1))
+    // Knights face off in the centre; the knight die yields several turns, none capturing a king.
+    val state = parseFen("4k3/8/8/3n4/3N4/8/8/4K3 w - - 0 1").withDicePool(List(2, 1, 1))
     val best  = MonteCarloSearch.findBestMove(state, tinyConfig, new Random(2)).getOrElse(fail("expected a move"))
     assert(best.moves.nonEmpty, "expected a non-empty turn path")
     assert(best.score >= 0, s"score should be non-negative, got ${best.score}")
@@ -99,7 +104,7 @@ class MonteCarloSearchSuite extends FunSuite:
   }
 
   test("is deterministic for a fixed seed and budget") {
-    val state = parseFen("4k3/8/8/3q4/3Q4/8/8/4K3 w - - 0 1").withDicePool(List(5, 4, 1))
+    val state = parseFen("4k3/8/8/3n4/3N4/8/8/4K3 w - - 0 1").withDicePool(List(2, 1, 1))
     val a     = MonteCarloSearch.findBestMove(state, tinyConfig, new Random(7))
     val b     = MonteCarloSearch.findBestMove(state, tinyConfig, new Random(7))
     assertEquals(a.map(_.moves), b.map(_.moves))

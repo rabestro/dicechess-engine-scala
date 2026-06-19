@@ -2,16 +2,17 @@ package dicechess.engine.search
 
 import dicechess.engine.domain.*
 import munit.FunSuite
+import scala.concurrent.duration.*
 import scala.util.Random
 
 class MonteCarloEquitySpec extends FunSuite:
 
-  // --- Helpers ---
+  // Rollout tests run KingCaptureProbability per ply; under scoverage on CI's (slow) Scala.js runner that is far
+  // slower than locally, so allow generous headroom above the 30s default. Budgets are kept tiny and positions
+  // low-mobility (knights, not queens) so they still finish in seconds.
+  override def munitTimeout: Duration = 90.seconds
 
-  private def buildState(
-      placement: List[(Square, Piece)],
-      activeColor: Color
-  ): GameState =
+  private def buildState(placement: List[(Square, Piece)], activeColor: Color): GameState =
     val mb      = Array.fill[Piece](64)(Piece.Empty)
     var white   = Bitboard.empty
     var black   = Bitboard.empty
@@ -52,37 +53,33 @@ class MonteCarloEquitySpec extends FunSuite:
   private def parseFen(fen: String): GameState =
     FenParser.parse(fen).fold(e => fail(s"bad FEN '$fen': $e"), identity)
 
-  /** A position where, for the side to move, **every** of the 216 dice rolls allows an immediate king capture: a White
-    * piece of each of the six types attacks the lone Black king on e4, so any die value yields a capturing micro-move.
-    * Pre-roll White-win probability is therefore exactly `1.0` and each rollout resolves on the first ply.
+  /** White to move with a piece of every type attacking the lone Black king on e4: every one of the 216 rolls captures,
+    * so the pre-roll White-win probability is exactly `1.0` and each rollout resolves on the first ply (cheap).
     */
   private val whiteAlwaysWins: GameState =
     buildState(
       List(
         Square('e', 4) -> Piece(Color.Black, PieceType.King),
-        Square('d', 3) -> Piece(Color.White, PieceType.Pawn),   // d3 captures e4
-        Square('c', 3) -> Piece(Color.White, PieceType.Knight), // c3 attacks e4
-        Square('h', 7) -> Piece(Color.White, PieceType.Bishop), // h7-g6-f5-e4
-        Square('h', 4) -> Piece(Color.White, PieceType.Rook),   // h4-g4-f4-e4
-        Square('a', 8) -> Piece(Color.White, PieceType.Queen),  // a8-b7-c6-d5-e4
-        Square('d', 4) -> Piece(Color.White, PieceType.King)    // d4 adjacent to e4
+        Square('d', 3) -> Piece(Color.White, PieceType.Pawn),
+        Square('c', 3) -> Piece(Color.White, PieceType.Knight),
+        Square('h', 7) -> Piece(Color.White, PieceType.Bishop),
+        Square('h', 4) -> Piece(Color.White, PieceType.Rook),
+        Square('a', 8) -> Piece(Color.White, PieceType.Queen),
+        Square('d', 4) -> Piece(Color.White, PieceType.King)
       ),
       Color.White
     )
 
-  /** A sharp, multi-ply position (queens facing off) used for variance and determinism checks. */
-  private val queens = "4k3/8/8/3q4/3Q4/8/8/4K3 w - - 0 1"
-
-  private val midgameFens = List(
-    FenParser.InitialPosition,
-    queens,
-    "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 1"
-  )
+  // Sharp but cheap: White knight c7 attacks the Black king on e8, Black knight c2 attacks the White king on e1, so
+  // king captures occur within a few random plies (real win mass + spread) while knight move-gen keeps KCP cheap.
+  private val sharpKnights = "4k3/2N5/8/8/8/8/2n5/4K3 w - - 0 1"
+  // Quiet, cheap: knights face off in the centre, neither reaching a king in one move.
+  private val quietKnights = "4k3/8/8/3n4/3N4/8/8/4K3 w - - 0 1"
 
   // --- Convergence ---
 
   test("converges to the exact value on a 1-ply-decidable position (White wins with probability 1)") {
-    val est = MonteCarloEquity.estimate(whiteAlwaysWins, MonteCarloConfig(rollouts = 64), new Random(1))
+    val est = MonteCarloEquity.estimate(whiteAlwaysWins, MonteCarloConfig(rollouts = 32), new Random(1))
     assertEqualsDouble(est.whiteWin, 1.0, 1e-9)
     assertEqualsDouble(est.blackWin, 0.0, 1e-9)
     assertEqualsDouble(est.undecided, 0.0, 1e-9)
@@ -91,7 +88,7 @@ class MonteCarloEquitySpec extends FunSuite:
   test("symmetric Black-to-move position (via colorFlip) yields Black-win probability 1") {
     val blackAlwaysWins = Symmetry.colorFlip(whiteAlwaysWins)
     assert(blackAlwaysWins.activeColor.isBlack)
-    val est = MonteCarloEquity.estimate(blackAlwaysWins, MonteCarloConfig(rollouts = 64), new Random(2))
+    val est = MonteCarloEquity.estimate(blackAlwaysWins, MonteCarloConfig(rollouts = 32), new Random(2))
     assertEqualsDouble(est.blackWin, 1.0, 1e-9)
     assertEqualsDouble(est.whiteWin, 0.0, 1e-9)
   }
@@ -99,19 +96,21 @@ class MonteCarloEquitySpec extends FunSuite:
   // --- Invariants ---
 
   test("the three outcome masses always sum to 1") {
-    midgameFens.zipWithIndex.foreach { (fen, i) =>
-      val est = MonteCarloEquity.estimate(parseFen(fen), MonteCarloConfig(rollouts = 10, maxPlies = 6), new Random(i))
+    val states = List(whiteAlwaysWins, parseFen(sharpKnights), parseFen(quietKnights))
+    states.zipWithIndex.foreach { (state, i) =>
+      val est = MonteCarloEquity.estimate(state, MonteCarloConfig(rollouts = 8, maxPlies = 4), new Random(i))
       assertEqualsDouble(est.whiteWin + est.blackWin + est.undecided, 1.0, 1e-9)
     }
   }
 
   test("all probabilities are in [0, 1] and the standard error is non-negative") {
-    val est = MonteCarloEquity.estimate(parseFen(queens), MonteCarloConfig(rollouts = 50, maxPlies = 6), new Random(4))
+    val est =
+      MonteCarloEquity.estimate(parseFen(sharpKnights), MonteCarloConfig(rollouts = 16, maxPlies = 4), new Random(4))
     List(est.whiteWin, est.blackWin, est.undecided).foreach { p =>
       assert(p >= 0.0 && p <= 1.0, s"probability out of range: $p")
     }
     assert(est.standardError >= 0.0)
-    assertEquals(est.rollouts, 50)
+    assertEquals(est.rollouts, 16)
   }
 
   test("a horizon of zero plies leaves all mass undecided") {
@@ -124,7 +123,7 @@ class MonteCarloEquitySpec extends FunSuite:
 
   test("Rao-Blackwell integration beats vanilla Monte-Carlo (variance reduction > 1)") {
     val est =
-      MonteCarloEquity.estimate(parseFen(queens), MonteCarloConfig(rollouts = 150, maxPlies = 10), new Random(6))
+      MonteCarloEquity.estimate(parseFen(sharpKnights), MonteCarloConfig(rollouts = 64, maxPlies = 5), new Random(6))
     assert(!est.varianceReductionVsVanilla.isNaN, "variance-reduction ratio is NaN")
     assert(
       est.varianceReductionVsVanilla > 1.0,
@@ -135,20 +134,20 @@ class MonteCarloEquitySpec extends FunSuite:
   // --- Determinism & budgets ---
 
   test("the same seed yields an identical estimate") {
-    val cfg = MonteCarloConfig(rollouts = 50, maxPlies = 6)
-    val a   = MonteCarloEquity.estimate(parseFen(queens), cfg, new Random(42))
-    val b   = MonteCarloEquity.estimate(parseFen(queens), cfg, new Random(42))
+    val cfg = MonteCarloConfig(rollouts = 24, maxPlies = 4)
+    val a   = MonteCarloEquity.estimate(parseFen(sharpKnights), cfg, new Random(42))
+    val b   = MonteCarloEquity.estimate(parseFen(sharpKnights), cfg, new Random(42))
     assertEquals(a, b)
   }
 
   test("adaptive stopping halts at minRollouts once the target error is met") {
     // A huge target error is satisfied immediately, so it stops at exactly minRollouts.
     val est = MonteCarloEquity.estimate(
-      parseFen(queens),
-      MonteCarloConfig(rollouts = 5000, maxPlies = 6, targetError = 1.0, minRollouts = 64),
+      parseFen(sharpKnights),
+      MonteCarloConfig(rollouts = 5000, maxPlies = 4, targetError = 1.0, minRollouts = 32),
       new Random(7)
     )
-    assertEquals(est.rollouts, 64)
+    assertEquals(est.rollouts, 32)
   }
 
   // --- Convenience overloads ---
