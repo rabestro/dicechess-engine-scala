@@ -88,6 +88,23 @@ To utilize multi-core server processors (such as the 4-core ARM nodes on Oracle 
 **Milestone fit**:
 * primarily **v0.6 - Expectimax Search Engine**
 
+### Stage 5: Monte-Carlo Pre-Roll Equity
+
+Parallel to the exact tree search, a Rao-Blackwellized Monte-Carlo estimator gives an *on-demand*
+pre-roll win-probability estimate for positions too sparse in the games database to read empirically.
+It integrates the exact per-ply king-capture probability (`KingCaptureProbability`) along a random
+rollout weighted by survival, which cuts variance sharply versus vanilla 0/1 rollouts. It reuses
+`TurnGenerator` + the `RandomSearch` policy and exposes a configurable budget (rollouts / target CI
+width / ply horizon).
+
+See [Monte-Carlo Pre-Roll Equity](/architecture/search/04-monte-carlo-equity/) for the algorithm,
+the variance rationale, and budgeting. It complements position canonicalization (which pools
+empirical statistics across symmetric positions) for genuinely off-book positions, and shares the
+`KingCaptureProbability` machinery with the expectimax chance-node evaluation.
+
+**Milestone fit**:
+* feeds the analytics equity guidance now; aligns with **v0.6 - Expectimax Search Engine** machinery.
+
 ---
 
 ## Evaluation Pyramid
