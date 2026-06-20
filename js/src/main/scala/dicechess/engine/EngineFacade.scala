@@ -30,6 +30,7 @@ object EngineFacade {
     *   ```
     */
   @JSExport
+  @JSExportTopLevel("getBotMove")
   def getBotMove(
       dfen: String,
       seed: js.UndefOr[Int] = js.undefined
@@ -89,6 +90,7 @@ object EngineFacade {
     *   ```
     */
   @JSExport
+  @JSExportTopLevel("getPieceTypeAt")
   def getPieceTypeAt(dfen: String, square: String): js.UndefOr[Int] =
     if Option(dfen).isEmpty || Option(square).isEmpty then js.undefined
     else
@@ -123,6 +125,7 @@ object EngineFacade {
     *   ```
     */
   @JSExport
+  @JSExportTopLevel("applyMoveFacade")
   def applyMove(dfen: String, from: String, to: String, promotion: js.UndefOr[String]): js.UndefOr[String] =
     if Option(dfen).isEmpty || Option(from).isEmpty || Option(to).isEmpty then js.undefined
     else
@@ -173,6 +176,7 @@ object EngineFacade {
     *   The updated DFEN string finalized for the next player, or `undefined` if invalid.
     */
   @JSExport
+  @JSExportTopLevel("endTurnFacade")
   def endTurn(dfen: String): js.UndefOr[String] =
     if Option(dfen).isEmpty then js.undefined
     else

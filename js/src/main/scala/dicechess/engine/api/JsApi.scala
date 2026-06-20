@@ -21,6 +21,7 @@ object JsApi:
     *   An array of bot metadata objects.
     */
   @JSExport
+  @JSExportTopLevel("getAvailableBots")
   def getAvailableBots(): js.Array[js.Dynamic] =
     BotRegistry.availableBots.map { bot =>
       js.Dynamic.literal(
@@ -42,6 +43,7 @@ object JsApi:
     *   An array of full UCI move strings.
     */
   @JSExport
+  @JSExportTopLevel("getLegalUciMoves")
   def getLegalUciMoves(dfen: String): js.Array[String] =
     if Option(dfen).isEmpty then js.Array()
     else
@@ -62,6 +64,7 @@ object JsApi:
     *   The piece notation (p, n, b, r, q, k) or null if invalid.
     */
   @JSExport
+  @JSExportTopLevel("getPieceFromDice")
   def getPieceFromDice(dice: Int): String | Null =
     PieceType.fromDice(dice).map(_.asNotation).orNull
 
@@ -79,6 +82,7 @@ object JsApi:
     *   An object containing the array of moves, score, and time taken.
     */
   @JSExport
+  @JSExportTopLevel("getBestMove")
   def getBestMove(dfen: String, options: js.UndefOr[js.Dynamic]): js.Dynamic =
     if Option(dfen).isEmpty then js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
     else
@@ -123,6 +127,7 @@ object JsApi:
     *   The updated DFEN string after applying the move, or `undefined` if the move is pseudo-illegal.
     */
   @JSExport
+  @JSExportTopLevel("applyMove")
   def applyMove(dfen: String, from: String, to: String, promotion: js.UndefOr[String]): js.UndefOr[String] =
     dicechess.engine.EngineFacade.applyMove(dfen, from, to, promotion)
 
@@ -139,12 +144,14 @@ object JsApi:
     *   The updated DFEN string finalized for the next player, or `undefined` if invalid.
     */
   @JSExport
+  @JSExportTopLevel("endTurn")
   def endTurn(dfen: String): js.UndefOr[String] =
     dicechess.engine.EngineFacade.endTurn(dfen)
 
   /** Determines whether the bot should offer a double before its dice roll.
     */
   @JSExport
+  @JSExportTopLevel("shouldBotOfferDouble")
   def shouldBotOfferDouble(dfen: String, currentStake: Int, options: js.UndefOr[js.Dynamic]): Boolean =
     if Option(dfen).isEmpty then false
     else
@@ -156,6 +163,7 @@ object JsApi:
   /** Determines whether the bot should accept (Take) or decline (Drop) a double from the opponent.
     */
   @JSExport
+  @JSExportTopLevel("shouldBotAcceptDouble")
   def shouldBotAcceptDouble(dfen: String, currentStake: Int, options: js.UndefOr[js.Dynamic]): Boolean =
     if Option(dfen).isEmpty then false
     else
@@ -167,6 +175,7 @@ object JsApi:
   /** Determines whether the bot should offer a draw.
     */
   @JSExport
+  @JSExportTopLevel("shouldBotOfferDraw")
   def shouldBotOfferDraw(dfen: String, options: js.UndefOr[js.Dynamic]): Boolean =
     if Option(dfen).isEmpty then false
     else
@@ -178,6 +187,7 @@ object JsApi:
   /** Determines whether the bot should accept a draw offered by the opponent.
     */
   @JSExport
+  @JSExportTopLevel("shouldBotAcceptDraw")
   def shouldBotAcceptDraw(dfen: String, options: js.UndefOr[js.Dynamic]): Boolean =
     if Option(dfen).isEmpty then false
     else

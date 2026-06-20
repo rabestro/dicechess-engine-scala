@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+#MISE description="📦 Prepare the distribution folder for the npm wasm package"
+#MISE depends=["wasm:build"]
+
+set -euo pipefail
+
+# Get version from sbt
+VERSION=$(sbt -no-colors --error 'print version' | tail -n 1 | tr -d '[:space:]')
+CLEAN_VERSION=$(echo "$VERSION" | sed 's/-SNAPSHOT//')
+
+# Create distribution directory
+mkdir -p dist-wasm
+
+# Sync version in a temporary package.json
+cp package.json dist-wasm/package.json
+sed -i.bak "s/\"version\": \"[^\"]*\"/\"version\": \"$CLEAN_VERSION\"/" dist-wasm/package.json
+sed -i.bak "s/\"name\": \"[^\"]*\"/\"name\": \"@rabestro\\/dicechess-engine-wasm\"/" dist-wasm/package.json
+rm dist-wasm/package.json.bak
+
+# Copy assets to the distribution folder
+cp .wasm/target/scala-3.8.3/dicechess-engine-scala-wasm-opt/* dist-wasm/
+cp js/dicechess-engine.d.ts dist-wasm/
+cp js/README.md dist-wasm/README.md
+
+# Compile optimized package.json for NPM publication (flattened paths, no 'files' field needed)
+jq --arg ver "$CLEAN_VERSION" '
+  .version = $ver |
+  .name = "@rabestro/dicechess-engine-wasm" |
+  .main = "main.js" |
+  .types = "dicechess-engine.d.ts" |
+  del(.files)
+' package.json > dist-wasm/package.json

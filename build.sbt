@@ -33,38 +33,36 @@ ThisBuild / credentials ++= (for {
   token <- sys.env.get("GITHUB_TOKEN")
 } yield Credentials("GitHub Package Registry", "maven.pkg.github.com", user, token)).toSeq
 
+lazy val commonSettings = Seq(
+  name := "dicechess-engine-scala",
+  libraryDependencies ++= Seq(
+    "com.monovore"  %%% "decline"          % "2.5.0",
+    "org.typelevel" %%% "cats-core"        % "2.13.0",
+    "io.circe"      %%% "circe-core"       % "0.14.15",
+    "io.circe"      %%% "circe-generic"    % "0.14.15",
+    "io.circe"      %%% "circe-parser"     % "0.14.15",
+    "org.scalameta" %%% "munit"            % "1.3.0" % Test,
+    "org.scalameta" %%% "munit-scalacheck" % "1.3.0" % Test
+  ),
+  semanticdbEnabled        := true,
+  semanticdbVersion        := scalafixSemanticdb.revision,
+  coverageExcludedFiles    := ".*Main\\.scala",
+  coverageMinimumStmtTotal := 85,
+  coverageFailOnMinimum    := true,
+  scalacOptions ++= Seq(
+    "-Werror",                  // Fail the compilation if there are any warnings
+    "-Wunused:all",             // Fail on unused imports, privates, locals, and implicits
+    "-language:strictEquality", // Prevent comparing different types
+    "-Yexplicit-nulls",         // Make null explicit
+    "-explain",                 // Explain type errors in more detail
+    "-feature",                 // Emit warning and location for usages of features that should be imported explicitly
+    "-deprecation"              // Emit warning and location for usages of deprecated APIs
+  )
+)
+
 lazy val root = crossProject(JSPlatform, JVMPlatform)
   .in(file("."))
-  .settings(
-    name := "dicechess-engine-scala",
-    libraryDependencies ++= Seq(
-      "com.monovore"  %%% "decline"   % "2.5.0",
-      "org.typelevel" %%% "cats-core" % "2.13.0",
-
-      // JSON library (Circe) - using %%% for cross-platform support
-      "io.circe" %%% "circe-core"    % "0.14.15",
-      "io.circe" %%% "circe-generic" % "0.14.15",
-      "io.circe" %%% "circe-parser"  % "0.14.15",
-
-      // Testing framework
-      "org.scalameta" %%% "munit"            % "1.3.0" % Test,
-      "org.scalameta" %%% "munit-scalacheck" % "1.3.0" % Test
-    ),
-    semanticdbEnabled        := true,
-    semanticdbVersion        := scalafixSemanticdb.revision,
-    coverageExcludedFiles    := ".*Main\\.scala",
-    coverageMinimumStmtTotal := 85,
-    coverageFailOnMinimum    := true,
-    scalacOptions ++= Seq(
-      "-Werror",                  // Fail the compilation if there are any warnings
-      "-Wunused:all",             // Fail on unused imports, privates, locals, and implicits
-      "-language:strictEquality", // Prevent comparing different types
-      "-Yexplicit-nulls",         // Make null explicit
-      "-explain",                 // Explain type errors in more detail
-      "-feature",                 // Emit warning and location for usages of features that should be imported explicitly
-      "-deprecation"              // Emit warning and location for usages of deprecated APIs
-    )
-  )
+  .settings(commonSettings)
   .jvmSettings(
     // JVM-specific settings
     libraryDependencies += "org.jline" % "jline" % "3.26.3",
@@ -95,6 +93,28 @@ lazy val root = crossProject(JSPlatform, JVMPlatform)
 
 lazy val rootJVM = root.jvm
 lazy val rootJS  = root.js
+
+lazy val rootWasm = project
+  .in(file(".wasm"))
+  .enablePlugins(ScalaJSPlugin)
+  .settings(
+    commonSettings,
+    name := "dicechess-engine-scala-wasm",
+    Compile / unmanagedSourceDirectories ++= Seq(
+      baseDirectory.value / "../shared/src/main/scala",
+      baseDirectory.value / "../js/src/main/scala"
+    ),
+    Test / unmanagedSourceDirectories ++= Seq(
+      baseDirectory.value / "../shared/src/test/scala",
+      baseDirectory.value / "../js/src/test/scala"
+    ),
+    coverageEnabled                 := false,
+    scalaJSUseMainModuleInitializer := false,
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.ESModule)
+        .withExperimentalUseWebAssembly(true)
+    }
+  )
 
 lazy val benchmark = project
   .in(file("benchmark"))
