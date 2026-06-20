@@ -69,3 +69,26 @@ class KingCaptureProbabilitySuite extends FunSuite:
     val prob  = KingCaptureProbability.queenCaptureProbability(state, Color.White)
     assertEqualsDouble(prob, SingleAttackerProb, 0.0001)
   }
+
+  test("kingCaptureProbability is higher for an exposed king than for a protected king") {
+    // Exposed: White king on e1, Black rook on e8 (direct line).
+    val stateExposed = FenParser
+      .parse("4r3/8/8/8/8/8/8/4K3 b - - 0 1")
+      .fold(err => fail(s"Failed to parse FEN: $err"), identity)
+      .withDicePool(Nil)
+      .endTurn()
+
+    // Safe: White king on e1, White pawn on e2 blocks the rook's file, Black rook on e8.
+    val stateSafe = FenParser
+      .parse("4r3/8/8/8/8/8/4P3/4K3 b - - 0 1")
+      .fold(err => fail(s"Failed to parse FEN: $err"), identity)
+      .withDicePool(Nil)
+      .endTurn()
+
+    val exposedProb = KingCaptureProbability.kingCaptureProbability(stateExposed, Color.White)
+    val safeProb    = KingCaptureProbability.kingCaptureProbability(stateSafe, Color.White)
+
+    assert(exposedProb > safeProb, s"Exposed P=$exposedProb should be > Safe P=$safeProb")
+    assert(exposedProb > 0.4, s"Exposed king should have high capture probability: $exposedProb")
+    assert(safeProb > 0.0, s"A blocked rook can still be freed with pawn+rook dice: $safeProb")
+  }

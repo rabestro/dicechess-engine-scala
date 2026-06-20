@@ -113,22 +113,16 @@ class DrawOfferLogicSuite extends FunSuite:
   }
 
   // ──────────────────────────────────────────────
-  // Integration: PrudentSearch inherits the trait
+  // Integration: MonteCarloSearch inherits the trait
   // ──────────────────────────────────────────────
 
-  test("PrudentSearch inherits DrawOfferLogic draw behaviour") {
+  test("MonteCarloSearch inherits DrawOfferLogic draw behaviour") {
     val deadState = parseState("k7/8/8/8/8/8/8/K7 w - - 0 1")
-    assert(PrudentSearch.shouldOfferDraw(deadState))
+    assert(MonteCarloSearch.shouldOfferDraw(deadState))
 
     val losingState = parseState("k7/1r6/8/8/8/8/8/K7 w - - 0 1")
-    assert(PrudentSearch.shouldAcceptDraw(losingState))
+    assert(MonteCarloSearch.shouldAcceptDraw(losingState))
 
     val winningState = parseState("6R1/k7/8/8/8/8/8/K7 w - - 0 1")
-    assert(!PrudentSearch.shouldAcceptDraw(winningState))
-  }
-
-  test("PrudentSearch does not affect any other SearchAlgorithm methods") {
-    // Verify that mixing in the trait doesn't break PrudentSearch's core search.
-    val state = parseState("k7/8/8/8/8/8/8/K7 w - - 0 1")
-    assert(state.dicePool.isEmpty) // Precondition: no dice yet.
+    assert(!MonteCarloSearch.shouldAcceptDraw(winningState))
   }

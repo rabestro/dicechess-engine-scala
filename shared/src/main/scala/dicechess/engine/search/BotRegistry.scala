@@ -77,24 +77,13 @@ object BotRegistry:
       ),
       AggressiveSearch
     ),
-    "prudent" -> (
-      BotInfo(
-        id = "prudent",
-        name = "Prudent",
-        description =
-          "Evaluates king and queen capture probability over all possible dice rolls; avoids positions where the opponent is likely to capture the king on the next turn.",
-        difficulty = 6,
-        isExperimental = true
-      ),
-      PrudentSearch
-    ),
     "monte-carlo" -> (
       BotInfo(
         id = "monte-carlo",
         name = "Monte-Carlo",
         description =
           "Estimates the full-game win probability of each candidate turn with Rao-Blackwellized Monte-Carlo rollouts and plays the highest.",
-        difficulty = 7,
+        difficulty = 6,
         isExperimental = true
       ),
       MonteCarloSearch

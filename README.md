@@ -62,7 +62,7 @@ The Scala.js module exports a global/module object named `DiceChess` for seamles
 // Request the best move sequence for a specific bot algorithm
 const result = DiceChess.getBestMove(
   "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1 P", 
-  { algorithm: "prudent" }
+  { algorithm: "monte-carlo" }
 );
 
 console.log(result);
@@ -80,7 +80,7 @@ console.log(result);
 ### 2. Check Available Bots
 ```javascript
 const bots = DiceChess.getAvailableBots();
-// Returns metadata for: [Random, Checkmate-Aware, Greedy, Cautious Greedy, Aggressive, Prudent]
+// Returns metadata for: [Random, Checkmate-Aware, Greedy, Cautious Greedy, Aggressive, Monte-Carlo]
 ```
 
 ### 3. Utility API Functions
@@ -134,7 +134,7 @@ mise run publish:local
  └── Fast JS API export (Scala.js) for frontend integration
 
 [✅ Phase 3: Immediate Heuristics & Local AI]
- ├── 5+ Bot behaviors: Random, Checkmate-Aware, Greedy, Aggressive, Prudent
+ ├── 6 Bot behaviors: Random, Checkmate-Aware, Greedy, Cautious Greedy, Aggressive, Monte-Carlo
  └── Probabilistic King Capture analysis (calculating EV over 3d6 combinations)
 
 [🚀 Phase 4: Hackathon Goals & Advanced AI]

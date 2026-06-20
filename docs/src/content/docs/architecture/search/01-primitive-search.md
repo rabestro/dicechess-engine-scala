@@ -1,17 +1,17 @@
 ---
-title: Single-Turn Bot Strategies (Levels 1-6)
-description: Detailed guide to the six single-turn bot search algorithms implemented in the Dice Chess engine.
+title: Single-Turn Bot Strategies (Levels 1-5)
+description: Detailed guide to the five primitive single-turn bot search algorithms and the Monte-Carlo bot implemented in the Dice Chess engine.
 sidebar:
   order: 1
 ---
 
-The engine's initial bot layer consists of six **single-turn (primitive) search algorithms**. Unlike deep tree-search algorithms (like the upcoming Expectimax), these bots do not search the opponent's reply tree. Instead, they solve a narrower tactical optimization problem:
+The engine's bot layer consists of five **single-turn (primitive) search algorithms** (Levels 1–5) and a non-primitive Monte-Carlo bot (Level 6). Unlike deep tree-search algorithms (like the upcoming Expectimax), the primitive bots do not search the opponent's reply tree. Instead, they solve a narrower tactical optimization problem:
 
 1. Enumerate every legal full-turn path for the rolled dice using `TurnGenerator.generateAllLegalTurnPaths`.
 2. Score each resulting position from the active player's perspective.
 3. Select either a random legal path or the optimal path according to a specialized heuristic.
 
-This page documents the exact behavior and equations for all 6 bots implemented in `shared/src/main/scala/dicechess/engine/search/`.
+This page documents the exact behavior and equations for all bots implemented in `shared/src/main/scala/dicechess/engine/search/`.
 
 ---
 
@@ -116,26 +116,8 @@ A critical property of Dice Chess is that these bots evaluate **full turn paths*
 
 ---
 
-### Level 6: Prudent Bot (`PrudentSearch`)
+### Level 6: Monte-Carlo Bot (`MonteCarloSearch`)
 * **Difficulty:** 6 (Beta)
-* **Philosophy:** Highly cautious and risk-averse. It is the first bot to use probabilistic 1-ply lookahead by simulating the opponent's reply options to avoid leaving itself open to tactical capture.
-* **Selection Logic:**
-  - Evaluates all turn paths using material balance and subtracts a weighted probability of the opponent capturing friendly King or Queen on the next turn.
-  - The evaluation formula is:
-    $$
-    \text{Score} = \text{MaterialScore} - (P(\text{KingCapture}) \times 3000) - (P(\text{QueenCapture}) \times 600)
-    $$
-  - Selects the path that maximizes this combined score, aiming to minimize risk.
-
-#### Algorithmic Design & Probabilities
-
-To evaluate the opponent's capture probability, the bot uses [[KingCaptureProbability]]:
-1. **Dice Roll Enumeration:** It enumerates all 216 possible 3d6 rolls for the opponent's upcoming turn. These are grouped into 56 unique, sorted multisets with associated mathematical weights (e.g., AAA has weight 1, AAB weight 3, ABC weight 6) to reduce redundant state evaluation.
-2. **Opponent DFS:** For each multiset, it runs a depth-first search (DFS) over the opponent's legal micro-move sequences. If any path leads to a capture of our King (or Queen), the multiset's weight is added to the count.
-3. **Execution Bottleneck:** While this probabilistic analysis yields high-quality defensive moves, it evaluates the opponent response tree for all 216 rolls for *every* candidate path. Currently, this runs with raw, uncached DFS calls, causing severe performance issues.
-
-### Level 7: Monte-Carlo Bot (`MonteCarloSearch`)
-* **Difficulty:** 7 (Beta)
 * **Philosophy:** The first **non-primitive** bot — instead of a one-ply heuristic, it estimates the full-game win probability of each candidate turn with Rao-Blackwellized Monte-Carlo rollouts.
 * **Selection Logic:**
   - For each legal turn, plays it and runs the [Monte-Carlo pre-roll equity estimator](/architecture/search/04-monte-carlo-equity/) on the resulting position, scoring the turn by the moving side's win probability (an immediate king capture short-circuits to the terminal win score).
@@ -145,15 +127,15 @@ To evaluate the opponent's capture probability, the bot uses [[KingCaptureProbab
 
 ---
 
-## Comparison of O(1) Bot Strategies
+## Comparison of Primitive (O(1)) Bot Strategies
 
-| Aspect | Level 1: Random | Level 2: Checkmate Aware | Level 3: Greedy | Level 4: Cautious Greedy | Level 5: Aggressive | Level 6: Prudent |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Material Aware** | No | No | Yes (Heuristic) | Yes (Heuristic) | Yes (Heuristic) | Yes (Heuristic) |
-| **King Safety Aware** | No | Yes (Binary Filter) | No | Yes (Exposure Penalty) | Yes (Exposure Penalty) | Yes (Probabilistic Penalty) |
-| **Attacking Focus** | None | Direct King Capture | Loose captures | Loose captures | King hunt, Pawn Storm, Proximity | Defensive & Risk-Averse |
-| **Evaluator Used** | None | Dummy `(_, _) => 0` | `evaluateMaterial` | `evaluate` | `evaluateAggressive` | `evalWithCaptureProbability` |
-| **Play Style** | Chaotic | Defensive & Evasive | Aggressive & Reckless | Balanced & Safe | Threatening & Pressuring | Highly Cautious & Deliberate |
+| Aspect | Level 1: Random | Level 2: Checkmate Aware | Level 3: Greedy | Level 4: Cautious Greedy | Level 5: Aggressive |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Material Aware** | No | No | Yes (Heuristic) | Yes (Heuristic) | Yes (Heuristic) |
+| **King Safety Aware** | No | Yes (Binary Filter) | No | Yes (Exposure Penalty) | Yes (Exposure Penalty) |
+| **Attacking Focus** | None | Direct King Capture | Loose captures | Loose captures | King hunt, Pawn Storm, Proximity |
+| **Evaluator Used** | None | Dummy `(_, _) => 0` | `evaluateMaterial` | `evaluate` | `evaluateAggressive` |
+| **Play Style** | Chaotic | Defensive & Evasive | Aggressive & Reckless | Balanced & Safe | Threatening & Pressuring |
 
 ---
 
@@ -172,20 +154,18 @@ The empirical results from a simulation match are as follows:
 | **Level 3: Greedy (Baseline)** | 1,600 | 783 (385/398) | 817 (415/402) | 0 (0/0) | **48.9%** | **~3.53s** |
 | **Level 4: Cautious Greedy** | 1,600 | 871 (428/443) | 729 (372/357) | 0 (0/0) | **54.4%** | ~3.93s |
 | **Level 5: Aggressive** | 1,600 | 978 (499/479) | 622 (301/321) | 0 (0/0) | **61.1%** | ~4.53s |
-| **Level 6: Prudent (Beta)** | 1,600 | 1,157 (577/580) | 442 (223/219) | 1 (0/1) | **72.3%** | **~47433.20s** (~13.1 hours) |
 
 #### Key Insights from the Benchmarks:
-1. **Defensive Dominance:** The **Prudent** bot achieves an impressive **72.3%** win rate against the Greedy baseline, confirming that probabilistic lookahead and risk avoidance are highly effective.
-2. **Coordination Payoff:** The **Aggressive** bot reaches **61.1%**, proving the value of attacking heuristics (king proximity, pawn storm, king ring pressure).
-3. **The Performance Bottleneck:** The **Prudent Bot** takes a staggering **13 hours, 10 minutes** to complete its match, whereas all other bots finish in under 5 seconds. This translates to ~30 seconds of processing per move. Because it evaluates the opponent's reply options over all 216 rolls for *every* candidate move, it scales poorly without optimization. Optimizing `PrudentSearch` and its probabilistic calculations is a high-priority task.
+1. **Coordination Payoff:** The **Aggressive** bot reaches **61.1%**, proving the value of attacking heuristics (king proximity, pawn storm, king ring pressure).
+2. **Eager Enumeration Cost:** All five primitive bots finish their 1,600-game match in under 5 seconds, confirming that single-turn O(1) heuristics are viable for real-time play.
 
 ---
 
 ## Computational Limitations of Single-Turn Search
 
 While these bots perform well for instant matches, they illustrate the limits and challenges of single-turn architectures:
-- **Shallow Horizon:** They evaluate the board only at the end of their turn (or 1-ply after, in the case of the slow `PrudentSearch`). They cannot foresee deep tactical lines.
-- **Combinatorial Explosion:** Evaluating the opponent's reply tree across all 216 rolls (as in `PrudentSearch`) leads to massive execution delays (~13 hours for 1600 games) because they lack caching.
+- **Shallow Horizon:** They evaluate the board only at the end of their own turn. They cannot foresee deep tactical lines.
+- **Combinatorial Explosion:** Any attempt to evaluate the opponent's reply tree across all 216 rolls leads to massive execution delays without caching or pruning.
 - **Eager Enumeration:** They eagerly generate and evaluate all possible legal paths, which becomes unsustainable beyond a depth of one full turn.
 
 These limitations must be resolved via:
