@@ -140,3 +140,16 @@ class MonteCarloSearchSuite extends FunSuite:
     assertEquals(best.score, SearchScoring.TerminalWinScore)
     assertEquals(best.moves.last.toSquare, Square('e', 8))
   }
+
+  test("the wall-clock TimeBudgetedSearch overload returns a legal move within the budget") {
+    // Knights only: low mobility keeps rollouts cheap on CI's slow Scala.js runner; the deadline bounds total time.
+    val state = parseFen("4k3/8/8/3n4/3N4/8/8/4K3 w - - 0 1").withDicePool(List(2, 1, 1))
+    val best  = MonteCarloSearch
+      .findBestMove(state, System.nanoTime() + 30.millis.toNanos, new Random(1))
+      .getOrElse(fail("expected a move"))
+    assert(best.moves.nonEmpty, "expected a non-empty turn path")
+    assert(
+      best.score < SearchScoring.TerminalWinScore,
+      s"non-capturing position should be non-terminal, got ${best.score}"
+    )
+  }
