@@ -5,7 +5,7 @@ sidebar:
   order: 3
 ---
 
-The engine currently has a complete 6-level single-turn (primitive) bot roster: `RandomSearch`, `CheckmateAwareSearch`, `GreedySearch` (baseline), `GreedySearchV2` (Cautious Greedy), `AggressiveSearch`, and `PrudentSearch`.
+The engine currently has a complete 5-level primitive bot roster: `RandomSearch`, `CheckmateAwareSearch`, `GreedySearch` (baseline), `GreedySearchV2` (Cautious Greedy), and `AggressiveSearch`. Level 6 is the non-primitive `MonteCarloSearch` bot.
 
 This forms a solid baseline for move evaluation, but single-turn bots are limited to a 1-turn horizon. To develop a stronger, grandmaster-level engine, we need to transition from single-turn heuristics to a deep, probabilistic search tree.
 
@@ -43,21 +43,7 @@ The baseline remains available even after stronger algorithms are added. It serv
 
 The search roadmap is divided into progressive optimization and tree-search stages.
 
-### Stage 1: Prudent Bot Optimization (High Priority)
-
-The probabilistically reply-aware `PrudentSearch` (Level 6) demonstrates excellent playing strength (**72.3%** win rate against Greedy) but suffers from a severe execution bottleneck (**~13 hours** to complete a 1,600-game match). 
-
-Planned improvements:
-* **transposition caching** during the DFS evaluation of the 216 dice rolls
-* **pruning** paths where the king is already proven safe or captured, skipping redundant evaluations
-* **avoiding garbage collection (GC) allocations** in `KingCaptureProbability` search loops by reusing state objects or bitwise representations
-
-The goal is to reduce Prudent's execution time from ~30s per move to under 50ms, making it usable in real-time matches.
-
-**Milestone fit**:
-* belongs to **v0.5 - Evaluation & Heuristics** performance phase.
-
-### Stage 2: Deep Expectimax Search
+### Stage 1: Deep Expectimax Search
 
 This stage introduces depth-first traversal of multiple plies (turns), reasoning about future turns.
 
@@ -69,7 +55,7 @@ Expected characteristics:
 **Milestone fit**:
 * primarily **v0.6 - Expectimax Search Engine**
 
-### Stage 3: Search Optimizations (Star1 & Star2 Pruning)
+### Stage 2: Search Optimizations (Star1 & Star2 Pruning)
 
 Traversing a deep expectimax tree scales exponentially. We must implement advanced alpha-beta pruning extensions for games with chance nodes:
 * **Star1/Star2 Pruning:** Prunes chance nodes by calculating bounds on the mathematical expectation and skipping subtrees that cannot affect the optimal choice.
@@ -78,7 +64,7 @@ Traversing a deep expectimax tree scales exponentially. We must implement advanc
 **Milestone fit**:
 * primarily **v0.6 - Expectimax Search Engine** and **v0.5** (Zobrist/TT groundwork)
 
-### Stage 4: Parallel Search with Ox Concurrency
+### Stage 3: Parallel Search with Ox Concurrency
 
 To utilize multi-core server processors (such as the 4-core ARM nodes on Oracle Cloud), we will parallelize the evaluation of chance-node subtrees:
 * Use **Java Virtual Threads** (via the `Ox` structured concurrency library) to spawn lightweight concurrent branch evaluations.
@@ -88,7 +74,7 @@ To utilize multi-core server processors (such as the 4-core ARM nodes on Oracle 
 **Milestone fit**:
 * primarily **v0.6 - Expectimax Search Engine**
 
-### Stage 5: Monte-Carlo Pre-Roll Equity
+### Stage 4: Monte-Carlo Pre-Roll Equity
 
 Parallel to the exact tree search, a Rao-Blackwellized Monte-Carlo estimator gives an *on-demand*
 pre-roll win-probability estimate for positions too sparse in the games database to read empirically.
@@ -102,15 +88,14 @@ the variance rationale, and budgeting. It complements position canonicalization 
 empirical statistics across symmetric positions) for genuinely off-book positions, and shares the
 `KingCaptureProbability` machinery with the expectimax chance-node evaluation.
 
-The estimator also drives a bot: **`MonteCarloSearch`** (Level 7, registered in `BotRegistry`) scores
+The estimator also drives a bot: **`MonteCarloSearch`** (Level 6, registered in `BotRegistry`) scores
 every legal turn by the Monte-Carlo win probability of the resulting position and plays the best,
 preferring an immediate king capture. It is the first non-primitive bot (rollout-based lookahead
 rather than a one-ply heuristic). Per-move cost scales with the number of legal turns × the rollout
-budget, so a multi-game win-rate match is validated offline in the JVM Battle Arena — the same way
-`PrudentSearch` is benchmarked — not in CI.
+budget, so a multi-game win-rate match is validated offline in the JVM Battle Arena — not in CI.
 
 **Time control.** Because per-move cost grows with the branching factor, an unbounded heavy bot loses
-on the clock in complex positions (as `PrudentSearch` does). `MonteCarloSearch` therefore takes a
+on the clock in complex positions. `MonteCarloSearch` therefore takes a
 **wall-clock deadline**: it takes any immediate king capture for free, otherwise ranks turns by a
 cheap material score, keeps the top *K*, and Monte-Carlo-evaluates them within an equal slice of the
 remaining time, always falling back to the best material turn so a legal move is returned even if the
@@ -208,19 +193,17 @@ This makes search changes reviewable inside pull requests instead of relying on 
 
 The future search engine tasks are decomposed as follows:
 
-1. `Performance: Optimize PrudentSearch and KingCaptureProbability` (caching, DFS pruning)
-2. `Expectimax search skeleton` (Milestone v0.6)
-3. `Star1 and Star2 pruning implementation`
-4. `Zobrist Hashing & Transposition Table integration`
-5. `Structured concurrency: parallelize chance-nodes using Ox`
-6. `Search evaluation reports and fixtures`
+1. `Expectimax search skeleton` (Milestone v0.6)
+2. `Star1 and Star2 pruning implementation`
+3. `Zobrist Hashing & Transposition Table integration`
+4. `Structured concurrency: parallelize chance-nodes using Ox`
+5. `Search evaluation reports and fixtures`
 
 ## Milestone Mapping
 
 The recommended milestone mapping is:
 
 * **v0.5 - Evaluation & Heuristics**
-  * `PrudentSearch` performance optimization
   * Zobrist Hashing implementation
   * Transposition Table structure
 * **v0.6 - Expectimax Search Engine**

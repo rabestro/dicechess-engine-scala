@@ -4,12 +4,12 @@ import dicechess.engine.domain.*
 import scala.util.Random
 import scala.util.boundary, boundary.break
 
-/** Monte-Carlo search bot (difficulty 7).
+/** Monte-Carlo search bot (difficulty 6).
   *
   * Ranks every legal full-turn path by the Rao-Blackwellized Monte-Carlo win probability of the *resulting* position
-  * ([[MonteCarloEquity]]) and plays the highest-scoring one; an immediate king capture is always preferred. Where
-  * [[PrudentSearch]] scores only a single ply of king-capture risk, this estimates the full-game win probability via
-  * rollouts, so it accounts for deeper consequences.
+  * ([[MonteCarloEquity]]) and plays the highest-scoring one; an immediate king capture is always preferred. Where the
+  * primitive bots score only a single ply of heuristics, this estimates the full-game win probability via rollouts, so
+  * it accounts for deeper consequences.
   *
   * Per-move cost scales with the number of legal turns × the rollout budget, so [[DefaultConfig]] uses a modest budget.
   * Tests and benchmarks pass an explicit [[MonteCarloConfig]] and [[scala.util.Random]] through

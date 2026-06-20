@@ -9,7 +9,7 @@ package dicechess
   *
   *   - [[dicechess.engine.domain]]: Fundamental domain types, board representations, opaque wrappers, and FEN parsers.
   *   - [[dicechess.engine.movegen]]: High-performance bitboard move generators (pawns, leapers, magic sliders).
-  *   - [[dicechess.engine.search]]: Turn path generation, AI search algorithms (Greedy, Prudent), and evaluation.
+  *   - [[dicechess.engine.search]]: Turn path generation, AI search algorithms (Greedy, Monte-Carlo), and evaluation.
   *   - [[dicechess.engine.cli]]: Interactive command-line REPL interpreter (JVM).
   *   - [[dicechess.engine.bench]]: Bot battle arena match simulation framework (JVM).
   *   - [[dicechess.engine.api]]: JavaScript API facade and wrapper classes (JS).
