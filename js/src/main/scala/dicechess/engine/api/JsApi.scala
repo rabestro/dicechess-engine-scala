@@ -2,7 +2,8 @@ package dicechess.engine.api
 
 import dicechess.engine.domain.*
 import dicechess.engine.movegen.LegalMovesFilter
-import dicechess.engine.search.BotRegistry
+import dicechess.engine.search.{BotRegistry, MonteCarloConfig, MonteCarloEquity}
+import scala.util.Random
 import scala.scalajs.js
 import scala.scalajs.js.annotation.*
 import scala.scalajs.js.JSConverters.*
@@ -195,6 +196,77 @@ object JsApi:
       FenParser.parse(dfen) match
         case Left(_)      => false
         case Right(state) => searchAlgo.shouldAcceptDraw(state)
+
+  /** Estimates pre-roll equity for `dfen` with a Rao-Blackwellized Monte-Carlo rollout.
+    *
+    * Designed for **progressive / anytime** client use: call repeatedly in batches (varying `seed`) and pool the
+    * per-batch results in JS — each call returns the `rollouts` count and `standardError` needed to combine batches, so
+    * the browser can show a quick estimate and keep tightening it off the main thread without loading the backend.
+    *
+    * @param dfen
+    *   the position in DFEN.
+    * @param options
+    *   optional `{ rollouts?, maxPlies?, seed? }`. `seed` makes a batch deterministic (omit for a fresh source).
+    * @return
+    *   `{ whiteWin, blackWin, undecided, rollouts, standardError, varianceReductionVsVanilla }`; a neutral
+    *   `undecided = 1` result for an invalid DFEN.
+    */
+  @JSExport
+  @JSExportTopLevel("estimateEquity")
+  def estimateEquity(dfen: String, options: js.UndefOr[js.Dynamic]): js.Dynamic =
+    if Option(dfen).isEmpty then equityFallback
+    else
+      FenParser.parse(dfen) match
+        case Left(_)      => equityFallback
+        case Right(state) =>
+          val config = MonteCarloConfig(
+            rollouts = intOption(options, "rollouts").getOrElse(DefaultEquityRollouts),
+            maxPlies = intOption(options, "maxPlies").getOrElse(DefaultEquityMaxPlies)
+          )
+          val rng = intOption(options, "seed").map(s => new Random(s.toLong)).getOrElse(new Random())
+          val est = MonteCarloEquity.estimate(state, config, rng)
+          js.Dynamic.literal(
+            whiteWin = est.whiteWin,
+            blackWin = est.blackWin,
+            undecided = est.undecided,
+            rollouts = est.rollouts,
+            standardError = est.standardError,
+            varianceReductionVsVanilla = est.varianceReductionVsVanilla
+          )
+
+  /** Returns the canonical key of `dfen` — the DFEN of the position's symmetry-class representative, shared by all
+    * symmetry-equivalent positions. Useful as a cache key (e.g. for client-side equity estimates).
+    *
+    * @return
+    *   the canonical DFEN, or `undefined` for an invalid DFEN.
+    */
+  @JSExport
+  @JSExportTopLevel("canonicalKey")
+  def canonicalKey(dfen: String): js.UndefOr[String] =
+    if Option(dfen).isEmpty then js.undefined
+    else FenParser.parse(dfen).toOption.map(Symmetry.canonicalKey).orUndefined
+
+  private val DefaultEquityRollouts = 200
+  private val DefaultEquityMaxPlies = 60
+
+  private val equityFallback: js.Dynamic =
+    js.Dynamic.literal(
+      whiteWin = 0.0,
+      blackWin = 0.0,
+      undecided = 1.0,
+      rollouts = 0,
+      standardError = 0.0,
+      varianceReductionVsVanilla = 0.0
+    )
+
+  private def intOption(options: js.UndefOr[js.Dynamic], key: String): Option[Int] =
+    options.toOption
+      .filter(Option(_).isDefined)
+      .flatMap { opt =>
+        val v = opt.selectDynamic(key)
+        if scala.scalajs.js.typeOf(v) == "number" then Some(v.asInstanceOf[Double].toInt)
+        else None
+      }
 
   private def resolveAlgorithm(options: js.UndefOr[js.Dynamic]): dicechess.engine.search.SearchAlgorithm =
     val algoName = options.toOption

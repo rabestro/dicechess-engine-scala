@@ -146,3 +146,32 @@ class JsApiSpec extends FunSuite:
     assertEquals(res.moves.length.asInstanceOf[Int], 0)
     assertEquals(res.score.asInstanceOf[Int], 0)
   }
+
+  private val initialDfen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
+  test("estimateEquity: outcome masses sum to 1 and rollouts match the request") {
+    val r   = JsApi.estimateEquity(initialDfen, js.Dynamic.literal(rollouts = 8, maxPlies = 6, seed = 1))
+    val sum = r.whiteWin.asInstanceOf[Double] + r.blackWin.asInstanceOf[Double] + r.undecided.asInstanceOf[Double]
+    assertEqualsDouble(sum, 1.0, 1e-9)
+    assertEquals(r.rollouts.asInstanceOf[Int], 8)
+  }
+
+  test("estimateEquity: is deterministic for a fixed seed") {
+    val opts = js.Dynamic.literal(rollouts = 12, maxPlies = 6, seed = 7)
+    val a    = JsApi.estimateEquity(initialDfen, opts).whiteWin.asInstanceOf[Double]
+    val b    = JsApi.estimateEquity(initialDfen, opts).whiteWin.asInstanceOf[Double]
+    assertEqualsDouble(a, b, 0.0)
+  }
+
+  test("estimateEquity: invalid DFEN returns a neutral undecided result") {
+    val r = JsApi.estimateEquity("not-a-fen", js.undefined)
+    assertEquals(r.rollouts.asInstanceOf[Int], 0)
+    assertEqualsDouble(r.undecided.asInstanceOf[Double], 1.0, 1e-9)
+  }
+
+  test("canonicalKey: returns an idempotent canonical DFEN; undefined for invalid input") {
+    val key = JsApi.canonicalKey(initialDfen).toOption.getOrElse(fail("expected a canonical key"))
+    assert(key.nonEmpty)
+    assertEquals(JsApi.canonicalKey(key).toOption, Some(key)) // idempotent
+    assertEquals(JsApi.canonicalKey("not-a-fen").toOption, None)
+  }

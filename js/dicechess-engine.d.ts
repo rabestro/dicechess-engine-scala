@@ -78,6 +78,20 @@ export interface DiceChessApi {
      * Determines whether the bot should accept a draw offered by the opponent.
      */
     shouldBotAcceptDraw(dfen: string, options?: { algorithm?: string }): boolean;
+
+    /**
+     * Estimates pre-roll equity with a Rao-Blackwellized Monte-Carlo rollout.
+     * For progressive use, call in batches (varying `seed`) and pool the per-batch results
+     * (`rollouts` is the batch size and `standardError` lets you combine batches).
+     * Returns a neutral `undecided = 1` result for an invalid DFEN.
+     */
+    estimateEquity(dfen: string, options?: { rollouts?: number, maxPlies?: number, seed?: number }): { whiteWin: number, blackWin: number, undecided: number, rollouts: number, standardError: number, varianceReductionVsVanilla: number };
+
+    /**
+     * Returns the canonical key (the DFEN of the position's symmetry-class representative),
+     * shared by all symmetry-equivalent positions — useful as a cache key. `undefined` for an invalid DFEN.
+     */
+    canonicalKey(dfen: string): string | undefined;
 }
 
 export const DiceChess: DiceChessApi;
