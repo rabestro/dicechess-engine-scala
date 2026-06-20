@@ -146,6 +146,16 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build WebAssembly package
+        run: |
+          sbt rootWasm/fullLinkJS
+          bash .mise/tasks/package/prepare-wasm
+
+      - name: Publish Wasm package to GitHub Package Registry
+        run: npm publish ./dist-wasm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create GitHub Release and Upload Assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -154,5 +164,8 @@ jobs:
           gh release create "$NEW_TAG" \
             dist/dicechess-engine.js \
             dist/dicechess-engine.d.ts \
+            dist-wasm/main.js \
+            dist-wasm/main.wasm \
+            dist-wasm/__loader.js \
             --generate-notes \
             --title "$NEW_TAG"
