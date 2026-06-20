@@ -95,13 +95,11 @@ object JsApi:
         case Left(_)      => js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
         case Right(state) =>
           val start  = System.currentTimeMillis()
-          val scored = intOption(options, "timeBudgetMs").filter(_ > 0) match
-            case Some(ms) =>
-              searchAlgo match
-                case tb: TimeBudgetedSearch =>
-                  tb.findBestMove(state, System.nanoTime() + ms.toLong * 1_000_000L, new Random())
-                case _ => searchAlgo.findBestMove(state)
-            case None => searchAlgo.findBestMove(state)
+          val scored = (intOption(options, "timeBudgetMs").filter(_ > 0), searchAlgo) match
+            case (Some(ms), tb: TimeBudgetedSearch) =>
+              tb.findBestMove(state, System.nanoTime() + ms.toLong * 1_000_000L, new Random())
+            case _ =>
+              searchAlgo.findBestMove(state)
           scored match
             case None =>
               js.Dynamic.literal(
