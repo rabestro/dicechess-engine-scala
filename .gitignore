@@ -19,4 +19,6 @@ project/project/
 .vscode/
 .DS_Store
 dist/
+dist-wasm/
+.wasm/
 node_modules/
