@@ -2,7 +2,7 @@ package dicechess.engine.api
 
 import dicechess.engine.domain.*
 import dicechess.engine.movegen.LegalMovesFilter
-import dicechess.engine.search.{BotRegistry, MonteCarloConfig, MonteCarloEquity}
+import dicechess.engine.search.{BotRegistry, MonteCarloConfig, MonteCarloEquity, TimeBudgetedSearch}
 import scala.util.Random
 import scala.scalajs.js
 import scala.scalajs.js.annotation.*
@@ -74,11 +74,13 @@ object JsApi:
     * @param dfen
     *   The position in DiceChess Forsyth-Edwards Notation.
     * @param options
-    *   Optional configuration (e.g.
+    *   Optional configuration, e.g.
     *   ```json
-    *   { "algorithm": "greedy" }
+    *   { "algorithm": "monte-carlo", "timeBudgetMs": 2000 }
     *   ```
-    *   ).
+    *   `timeBudgetMs`, when positive and supported by the chosen algorithm (a
+    *   [[dicechess.engine.search.TimeBudgetedSearch]] such as Monte-Carlo), bounds per-move thinking time by a
+    *   wall-clock deadline; other algorithms ignore it.
     * @return
     *   An object containing the array of moves, score, and time taken.
     */
@@ -92,8 +94,15 @@ object JsApi:
       FenParser.parse(dfen) match
         case Left(_)      => js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
         case Right(state) =>
-          val start = System.currentTimeMillis()
-          searchAlgo.findBestMove(state) match
+          val start  = System.currentTimeMillis()
+          val scored = intOption(options, "timeBudgetMs").filter(_ > 0) match
+            case Some(ms) =>
+              searchAlgo match
+                case tb: TimeBudgetedSearch =>
+                  tb.findBestMove(state, System.nanoTime() + ms.toLong * 1_000_000L, new Random())
+                case _ => searchAlgo.findBestMove(state)
+            case None => searchAlgo.findBestMove(state)
+          scored match
             case None =>
               js.Dynamic.literal(
                 moves = js.Array(),

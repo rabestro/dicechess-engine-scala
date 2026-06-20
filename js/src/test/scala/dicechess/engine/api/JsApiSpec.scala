@@ -147,6 +147,25 @@ class JsApiSpec extends FunSuite:
     assertEquals(res.score.asInstanceOf[Int], 0)
   }
 
+  // White pawn on e7 with a Pawn die: exactly one legal (promotion) turn, no king capture — a position the
+  // time-budgeted Monte-Carlo path must evaluate via rollouts rather than short-circuit.
+  private val budgetDfen = "k7/4P3/8/8/8/8/8/4K3 w - - 0 1 P"
+
+  test("getBestMove: honours a time budget for monte-carlo and still returns a legal move") {
+    val res = JsApi.getBestMove(budgetDfen, js.Dynamic.literal(algorithm = "monte-carlo", timeBudgetMs = 25))
+    assert(res.moves.length.asInstanceOf[Int] >= 1)
+  }
+
+  test("getBestMove: a time budget is ignored by a non-time-budgeted algorithm") {
+    val res = JsApi.getBestMove(budgetDfen, js.Dynamic.literal(algorithm = "greedy", timeBudgetMs = 25))
+    assert(res.moves.length.asInstanceOf[Int] >= 1)
+  }
+
+  test("getBestMove: works without a time budget (backward compatible)") {
+    val res = JsApi.getBestMove(budgetDfen, js.Dynamic.literal(algorithm = "monte-carlo"))
+    assert(res.moves.length.asInstanceOf[Int] >= 1)
+  }
+
   private val initialDfen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
   test("estimateEquity: outcome masses sum to 1 and rollouts match the request") {

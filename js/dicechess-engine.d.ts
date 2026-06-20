@@ -40,8 +40,10 @@ export interface DiceChessApi {
 
     /**
      * Computes the best sequence of micro-moves for the given position.
+     * `timeBudgetMs`, when positive and supported by the chosen algorithm (e.g. "monte-carlo"),
+     * bounds per-move thinking time by a wall-clock deadline; other algorithms ignore it.
      */
-    getBestMove(dfen: string, options?: { algorithm?: string }): { moves: { from: string, to: string, promotion: string | null }[], score: number, timeTakenMs: number };
+    getBestMove(dfen: string, options?: { algorithm?: string, timeBudgetMs?: number }): { moves: { from: string, to: string, promotion: string | null }[], score: number, timeTakenMs: number };
 
     /**
      * Applies a move to the given DFEN and returns the resulting state.

@@ -16,7 +16,7 @@ import scala.util.boundary, boundary.break
   * [[findBestMove(state:dicechess\.engine\.domain\.GameState,config:dicechess\.engine\.search\.MonteCarloConfig,random:scala\.util\.Random)*]]
   * for reproducible, faster, or stronger play.
   */
-object MonteCarloSearch extends SearchAlgorithm with DrawOfferLogic:
+object MonteCarloSearch extends SearchAlgorithm with DrawOfferLogic with TimeBudgetedSearch:
 
   /** Maps a win probability in `[0, 1]` onto the integer [[ScoredSequence.score]]. Kept far below
     * [[SearchScoring.TerminalWinScore]] (`Int.MaxValue`) so a king capture always outranks any probabilistic score.
@@ -25,6 +25,11 @@ object MonteCarloSearch extends SearchAlgorithm with DrawOfferLogic:
 
   /** Default per-move budget — a balance between playing strength and decision latency. */
   val DefaultConfig: MonteCarloConfig = MonteCarloConfig(rollouts = 120, maxPlies = 40)
+
+  /** Config for the wall-clock time-budgeted path: the rollout cap is effectively unbounded so the **deadline**, not
+    * the rollout count, is the binding limit and the whole time budget is spent on the strongest play available.
+    */
+  private val DeadlineConfig: MonteCarloConfig = DefaultConfig.copy(rollouts = Int.MaxValue)
 
   /** Upper bound on the number of turns the time-budgeted search Monte-Carlo-evaluates per move. The candidate set is
     * first ranked by a cheap material score, so under time pressure rollouts are spent on the most promising turns
@@ -86,6 +91,13 @@ object MonteCarloSearch extends SearchAlgorithm with DrawOfferLogic:
 
     val score = if bestWin >= 0.0 then (bestWin * ProbScoreScale).round.toInt else best.score
     Some(ScoredSequence(best.moves, score))
+
+  /** Time-budgeted entry point (see [[TimeBudgetedSearch]]). Evaluates within the wall-clock `deadlineNanos` using a
+    * rollout cap high enough that the deadline — not the rollout count — bounds the search, so the whole budget is
+    * spent on the strongest play available in the time given.
+    */
+  override def findBestMove(state: GameState, deadlineNanos: Long, random: Random): Option[ScoredSequence] =
+    findBestMove(state, DeadlineConfig, deadlineNanos, random)
 
   /** Among equal-scoring paths, prefer a shorter king capture (faster win); irrelevant for non-terminal scores. */
   private def terminalWinPreference(scored: ScoredSequence): Int =
