@@ -105,9 +105,14 @@ object MonteCarloEquity:
     var meanB = 0.0
     var meanU = 0.0
 
+    // Ply 0 of every rollout starts from `state`, so its king-capture probability is identical across all rollouts.
+    // KingCaptureProbability is deterministic and consumes no RNG, so hoisting it out of the loop is bit-for-bit exact
+    // while removing (rollouts - 1) full 56-multiset DFS evaluations per estimate.
+    val ply0Capture = KingCaptureProbability.kingCaptureProbability(state, state.activeColor.opponent)
+
     var stop = false
     while !stop && n < config.rollouts do
-      val (w, b, u) = singleRollout(state, config.maxPlies, random)
+      val (w, b, u) = singleRollout(state, config.maxPlies, random, ply0Capture)
       n += 1
       val deltaW = w - meanW
       meanW += deltaW / n
@@ -140,7 +145,12 @@ object MonteCarloEquity:
   /** Runs one Rao-Blackwellized rollout, returning `(whiteWinMass, blackWinMass, survivingMass)`. The three always sum
     * to `1.0`.
     */
-  private def singleRollout(start: GameState, maxPlies: Int, random: Random): (Double, Double, Double) =
+  private def singleRollout(
+      start: GameState,
+      maxPlies: Int,
+      random: Random,
+      ply0Capture: Double
+  ): (Double, Double, Double) =
     var state     = start
     var whiteWon  = 0.0
     var blackWon  = 0.0
@@ -148,8 +158,10 @@ object MonteCarloEquity:
     var ply       = 0
     var resolving = true
     while resolving && ply < maxPlies && survive > SurvivalEpsilon do
-      val mover    = state.activeColor
-      val pCapture = KingCaptureProbability.kingCaptureProbability(state, mover.opponent)
+      val mover = state.activeColor
+      // Ply 0 starts from `start`; reuse the precomputed value (identical input) instead of recomputing KCP.
+      val pCapture =
+        if ply == 0 then ply0Capture else KingCaptureProbability.kingCaptureProbability(state, mover.opponent)
       if mover.isWhite then whiteWon += pCapture * survive else blackWon += pCapture * survive
       survive *= (1.0 - pCapture)
       if survive <= SurvivalEpsilon then resolving = false
