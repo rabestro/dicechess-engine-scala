@@ -170,3 +170,14 @@ class MonteCarloEquitySpec extends FunSuite:
     assertEquals(est.rollouts, 1)
     assertEqualsDouble(est.whiteWin, 1.0, 1e-9)
   }
+
+  // Golden values captured from the pre-hoist implementation. Hoisting ply-0 KingCaptureProbability out of the rollout
+  // loop must leave the estimate bit-for-bit identical (KCP is deterministic and consumes no RNG, so the random stream
+  // and every rollout outcome are unchanged). A regression here means the hoist altered behaviour.
+  test("ply-0 hoist preserves the estimate exactly (golden regression on a sharp position)") {
+    val est =
+      MonteCarloEquity.estimate(parseFen(sharpKnights), MonteCarloConfig(rollouts = 64, maxPlies = 6), new Random(123))
+    assertEqualsDouble(est.whiteWin, 0.5251474787726832, 1e-12)
+    assertEqualsDouble(est.blackWin, 0.16441636804094195, 1e-12)
+    assertEqualsDouble(est.undecided, 0.31043615318637463, 1e-12)
+  }
