@@ -96,4 +96,33 @@ class GameFlagsSpec extends FunSuite {
     flags = flags.removeDie(2)
     assertEquals(flags.dicePool, Nil)
   }
+
+  test("withDiceSlotsOf copies only the dice slots, preserving holes and other fields") {
+    // Source pool [1, 4, 5] with the rook die (4) removed -> a hole in the middle slot.
+    val src = GameFlags.empty.addDie(1).toOption.get.addDie(4).toOption.get.addDie(5).toOption.get.removeDie(4)
+    assertEquals(src.diceSlot1, 1)
+    assertEquals(src.diceSlot2, 0)
+    assertEquals(src.diceSlot3, 5)
+
+    // Destination carries unrelated state and a different pool.
+    val dst = GameFlags.empty
+      .withActiveColor(Color.Black)
+      .withCastlingRights(0xf)
+      .withHalfMoveClock(7)
+      .addDie(2)
+      .toOption
+      .get
+
+    val out = dst.withDiceSlotsOf(src)
+
+    // Dice slots are taken verbatim from src (the hole is preserved).
+    assertEquals(out.diceSlot1, 1)
+    assertEquals(out.diceSlot2, 0)
+    assertEquals(out.diceSlot3, 5)
+    assertEquals(out.dicePool, List(1, 5)) // the getter skips the empty slot
+    // Every non-dice field is the destination's, untouched.
+    assertEquals(out.activeColor, Color.Black)
+    assertEquals(out.castlingRights, 0xf)
+    assertEquals(out.halfMoveClock, 7)
+  }
 }
