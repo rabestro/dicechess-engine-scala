@@ -149,6 +149,24 @@ object GameFlags:
       else if diceSlot3 == die then flags & ~(0x7 << 19)
       else flags
 
+    /** Replaces this value's three dice slots with those of `src`, leaving every other flag bit untouched.
+      *
+      * Allocation-free alternative to [[withDicePool]] for hot paths: it copies the slot values verbatim, so an emptied
+      * slot stays a hole rather than compacting. The [[dicePool]] getter and move generation skip empty slots, so the
+      * observable multiset is identical to a compacted pool.
+      */
+    inline def withDiceSlotsOf(src: GameFlags): GameFlags =
+      val diceMask = (0x7 << 13) | (0x7 << 16) | (0x7 << 19)
+      (flags & ~diceMask) | (src & diceMask)
+
+    /** True when all three dice slots are empty. */
+    inline def isDicePoolEmpty: Boolean =
+      (flags & ((0x7 << 13) | (0x7 << 16) | (0x7 << 19))) == 0
+
+    /** True when the pool holds at least one die of value `die`. */
+    inline def containsDie(die: Int): Boolean =
+      diceSlot1 == die || diceSlot2 == die || diceSlot3 == die
+
     /** Replaces the entire dice pool. */
     def withDicePool(dice: List[Int]): GameFlags =
       val base = flags & ~((0x7 << 13) | (0x7 << 16) | (0x7 << 19))

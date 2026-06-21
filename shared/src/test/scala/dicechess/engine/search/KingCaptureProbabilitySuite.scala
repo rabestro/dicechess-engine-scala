@@ -92,3 +92,28 @@ class KingCaptureProbabilitySuite extends FunSuite:
     assert(exposedProb > 0.4, s"Exposed king should have high capture probability: $exposedProb")
     assert(safeProb > 0.0, s"A blocked rook can still be freed with pawn+rook dice: $safeProb")
   }
+
+  // Differential corpus: king/queen capture probabilities captured from the pre-int-encoding (List-based)
+  // captureDFS. The int-slot rewrite must reproduce them bit-for-bit — the dice multiset seen by move generation
+  // is unchanged; a removed die just leaves a harmless empty slot the dicePool getter skips.
+  test("captureDFS int-slot rewrite preserves the capture probabilities (differential corpus)") {
+    val cases = List(
+      // (fen, kingWhite, queenWhite, kingBlack, queenBlack)
+      ("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 0.0, 0.0, 0.0, 0.0),
+      (
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        0.041666666666666664,
+        0.16203703703703703,
+        0.018518518518518517,
+        0.24074074074074073
+      ),
+      ("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", 0.07407407407407407, 0.0, 0.14814814814814814, 0.0)
+    )
+    cases.foreach { (fen, kW, qW, kB, qB) =>
+      val st = FenParser.parse(fen).fold(e => fail(s"bad FEN: $e"), identity)
+      assertEqualsDouble(KingCaptureProbability.kingCaptureProbability(st, Color.White), kW, 1e-12)
+      assertEqualsDouble(KingCaptureProbability.queenCaptureProbability(st, Color.White), qW, 1e-12)
+      assertEqualsDouble(KingCaptureProbability.kingCaptureProbability(st, Color.Black), kB, 1e-12)
+      assertEqualsDouble(KingCaptureProbability.queenCaptureProbability(st, Color.Black), qB, 1e-12)
+    }
+  }
