@@ -75,13 +75,9 @@ object KingCaptureProbability:
     * paths are always legal regardless of the Maximum Micro‑moves Rule, an early exit is correct for kings. For queens
     * the result may slightly overestimate the true probability.
     */
-  /** True when the dice pool holds at least one die of value `die`, read straight from the int slots. */
-  private inline def containsDie(flags: GameFlags, die: Int): Boolean =
-    flags.diceSlot1 == die || flags.diceSlot2 == die || flags.diceSlot3 == die
-
   private def captureDFS(state: GameState, targets: Bitboard): Boolean = boundary {
     val flags = state.flags
-    if flags.diceSlot1 == 0 && flags.diceSlot2 == 0 && flags.diceSlot3 == 0 then break(false)
+    if flags.isDicePoolEmpty then break(false)
     val moves = MoveGenerator.generateMoves(state)
     var i     = 0
     while i < moves.length do
@@ -91,22 +87,16 @@ object KingCaptureProbability:
       if !(targets & Bitboard.fromSquare(move.toSquare)).isEmpty then break(true)
 
       // Recurse — the dice the move consumes depend on whether it is castling. makeMove(Move) clears the pool, so the
-      // surviving dice are re-installed via an int-slot transplant (no List allocation on this hot path).
-      val nextState =
-        if move.isCastling then
-          if containsDie(flags, PieceType.King.diceValue) && containsDie(flags, PieceType.Rook.diceValue) then
-            val survived = flags.removeDie(PieceType.King.diceValue).removeDie(PieceType.Rook.diceValue)
-            val moved    = state.makeMove(move)
-            Some(moved.copy(flags = moved.flags.withDiceSlotsOf(survived)))
-          else None
-        else
-          val survived = flags.removeDie(state.mailbox(move.fromSquare).pieceType.diceValue)
+      // surviving dice are re-installed via an int-slot transplant (no List or Option allocation on this hot path).
+      if move.isCastling then
+        if flags.containsDie(PieceType.King.diceValue) && flags.containsDie(PieceType.Rook.diceValue) then
+          val survived = flags.removeDie(PieceType.King.diceValue).removeDie(PieceType.Rook.diceValue)
           val moved    = state.makeMove(move)
-          Some(moved.copy(flags = moved.flags.withDiceSlotsOf(survived)))
-
-      nextState match
-        case Some(s) => if captureDFS(s, targets) then break(true)
-        case None    => ()
+          if captureDFS(moved.copy(flags = moved.flags.withDiceSlotsOf(survived)), targets) then break(true)
+      else
+        val survived = flags.removeDie(state.mailbox(move.fromSquare).pieceType.diceValue)
+        val moved    = state.makeMove(move)
+        if captureDFS(moved.copy(flags = moved.flags.withDiceSlotsOf(survived)), targets) then break(true)
 
       i += 1
     false

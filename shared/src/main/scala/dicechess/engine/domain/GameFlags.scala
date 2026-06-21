@@ -156,8 +156,16 @@ object GameFlags:
       * observable multiset is identical to a compacted pool.
       */
     inline def withDiceSlotsOf(src: GameFlags): GameFlags =
-      val base = flags & ~((0x7 << 13) | (0x7 << 16) | (0x7 << 19))
-      base | (src.diceSlot1 << 13) | (src.diceSlot2 << 16) | (src.diceSlot3 << 19)
+      val diceMask = (0x7 << 13) | (0x7 << 16) | (0x7 << 19)
+      (flags & ~diceMask) | (src & diceMask)
+
+    /** True when all three dice slots are empty. */
+    inline def isDicePoolEmpty: Boolean =
+      (flags & ((0x7 << 13) | (0x7 << 16) | (0x7 << 19))) == 0
+
+    /** True when the pool holds at least one die of value `die`. */
+    inline def containsDie(die: Int): Boolean =
+      diceSlot1 == die || diceSlot2 == die || diceSlot3 == die
 
     /** Replaces the entire dice pool. */
     def withDicePool(dice: List[Int]): GameFlags =

@@ -124,5 +124,11 @@ class GameFlagsSpec extends FunSuite {
     assertEquals(out.activeColor, Color.Black)
     assertEquals(out.castlingRights, 0xf)
     assertEquals(out.halfMoveClock, 7)
+
+    // Slot-level queries read straight from the int bits.
+    assert(!out.isDicePoolEmpty)
+    assert(out.containsDie(1) && out.containsDie(5))
+    assert(!out.containsDie(4))
+    assert(GameFlags.empty.isDicePoolEmpty)
   }
 }
