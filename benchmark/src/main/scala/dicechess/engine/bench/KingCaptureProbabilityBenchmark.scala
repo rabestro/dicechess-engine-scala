@@ -14,7 +14,7 @@ import scala.compiletime.uninitialized
   * benchmark establishes the baseline for KCP optimizations; measure on defended-king mid/endgames (not a hanging king)
   * so a direct-capture fast-path cannot flatter the numbers.
   *
-  * The result is wrapped in a [[DoubleHolder]] so JMH cannot dead-code-eliminate the computation.
+  * Returning the primitive `Double` is enough for JMH to consume the result and prevent dead-code elimination.
   */
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
@@ -39,12 +39,9 @@ class KingCaptureProbabilityBenchmark:
     defenderColor = if defender == "white" then Color.White else Color.Black
 
   @Benchmark
-  def kingCaptureProbability(): DoubleHolder =
-    DoubleHolder(KingCaptureProbability.kingCaptureProbability(state, defenderColor))
+  def kingCaptureProbability(): Double =
+    KingCaptureProbability.kingCaptureProbability(state, defenderColor)
 
   @Benchmark
-  def queenCaptureProbability(): DoubleHolder =
-    DoubleHolder(KingCaptureProbability.queenCaptureProbability(state, defenderColor))
-
-/** Wraps a probability so JMH cannot dead-code-eliminate the computation. */
-final case class DoubleHolder(value: Double)
+  def queenCaptureProbability(): Double =
+    KingCaptureProbability.queenCaptureProbability(state, defenderColor)
