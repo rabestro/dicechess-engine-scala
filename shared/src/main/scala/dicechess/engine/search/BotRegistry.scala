@@ -25,7 +25,7 @@ case class BotInfo(
   */
 object BotRegistry:
 
-  private val bots: Map[String, (BotInfo, SearchAlgorithm)] = Map(
+  private var _bots: Map[String, (BotInfo, SearchAlgorithm)] = Map(
     "random" -> (
       BotInfo(
         id = "random",
@@ -102,7 +102,7 @@ object BotRegistry:
   )
 
   /** Returns all available bots sorted by difficulty. */
-  val availableBots: List[BotInfo] = bots.values.map(_._1).toList.sortBy(_.difficulty)
+  def availableBots: List[BotInfo] = _bots.values.map(_._1).toList.sortBy(_.difficulty)
 
   /** Looks up a search algorithm by its bot ID.
     *
@@ -112,7 +112,17 @@ object BotRegistry:
     *   The algorithm if found, or None.
     */
   def getAlgorithm(id: String): Option[SearchAlgorithm] =
-    Option(id).flatMap(i => bots.get(i.toLowerCase)).map(_._2)
+    Option(id).flatMap(i => _bots.get(i.toLowerCase)).map(_._2)
+
+  /** Registers a custom bot at runtime. Useful for dynamically adding decorator bots (like OpeningBookBot) from JS.
+    *
+    * @param info
+    *   Metadata for the new bot
+    * @param algorithm
+    *   The search algorithm implementation
+    */
+  def registerCustomBot(info: BotInfo, algorithm: SearchAlgorithm): Unit =
+    _bots = _bots + (info.id.toLowerCase -> (info, algorithm))
 
   /** Returns the default algorithm (Greedy). */
   def defaultAlgorithm: SearchAlgorithm = GreedySearch

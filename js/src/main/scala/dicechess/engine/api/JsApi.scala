@@ -285,3 +285,41 @@ object JsApi:
       }
       .getOrElse("greedy")
     BotRegistry.getAlgorithm(algoName).getOrElse(BotRegistry.defaultAlgorithm)
+
+  /** Registers a new bot dynamically by parsing an opening book JSON string and decorating a base bot.
+    *
+    * @param jsonString
+    *   The opening book JSON string in format {"[dfen]": "e2e4,f7f5"}
+    * @param baseBotId
+    *   The ID of the existing bot to decorate (e.g. "aggressive")
+    * @param newBotId
+    *   The ID to assign to the newly created bot
+    * @param newBotName
+    *   The display name for the new bot
+    * @return
+    *   true if successfully registered, false otherwise.
+    */
+  @JSExport
+  @JSExportTopLevel("registerOpeningBookBot")
+  def registerOpeningBookBot(
+      jsonString: String,
+      baseBotId: String,
+      newBotId: String,
+      newBotName: String
+  ): Boolean =
+    val baseBotOpt = BotRegistry.getAlgorithm(baseBotId)
+    val parsedBook = dicechess.engine.search.OpeningBookParser.parse(jsonString)
+
+    (baseBotOpt, parsedBook) match
+      case (Some(baseBot: dicechess.engine.search.TimeBudgetedSearch), Right(bookMap)) =>
+        val newBot = new dicechess.engine.search.OpeningBookBot(baseBot, bookMap)
+        val info   = dicechess.engine.search.BotInfo(
+          id = newBotId,
+          name = newBotName,
+          description = s"Opening book bot decorating $baseBotId.",
+          difficulty = BotRegistry.availableBots.find(_.id == baseBotId).map(_.difficulty).getOrElse(5),
+          isExperimental = true
+        )
+        BotRegistry.registerCustomBot(info, newBot)
+        true
+      case _ => false
