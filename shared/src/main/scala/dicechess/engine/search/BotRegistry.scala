@@ -87,6 +87,17 @@ object BotRegistry:
         isExperimental = true
       ),
       MonteCarloSearch
+    ),
+    "mcts" -> (
+      BotInfo(
+        id = "mcts",
+        name = "Monte-Carlo Tree Search",
+        description =
+          "Builds a search tree using UCT to balance exploration and exploitation, performing Rao-Blackwellized rollouts at the leaves.",
+        difficulty = 7,
+        isExperimental = true
+      ),
+      MctsSearch
     )
   )
 

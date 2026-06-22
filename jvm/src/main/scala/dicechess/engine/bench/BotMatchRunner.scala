@@ -17,13 +17,19 @@ object BotMatchRunner:
     val baseBotId     = args.headOption.getOrElse("greedy")
     val gamesPerColor = args.lift(1).flatMap(_.toIntOption).getOrElse(50)
 
-    try runArena(baseBotId, None, gamesPerColor, StartFen)
+    try runArena(baseBotId, None, gamesPerColor, None, StartFen)
     catch
       case e: Exception =>
         System.err.println(e.getMessage)
         sys.exit(1)
 
-  def runArena(baseBotId: String, opponentBotId: Option[String], gamesPerColor: Int, startFen: String): Unit =
+  def runArena(
+      baseBotId: String,
+      opponentBotId: Option[String],
+      gamesPerColor: Int,
+      timeControlSec: Option[Int],
+      startFen: String
+  ): Unit =
     if gamesPerColor <= 0 then sys.error(s"Invalid gamesPerColor '$gamesPerColor'. Must be greater than 0.")
 
     val parsedFen =
@@ -59,7 +65,7 @@ object BotMatchRunner:
 
     val results = for opponentInfo <- opponents yield
       val opponentAlgo = BotRegistry.getAlgorithm(opponentInfo.id).get
-      val matchResult  = runMatch(opponentAlgo, baseAlgorithm, gamesPerColor, parsedFen)
+      val matchResult  = runMatch(opponentAlgo, baseAlgorithm, gamesPerColor, timeControlSec, parsedFen)
       (opponentInfo, matchResult)
 
     printSummaryTable(results)
@@ -71,6 +77,7 @@ object BotMatchRunner:
       opponentAlgo: SearchAlgorithm,
       baseAlgo: SearchAlgorithm,
       gamesPerColor: Int,
+      timeControlSec: Option[Int] = None,
       startFen: GameState = FenParser.parse(StartFen).toOption.get
   ): MatchResult =
     val rand          = new Random(42) // Fixed seed for reproducible run results
@@ -85,7 +92,7 @@ object BotMatchRunner:
 
     // 1. Play games with Opponent as White and Base Bot as Black
     for _ <- 1 to gamesPerColor do
-      simulateGame(opponentAlgo, baseAlgo, rand, startFen) match
+      simulateGame(opponentAlgo, baseAlgo, rand, timeControlSec, startFen) match
         case GameOutcome.Win(color) =>
           if color.isWhite then winsAsWhite += 1 else lossesAsWhite += 1
         case GameOutcome.Draw =>
@@ -93,7 +100,7 @@ object BotMatchRunner:
 
     // 2. Play games with Base Bot as White and Opponent as Black
     for _ <- 1 to gamesPerColor do
-      simulateGame(baseAlgo, opponentAlgo, rand, startFen) match
+      simulateGame(baseAlgo, opponentAlgo, rand, timeControlSec, startFen) match
         case GameOutcome.Win(color) =>
           if color.isBlack then winsAsBlack += 1 else lossesAsBlack += 1
         case GameOutcome.Draw =>
@@ -118,11 +125,16 @@ object BotMatchRunner:
       whiteBot: SearchAlgorithm,
       blackBot: SearchAlgorithm,
       rand: Random,
+      timeControlSec: Option[Int] = None,
       startState: GameState = FenParser.parse(StartFen).toOption.get
   ): GameOutcome =
     var state                = startState
     var isGameOver           = false
     var outcome: GameOutcome = GameOutcome.Draw
+
+    // Initialize clocks
+    var whiteRemainingNanos: Long = timeControlSec.map(_ * 1_000_000_000L).getOrElse(0L)
+    var blackRemainingNanos: Long = timeControlSec.map(_ * 1_000_000_000L).getOrElse(0L)
 
     while !isGameOver do
       if state.halfMoveClock >= 100 then
@@ -130,35 +142,57 @@ object BotMatchRunner:
         outcome = GameOutcome.Draw
       else
         // Roll 3 random dice
-        val dice          = List.fill(3)(rand.nextInt(6) + 1)
-        val stateWithDice = state.withDicePool(dice)
-        val activeBot     = if state.activeColor.isWhite then whiteBot else blackBot
+        val dice           = List.fill(3)(rand.nextInt(6) + 1)
+        val stateWithDice  = state.withDicePool(dice)
+        val isWhiteTurn    = state.activeColor.isWhite
+        val activeBot      = if isWhiteTurn then whiteBot else blackBot
+        val remainingNanos = if isWhiteTurn then whiteRemainingNanos else blackRemainingNanos
 
-        activeBot.findBestMove(stateWithDice) match
-          case None =>
-            // Force turn-pass when no legal move exists
-            state = state.endTurn()
-            verifySync(state, "endTurn(pass)")
-          case Some(scoredSeq) =>
-            var tempState    = state
-            var kingCaptured = false
-            val moves        = scoredSeq.moves
+        val startNanos = System.nanoTime()
+        val moveOpt    = activeBot match
+          case tb: TimeBudgetedSearch if timeControlSec.isDefined =>
+            val alloc = math.max(remainingNanos / 30, 100_000_000L) // at least 0.1s
+            tb.findBestMove(stateWithDice, startNanos + alloc, rand)
+          case _ =>
+            activeBot.findBestMove(stateWithDice)
 
-            val iterator = moves.iterator
-            while iterator.hasNext && !kingCaptured do
-              val m      = iterator.next()
-              val target = tempState.mailbox(m.toSquare)
-              if !target.isEmpty && target.pieceType == PieceType.King && target.color != tempState.activeColor then
-                kingCaptured = true
-                outcome = GameOutcome.Win(tempState.activeColor)
-                isGameOver = true
-              tempState = tempState.makeMove(m)
-              verifySync(tempState, s"${m.fromSquare.toNotation}${m.toSquare.toNotation}")
+        val elapsedNanos = System.nanoTime() - startNanos
 
-            if kingCaptured then state = tempState
-            else
-              state = tempState.endTurn()
-              verifySync(state, "endTurn")
+        if timeControlSec.isDefined then
+          if isWhiteTurn then whiteRemainingNanos -= elapsedNanos
+          else blackRemainingNanos -= elapsedNanos
+
+          val newRemaining = if isWhiteTurn then whiteRemainingNanos else blackRemainingNanos
+          if newRemaining < 0 then
+            isGameOver = true
+            outcome = GameOutcome.Win(state.activeColor.opponent)
+
+        if !isGameOver then
+          moveOpt match
+            case None =>
+              // Force turn-pass when no legal move exists
+              state = state.endTurn()
+              verifySync(state, "endTurn(pass)")
+            case Some(scoredSeq) =>
+              var tempState    = state
+              var kingCaptured = false
+              val moves        = scoredSeq.moves
+
+              val iterator = moves.iterator
+              while iterator.hasNext && !kingCaptured do
+                val m      = iterator.next()
+                val target = tempState.mailbox(m.toSquare)
+                if !target.isEmpty && target.pieceType == PieceType.King && target.color != tempState.activeColor then
+                  kingCaptured = true
+                  outcome = GameOutcome.Win(tempState.activeColor)
+                  isGameOver = true
+                tempState = tempState.makeMove(m)
+                verifySync(tempState, s"${m.fromSquare.toNotation}${m.toSquare.toNotation}")
+
+              if kingCaptured then state = tempState
+              else
+                state = tempState.endTurn()
+                verifySync(state, "endTurn")
 
     outcome
 

@@ -69,7 +69,7 @@ object MonteCarloSearch extends SearchAlgorithm with DrawOfferLogic with TimeBud
     val paths = TurnGenerator.generateAllLegalTurnPaths(state)
     if paths.isEmpty then break(None)
 
-    // Cheap material pre-score; scorePath assigns TerminalWinScore to king-capture turns regardless of the evalFn.
+    // Cheap pre-score; scorePath assigns TerminalWinScore to king-capture turns regardless of the evalFn.
     val preScored = paths.map(p => SearchScoring.scorePath(state, p, Evaluator.evaluateMaterial))
     val captures  = preScored.filter(_.score == SearchScoring.TerminalWinScore)
     if captures.nonEmpty then break(Some(captures.minBy(_.moves.size))) // take the fastest win, no rollouts needed
