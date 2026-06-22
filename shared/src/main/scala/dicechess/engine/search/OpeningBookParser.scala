@@ -6,7 +6,7 @@ import io.circe.parser.*
 object OpeningBookParser:
 
   /** Parses a JSON string containing the opening book map.
-    * 
+    *
     * The expected format is:
     * {{{
     * {

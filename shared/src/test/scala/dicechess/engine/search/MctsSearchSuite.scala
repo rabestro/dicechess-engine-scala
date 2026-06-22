@@ -12,8 +12,6 @@ class MctsSearchSuite extends FunSuite:
   private def parseFen(fen: String): GameState =
     FenParser.parse(fen).fold(e => fail(s"bad FEN '$fen': $e"), identity)
 
-
-
   test("is registered in BotRegistry as difficulty 7") {
     assertEquals(BotRegistry.getAlgorithm("mcts"), Some(MctsSearch))
     val info = BotRegistry.availableBots.find(_.id == "mcts").getOrElse(fail("mcts not listed"))
@@ -23,7 +21,9 @@ class MctsSearchSuite extends FunSuite:
 
   test("prefers an immediate king capture (terminal win score)") {
     val state = parseFen("4k3/8/3N4/8/8/8/8/4K3 w - - 0 1").withDicePool(List(2, 1, 1))
-    val best  = MctsSearch.findBestMove(state, System.nanoTime() + 10.millis.toNanos, new Random(1)).getOrElse(fail("expected a move"))
+    val best  = MctsSearch
+      .findBestMove(state, System.nanoTime() + 10.millis.toNanos, new Random(1))
+      .getOrElse(fail("expected a move"))
     assertEquals(best.score, SearchScoring.TerminalWinScore)
     assertEquals(best.moves.last.toSquare, Square('e', 8))
   }
@@ -35,7 +35,9 @@ class MctsSearchSuite extends FunSuite:
 
   test("returns a legal, non-terminal turn scored as a win probability") {
     val state = parseFen("4k3/8/8/3n4/3N4/8/8/4K3 w - - 0 1").withDicePool(List(2, 1, 1))
-    val best  = MctsSearch.findBestMove(state, System.nanoTime() + 50.millis.toNanos, new Random(2)).getOrElse(fail("expected a move"))
+    val best  = MctsSearch
+      .findBestMove(state, System.nanoTime() + 50.millis.toNanos, new Random(2))
+      .getOrElse(fail("expected a move"))
     assert(best.moves.nonEmpty, "expected a non-empty turn path")
     assert(best.score >= 0, s"score should be non-negative, got ${best.score}")
     assert(best.score < SearchScoring.TerminalWinScore, s"score should be non-terminal, got ${best.score}")
@@ -75,4 +77,3 @@ class MctsSearchSuite extends FunSuite:
       s"non-capturing position should be non-terminal, got ${best.score}"
     )
   }
-
