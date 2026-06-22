@@ -11,7 +11,9 @@ import scala.util.Random
   * This allows the bot to instantly play statistically proven opening moves without consuming its search time budget.
   * If the position is not in the book, it delegates to the `underlying` bot.
   */
-class OpeningBookBot(val underlying: SearchAlgorithm, val book: Map[String, String]) extends SearchAlgorithm:
+class OpeningBookBot(val underlying: SearchAlgorithm, val book: Map[String, String])
+    extends SearchAlgorithm
+    with TimeBudgetedSearch:
 
   override def findBestMove(state: GameState): Option[ScoredSequence] =
     lookupMove(state) match
@@ -19,7 +21,7 @@ class OpeningBookBot(val underlying: SearchAlgorithm, val book: Map[String, Stri
       case None            => underlying.findBestMove(state)
 
   /** If the underlying bot is time-budgeted, the decorator passes the budget through. */
-  def findBestMove(state: GameState, deadlineNanos: Long, random: Random): Option[ScoredSequence] =
+  override def findBestMove(state: GameState, deadlineNanos: Long, random: Random): Option[ScoredSequence] =
     lookupMove(state) match
       case Some(scoredSeq) => Some(scoredSeq)
       case None            =>
@@ -42,10 +44,15 @@ class OpeningBookBot(val underlying: SearchAlgorithm, val book: Map[String, Stri
     else
       val key = FenParser.serialize(state)
       book.get(key).flatMap { targetPathStr =>
-        val paths = TurnGenerator.generateAllLegalTurnPaths(state)
-        paths.find(p =>
-          p.map(m => s"${m.fromSquare.toNotation}${m.toSquare.toNotation}").mkString(",") == targetPathStr
-        ) match
+        val targetMoves = targetPathStr.split(',')
+        val paths       = TurnGenerator.generateAllLegalTurnPaths(state)
+        paths.find { p =>
+          p.length == targetMoves.length &&
+          p.zip(targetMoves).forall { case (m, expected) =>
+            val fromTo = m.fromSquare.toNotation + m.toSquare.toNotation
+            fromTo == expected
+          }
+        } match
           case Some(path) => Some(ScoredSequence(path, SearchScoring.TerminalWinScore))
           case None       => None // Fallback if the book suggests an illegal move (should not happen)
       }

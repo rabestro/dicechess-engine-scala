@@ -77,3 +77,27 @@ class MctsSearchSuite extends FunSuite:
       s"non-capturing position should be non-terminal, got ${best.score}"
     )
   }
+
+  test("handles empty board positions gracefully (no kings)") {
+    val state = parseFen("8/8/8/8/8/8/8/8 w - - 0 1").withDicePool(List(2, 1, 1))
+    assertEquals(MctsSearch.findBestMove(state), None)
+  }
+
+  test("handles full board positions correctly") {
+    val state = parseFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").withDicePool(List(2, 1, 1))
+    val best  = MctsSearch
+      .findBestMove(state, System.nanoTime() + 20.millis.toNanos, new Random(1))
+      .getOrElse(fail("expected a move"))
+    assert(best.moves.nonEmpty, "expected a move on a full board")
+    assert(best.score >= 0)
+  }
+
+  test("handles pin positions appropriately") {
+    // White king is pinned by Black rook on e file.
+    val state = parseFen("4k3/8/8/8/4r3/8/4R3/4K3 w - - 0 1").withDicePool(List(4, 1, 1))
+    val best  = MctsSearch
+      .findBestMove(state, System.nanoTime() + 20.millis.toNanos, new Random(1))
+      .getOrElse(fail("expected a move"))
+    assert(best.moves.nonEmpty, "expected a move in a pinned state")
+    assert(best.score >= 0)
+  }

@@ -171,7 +171,7 @@ class MonteCarloEquitySpec extends FunSuite:
     assertEqualsDouble(est.whiteWin, 1.0, 1e-9)
   }
 
-  test("golden regression on a sharp position (epsilon-greedy 40%)") {
+  test("validates probability normalization on a sharp position (epsilon-greedy 40%)") {
     val est =
       MonteCarloEquity.estimate(parseFen(sharpKnights), MonteCarloConfig(rollouts = 64, maxPlies = 6), new Random(123))
     assertEqualsDouble(est.whiteWin + est.blackWin + est.undecided, 1.0, 1e-9)

@@ -35,7 +35,8 @@ object MctsSearch extends SearchAlgorithm with TimeBudgetedSearch:
       !hasKing(state, Color.White) || !hasKing(state, Color.Black)
 
   private def hasKing(state: GameState, color: Color): Boolean =
-    state.mailbox.toArray.exists(p => !p.isEmpty && p.pieceType == PieceType.King && p.color == color)
+    val pieces = if color.isWhite then state.whitePieces else state.blackPieces
+    (state.kings & pieces) != Bitboard.empty
 
   override def findBestMove(state: GameState): Option[ScoredSequence] =
     // Default config when no deadline is given. Fixed iterations.
