@@ -47,7 +47,7 @@ final case class TimeBudget(targetMs: Long, hardCapMs: Long)
   *
   * From the spendable time (remaining minus a safety reserve) and an estimated moves-to-go:
   *
-  * ```scala
+  * ```scala sc:nocompile
   * reserve = max(ReserveFloorMs, ReserveFraction * remaining)
   * spendable = max(0, remaining - reserve)
   * target = increment + spendable / movesToGo // increment == 0 ⇒ sudden death
