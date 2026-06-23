@@ -66,13 +66,16 @@ class BotMatchRunnerSpec extends FunSuite:
     assertEqualsDouble(r.scorePercent, 50.0, 1e-9)
   }
 
-  test("parsePresets: parses 'base' and 'base+inc' second specs") {
+  test("parsePresets: parses chess-clock 'minutes[+incrementSeconds]' specs and rejects bad input") {
+    // 1-minute bullet, 3 min + 2 s, 10 min + 10 s — base is minutes, increment is seconds.
     assertEquals(
       TimedArenaRunner.parsePresets("1+0,3+2,10+10"),
-      List(TimeControl(1000L, 0L), TimeControl(3000L, 2000L), TimeControl(10000L, 10000L))
+      List(TimeControl(60000L, 0L), TimeControl(180000L, 2000L), TimeControl(600000L, 10000L))
     )
-    assertEquals(TimedArenaRunner.parsePresets("60"), List(TimeControl(60000L, 0L)))
-    intercept[RuntimeException](TimedArenaRunner.parsePresets("3+x"))
+    assertEquals(TimedArenaRunner.parsePresets("1"), List(TimeControl(60000L, 0L)))
+    intercept[RuntimeException](TimedArenaRunner.parsePresets("3+x")) // non-integer increment
+    intercept[RuntimeException](TimedArenaRunner.parsePresets("0+2")) // base minutes must be > 0
+    intercept[RuntimeException](TimedArenaRunner.parsePresets(""))    // at least one preset required
   }
 
   // ---- Time-controlled arena: thin wall-clock smoke tests ----
@@ -88,7 +91,8 @@ class BotMatchRunnerSpec extends FunSuite:
       )
     assertEquals(result.flaggedColor, Some(Color.White)) // Monte-Carlo (White) overruns its 5ms and flags
     assertEquals(result.outcome, GameOutcome.Win(Color.Black))
-    assertEquals(result.botLatenciesMs.size, 1) // exactly one timed move was made before the flag
+    assertEquals(result.latenciesByColorMs.size, 1)              // exactly one timed move was made before the flag
+    assertEquals(result.latenciesByColorMs.head._1, Color.White) // and it is attributed to White (Monte-Carlo)
   }
 
   test("runTimedMatch: O(1) bots never flag and the W/L/D totals are consistent") {

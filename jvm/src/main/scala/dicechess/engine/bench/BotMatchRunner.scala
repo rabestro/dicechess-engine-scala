@@ -212,7 +212,7 @@ object BotMatchRunner:
     var state                           = startState
     var whiteRemaining                  = tc.initialMs
     var blackRemaining                  = tc.initialMs
-    val latencies                       = scala.collection.mutable.ListBuffer.empty[Long]
+    val latencies                       = scala.collection.mutable.ListBuffer.empty[(Color, Long)]
     var result: Option[TimedGameResult] = None
 
     while result.isEmpty do
@@ -238,7 +238,7 @@ object BotMatchRunner:
           case None => activeBot.findBestMove(stateWithDice)
         val elapsedMs = (System.nanoTime() - startNanos) / 1_000_000L
 
-        if timed.isDefined then latencies += elapsedMs
+        if timed.isDefined then latencies += ((mover, elapsedMs))
 
         val (newRemaining, flagged) = tickClock(remaining, elapsedMs, tc.incrementMs)
         if isWhite then whiteRemaining = newRemaining else blackRemaining = newRemaining
@@ -257,8 +257,8 @@ object BotMatchRunner:
     * Results are reported from the bot-under-test's perspective (its wins/losses/draws, the games it lost on time, and
     * the latency distribution of its own moves), which is what the #372 gate asks for.
     *
-    * The latency distribution aggregates every [[TimeBudgetedSearch]] move, so it is unambiguous only when the baseline
-    * is an O(1) bot (the gate setup, e.g. Aggressive); a timed-vs-timed match would blend both sides' think times.
+    * The latency distribution keeps only the bot-under-test's [[TimeBudgetedSearch]] moves (filtered by side), so it
+    * stays meaningful even in a configurable timed-vs-timed run.
     */
   private[bench] def runTimedMatch(
       botUnderTestId: String,
@@ -279,7 +279,7 @@ object BotMatchRunner:
     val startTime        = System.currentTimeMillis()
 
     def record(res: TimedGameResult, botColor: Color): Unit =
-      latencies ++= res.botLatenciesMs
+      latencies ++= res.latenciesByColorMs.collect { case (color, ms) if color == botColor => ms }
       res.outcome match
         case GameOutcome.Draw                    => draws += 1
         case GameOutcome.Win(c) if c == botColor => wins += 1
@@ -494,8 +494,14 @@ object TimeControl:
   def ofSeconds(initialSec: Int, incrementSec: Int): TimeControl =
     TimeControl(initialSec * 1000L, incrementSec * 1000L)
 
-/** Outcome of one timed game, plus the side that flagged (if any) and the timed bot's per-turn think times. */
-final case class TimedGameResult(outcome: GameOutcome, flaggedColor: Option[Color], botLatenciesMs: List[Long])
+/** Outcome of one timed game, plus the side that flagged (if any) and each timed move's `(side, think-time-ms)`, so the
+  * match aggregator can keep only the bot-under-test's latencies even in a timed-vs-timed run.
+  */
+final case class TimedGameResult(
+    outcome: GameOutcome,
+    flaggedColor: Option[Color],
+    latenciesByColorMs: List[(Color, Long)]
+)
 
 /** Nearest-rank latency percentiles (ms) over a set of move think times. */
 final case class LatencyStats(count: Int, p50Ms: Long, p95Ms: Long, p99Ms: Long, maxMs: Long)
