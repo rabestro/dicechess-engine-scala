@@ -97,3 +97,22 @@ export interface DiceChessApi {
 }
 
 export const DiceChess: DiceChessApi;
+
+/**
+ * Registers a new bot that queries an opening book before falling back to a base algorithm.
+ *
+ * The opening book maps serialized position keys (as returned by `DiceChess.canonicalKey`) to
+ * a comma-separated sequence of UCI micro-moves, e.g. `"e2e4,f1c4"`.
+ *
+ * @param jsonString  The opening book as a JSON object: `{ "[dfen]": "e2e4,f1c4", ... }`
+ * @param baseBotId   ID of an existing bot to fall back to when the position is not in the book.
+ * @param newBotId    ID to assign to the newly registered bot (used in `getBestMove` options).
+ * @param newBotName  Display name for the new bot.
+ * @returns `true` if the bot was registered successfully, `false` otherwise (unknown base bot or invalid JSON).
+ */
+export function registerOpeningBookBot(
+    jsonString: string,
+    baseBotId: string,
+    newBotId: string,
+    newBotName: string,
+): boolean;

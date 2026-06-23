@@ -79,12 +79,12 @@ class CommandsSpec extends FunSuite:
 
   test("Commands.execute runs ArenaCommand correctly (smoke test)") {
     // 0 games to make it return fast
-    val cmd = ArenaCommand("greedy", "random", 0, None, None)
+    val cmd = ArenaCommand("greedy", "random", 0, None)
     Commands.execute(cmd)
   }
 
   test("Commands.execute handles ArenaCommand exception gracefully") {
     // using invalid FEN should trigger IllegalArgumentException and be caught
-    val cmd = ArenaCommand("greedy", "random", 1, None, Some("invalid_fen"))
+    val cmd = ArenaCommand("greedy", "random", 1, Some("invalid_fen"))
     Commands.execute(cmd)
   }

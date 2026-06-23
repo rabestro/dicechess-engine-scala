@@ -17,19 +17,13 @@ object BotMatchRunner:
     val baseBotId     = args.headOption.getOrElse("greedy")
     val gamesPerColor = args.lift(1).flatMap(_.toIntOption).getOrElse(50)
 
-    try runArena(baseBotId, None, gamesPerColor, None, StartFen)
+    try runArena(baseBotId, None, gamesPerColor, StartFen)
     catch
       case e: Exception =>
         System.err.println(e.getMessage)
         sys.exit(1)
 
-  def runArena(
-      baseBotId: String,
-      opponentBotId: Option[String],
-      gamesPerColor: Int,
-      timeControlSec: Option[Int],
-      startFen: String
-  ): Unit =
+  def runArena(baseBotId: String, opponentBotId: Option[String], gamesPerColor: Int, startFen: String): Unit =
     if gamesPerColor <= 0 then sys.error(s"Invalid gamesPerColor '$gamesPerColor'. Must be greater than 0.")
 
     val parsedFen =
@@ -65,7 +59,7 @@ object BotMatchRunner:
 
     val results = for opponentInfo <- opponents yield
       val opponentAlgo = BotRegistry.getAlgorithm(opponentInfo.id).get
-      val matchResult  = runMatch(opponentAlgo, baseAlgorithm, gamesPerColor, timeControlSec, parsedFen)
+      val matchResult  = runMatch(opponentAlgo, baseAlgorithm, gamesPerColor, parsedFen)
       (opponentInfo, matchResult)
 
     printSummaryTable(results)
@@ -77,7 +71,6 @@ object BotMatchRunner:
       opponentAlgo: SearchAlgorithm,
       baseAlgo: SearchAlgorithm,
       gamesPerColor: Int,
-      timeControlSec: Option[Int] = None,
       startFen: GameState = FenParser.parse(StartFen).toOption.get
   ): MatchResult =
     val rand          = new Random(42) // Fixed seed for reproducible run results
@@ -92,7 +85,7 @@ object BotMatchRunner:
 
     // 1. Play games with Opponent as White and Base Bot as Black
     for _ <- 1 to gamesPerColor do
-      simulateGame(opponentAlgo, baseAlgo, rand, timeControlSec, startFen) match
+      simulateGame(opponentAlgo, baseAlgo, rand, startFen) match
         case GameOutcome.Win(color) =>
           if color.isWhite then winsAsWhite += 1 else lossesAsWhite += 1
         case GameOutcome.Draw =>
@@ -100,7 +93,7 @@ object BotMatchRunner:
 
     // 2. Play games with Base Bot as White and Opponent as Black
     for _ <- 1 to gamesPerColor do
-      simulateGame(baseAlgo, opponentAlgo, rand, timeControlSec, startFen) match
+      simulateGame(baseAlgo, opponentAlgo, rand, startFen) match
         case GameOutcome.Win(color) =>
           if color.isBlack then winsAsBlack += 1 else lossesAsBlack += 1
         case GameOutcome.Draw =>
@@ -125,16 +118,11 @@ object BotMatchRunner:
       whiteBot: SearchAlgorithm,
       blackBot: SearchAlgorithm,
       rand: Random,
-      timeControlSec: Option[Int] = None,
       startState: GameState = FenParser.parse(StartFen).toOption.get
   ): GameOutcome =
     var state                = startState
     var isGameOver           = false
     var outcome: GameOutcome = GameOutcome.Draw
-
-    // Initialize clocks
-    var whiteRemainingNanos: Long = timeControlSec.map(_ * 1_000_000_000L).getOrElse(0L)
-    var blackRemainingNanos: Long = timeControlSec.map(_ * 1_000_000_000L).getOrElse(0L)
 
     while !isGameOver do
       if state.halfMoveClock >= 100 then
@@ -144,57 +132,202 @@ object BotMatchRunner:
         // Roll 3 random dice
         val dice           = List.fill(3)(rand.nextInt(6) + 1)
         val stateWithDice  = state.withDicePool(dice)
-        val isWhiteTurn    = state.activeColor.isWhite
-        val activeBot      = if isWhiteTurn then whiteBot else blackBot
-        val remainingNanos = if isWhiteTurn then whiteRemainingNanos else blackRemainingNanos
-
-        val startNanos = System.nanoTime()
-        val moveOpt    = activeBot match
-          case tb: TimeBudgetedSearch if timeControlSec.isDefined =>
-            val alloc = math.max(remainingNanos / 30, 100_000_000L) // at least 0.1s
-            tb.findBestMove(stateWithDice, startNanos + alloc, rand)
-          case _ =>
-            activeBot.findBestMove(stateWithDice)
-
-        val elapsedNanos = System.nanoTime() - startNanos
-
-        if timeControlSec.isDefined then
-          if isWhiteTurn then whiteRemainingNanos -= elapsedNanos
-          else blackRemainingNanos -= elapsedNanos
-
-          val newRemaining = if isWhiteTurn then whiteRemainingNanos else blackRemainingNanos
-          if newRemaining < 0 then
+        val activeBot      = if state.activeColor.isWhite then whiteBot else blackBot
+        val (next, winner) = playTurn(state, activeBot.findBestMove(stateWithDice))
+        winner match
+          case Some(color) =>
+            outcome = GameOutcome.Win(color)
             isGameOver = true
-            outcome = GameOutcome.Win(state.activeColor.opponent)
-
-        if !isGameOver then
-          moveOpt match
-            case None =>
-              // Force turn-pass when no legal move exists
-              state = state.endTurn()
-              verifySync(state, "endTurn(pass)")
-            case Some(scoredSeq) =>
-              var tempState    = state
-              var kingCaptured = false
-              val moves        = scoredSeq.moves
-
-              val iterator = moves.iterator
-              while iterator.hasNext && !kingCaptured do
-                val m      = iterator.next()
-                val target = tempState.mailbox(m.toSquare)
-                if !target.isEmpty && target.pieceType == PieceType.King && target.color != tempState.activeColor then
-                  kingCaptured = true
-                  outcome = GameOutcome.Win(tempState.activeColor)
-                  isGameOver = true
-                tempState = tempState.makeMove(m)
-                verifySync(tempState, s"${m.fromSquare.toNotation}${m.toSquare.toNotation}")
-
-              if kingCaptured then state = tempState
-              else
-                state = tempState.endTurn()
-                verifySync(state, "endTurn")
+          case None =>
+            state = next
 
     outcome
+
+  /** Applies one bot turn to `state`, preserving the active color across the 1–3 micro-moves (Dice Chess rule).
+    *
+    * A `None` `scoredSeq` is a forced pass. Returns the resulting state and the winner when a King is captured (in
+    * which case the turn is *not* ended, mirroring the engine's terminal handling). Shared by the untimed
+    * [[simulateGame]] and the timed [[simulateTimedGame]] so move application and desync checks live in one place.
+    */
+  private[bench] def playTurn(state: GameState, scoredSeq: Option[ScoredSequence]): (GameState, Option[Color]) =
+    scoredSeq match
+      case None =>
+        val next = state.endTurn()
+        verifySync(next, "endTurn(pass)")
+        (next, None)
+      case Some(seq) =>
+        var tempState             = state
+        var winner: Option[Color] = None
+        val iterator              = seq.moves.iterator
+        while iterator.hasNext && winner.isEmpty do
+          val m      = iterator.next()
+          val target = tempState.mailbox(m.toSquare)
+          if !target.isEmpty && target.pieceType == PieceType.King && target.color != tempState.activeColor then
+            winner = Some(tempState.activeColor)
+          tempState = tempState.makeMove(m)
+          verifySync(tempState, s"${m.fromSquare.toNotation}${m.toSquare.toNotation}")
+        if winner.isDefined then (tempState, winner)
+        else
+          val next = tempState.endTurn()
+          verifySync(next, "endTurn")
+          (next, None)
+
+  /** In-process slack subtracted from the [[TimeManager]] budget: one uninterruptible rollout can overrun the deadline,
+    * and this keeps that overrun off the simulated clock. Smaller than the JS API's worker buffer (no postMessage
+    * here).
+    */
+  private val ArenaOverheadBufferMs: Long = 50L
+
+  /** Deducts `elapsedMs` from a side's clock and, unless the side flagged, credits the Fischer `incrementMs`.
+    *
+    * @return
+    *   the updated remaining time and whether the side ran out of time on this turn (flag-fall)
+    */
+  private[bench] def tickClock(remainingMs: Long, elapsedMs: Long, incrementMs: Long): (Long, Boolean) =
+    val afterSpend = remainingMs - elapsedMs
+    if afterSpend < 0 then (afterSpend, true)
+    else (afterSpend + incrementMs, false)
+
+  /** Plays a single game under a wall-clock [[TimeControl]].
+    *
+    * Each side starts with `tc.initialMs`. A [[TimeBudgetedSearch]] bot is given a per-turn deadline derived from
+    * [[TimeManager]] and the side's remaining clock; O(1) bots simply move (their elapsed time is still charged, but is
+    * negligible). After each turn the elapsed wall-clock is deducted and the increment credited; a side whose clock
+    * goes negative loses on time. Non-deterministic by nature (depends on machine speed) — for measurement, not
+    * reproducible assertions.
+    *
+    * @param diceRandom
+    *   source for the dice rolls
+    * @param botRandom
+    *   source handed to the time-budgeted search, kept separate so a varying rollout count never perturbs the dice
+    */
+  private[bench] def simulateTimedGame(
+      whiteBot: SearchAlgorithm,
+      blackBot: SearchAlgorithm,
+      diceRandom: Random,
+      botRandom: Random,
+      tc: TimeControl,
+      startState: GameState = FenParser.parse(StartFen).toOption.get
+  ): TimedGameResult =
+    var state                           = startState
+    var whiteRemaining                  = tc.initialMs
+    var blackRemaining                  = tc.initialMs
+    val latencies                       = scala.collection.mutable.ListBuffer.empty[(Color, Long)]
+    var result: Option[TimedGameResult] = None
+
+    while result.isEmpty do
+      if state.halfMoveClock >= 100 then result = Some(TimedGameResult(GameOutcome.Draw, None, latencies.toList))
+      else
+        val dice          = List.fill(3)(diceRandom.nextInt(6) + 1)
+        val stateWithDice = state.withDicePool(dice)
+        val mover         = state.activeColor
+        val isWhite       = mover.isWhite
+        val activeBot     = if isWhite then whiteBot else blackBot
+        val remaining     = if isWhite then whiteRemaining else blackRemaining
+
+        val timed = activeBot match
+          case tb: TimeBudgetedSearch => Some(tb)
+          case _                      => None
+
+        val startNanos = System.nanoTime()
+        val scored     = timed match
+          case Some(tb) =>
+            val budgetMs =
+              TimeManager.budgetMs(ClockState(remaining, tc.incrementMs, state.fullMoveNumber), ArenaOverheadBufferMs)
+            tb.findBestMove(stateWithDice, startNanos + budgetMs * 1_000_000L, botRandom)
+          case None => activeBot.findBestMove(stateWithDice)
+        val elapsedMs = (System.nanoTime() - startNanos) / 1_000_000L
+
+        if timed.isDefined then latencies += ((mover, elapsedMs))
+
+        val (newRemaining, flagged) = tickClock(remaining, elapsedMs, tc.incrementMs)
+        if isWhite then whiteRemaining = newRemaining else blackRemaining = newRemaining
+
+        if flagged then result = Some(TimedGameResult(GameOutcome.Win(mover.opponent), Some(mover), latencies.toList))
+        else
+          val (next, winner) = playTurn(state, scored)
+          winner match
+            case Some(color) => result = Some(TimedGameResult(GameOutcome.Win(color), None, latencies.toList))
+            case None        => state = next
+
+    result.get
+
+  /** Runs a time-controlled match: `botUnderTestId` vs `baselineId`, `gamesPerColor` games on each side, under `tc`.
+    *
+    * Results are reported from the bot-under-test's perspective (its wins/losses/draws, the games it lost on time, and
+    * the latency distribution of its own moves), which is what the #372 gate asks for.
+    *
+    * The latency distribution keeps only the bot-under-test's [[TimeBudgetedSearch]] moves (filtered by side), so it
+    * stays meaningful even in a configurable timed-vs-timed run.
+    */
+  private[bench] def runTimedMatch(
+      botUnderTestId: String,
+      baselineId: String,
+      gamesPerColor: Int,
+      tc: TimeControl,
+      startState: GameState = FenParser.parse(StartFen).toOption.get
+  ): TimedMatchResult =
+    val botAlgo  = BotRegistry.getAlgorithm(botUnderTestId).getOrElse(sys.error(s"Bot '$botUnderTestId' not found"))
+    val baseAlgo = BotRegistry.getAlgorithm(baselineId).getOrElse(sys.error(s"Bot '$baselineId' not found"))
+
+    var wins             = 0
+    var losses           = 0
+    var draws            = 0
+    var botTimeouts      = 0 // games the bot under test lost on time
+    var baselineTimeouts = 0
+    val latencies        = scala.collection.mutable.ListBuffer.empty[Long]
+    val startTime        = System.currentTimeMillis()
+
+    def record(res: TimedGameResult, botColor: Color): Unit =
+      latencies ++= res.latenciesByColorMs.collect { case (color, ms) if color == botColor => ms }
+      res.outcome match
+        case GameOutcome.Draw                    => draws += 1
+        case GameOutcome.Win(c) if c == botColor => wins += 1
+        case GameOutcome.Win(_)                  => losses += 1
+      res.flaggedColor.foreach { flagged =>
+        if flagged == botColor then botTimeouts += 1 else baselineTimeouts += 1
+      }
+
+    for i <- 0 until gamesPerColor do
+      record(
+        simulateTimedGame(botAlgo, baseAlgo, new Random(42 + i), new Random(1000 + i), tc, startState),
+        Color.White
+      )
+    for i <- 0 until gamesPerColor do
+      record(
+        simulateTimedGame(baseAlgo, botAlgo, new Random(42 + i), new Random(2000 + i), tc, startState),
+        Color.Black
+      )
+
+    TimedMatchResult(
+      timeControl = tc,
+      totalGames = gamesPerColor * 2,
+      wins = wins,
+      losses = losses,
+      draws = draws,
+      botTimeouts = botTimeouts,
+      baselineTimeouts = baselineTimeouts,
+      latency = LatencyStats.from(latencies.toList),
+      durationMs = System.currentTimeMillis() - startTime
+    )
+
+  private[bench] def printTimedSummary(botId: String, baselineId: String, results: List[TimedMatchResult]): Unit =
+    println("================================================================================")
+    println(s"🎲♟️  Time-Controlled Arena — $botId (bot under test) vs $baselineId")
+    println("================================================================================")
+    println(
+      f"${"Control"}%-10s | ${"Games"}%-5s | ${"Score"}%-7s | ${"W/L/D"}%-12s | ${"Timeout b/o"}%-12s | ${"p50/p95/p99/max ms"}%-24s | ${"Wall"}%-8s"
+    )
+    println("-" * 100)
+    for r <- results do
+      val wld  = s"${r.wins}/${r.losses}/${r.draws}"
+      val to   = s"${r.botTimeouts}/${r.baselineTimeouts}"
+      val lat  = s"${r.latency.p50Ms}/${r.latency.p95Ms}/${r.latency.p99Ms}/${r.latency.maxMs}"
+      val wall = s"${"%.1f".format(r.durationMs / 1000.0)}s"
+      println(
+        f"${r.timeControl.label}%-10s | ${r.totalGames}%-5d | ${r.scorePercent}%6.1f%% | $wld%-12s | $to%-12s | $lat%-24s | $wall"
+      )
+    println("================================================================================\n")
 
   private val enableVerifySync =
     sys.props.get("dicechess.bench.verifySync").flatMap(_.toBooleanOption).getOrElse(false)
@@ -348,3 +481,55 @@ case class MatchResult(
 enum GameOutcome derives CanEqual:
   case Win(color: Color)
   case Draw
+
+/** A wall-clock time control: an initial budget plus a per-turn Fischer increment, both in milliseconds. */
+final case class TimeControl(initialMs: Long, incrementMs: Long):
+  /** Compact label such as `"60s"` (sudden death) or `"180s+2s"` (Fischer). */
+  def label: String =
+    val base = initialMs / 1000
+    if incrementMs == 0 then s"${base}s" else s"${base}s+${incrementMs / 1000}s"
+
+object TimeControl:
+  /** Builds a control from whole seconds, e.g. `ofSeconds(60, 0)` or `ofSeconds(180, 2)`. */
+  def ofSeconds(initialSec: Int, incrementSec: Int): TimeControl =
+    TimeControl(initialSec * 1000L, incrementSec * 1000L)
+
+/** Outcome of one timed game, plus the side that flagged (if any) and each timed move's `(side, think-time-ms)`, so the
+  * match aggregator can keep only the bot-under-test's latencies even in a timed-vs-timed run.
+  */
+final case class TimedGameResult(
+    outcome: GameOutcome,
+    flaggedColor: Option[Color],
+    latenciesByColorMs: List[(Color, Long)]
+)
+
+/** Nearest-rank latency percentiles (ms) over a set of move think times. */
+final case class LatencyStats(count: Int, p50Ms: Long, p95Ms: Long, p99Ms: Long, maxMs: Long)
+
+object LatencyStats:
+  val empty: LatencyStats = LatencyStats(0, 0L, 0L, 0L, 0L)
+
+  /** Nearest-rank percentiles over `samples`; returns [[empty]] for no samples. */
+  def from(samples: Seq[Long]): LatencyStats =
+    if samples.isEmpty then empty
+    else
+      val sorted                   = samples.sorted.toVector
+      def percentile(p: Int): Long =
+        val rank = math.ceil(p / 100.0 * sorted.size).toInt
+        sorted(math.min(sorted.size, math.max(1, rank)) - 1)
+      LatencyStats(sorted.size, percentile(50), percentile(95), percentile(99), sorted.last)
+
+/** Aggregated result of a time-controlled match, from the bot-under-test's perspective. */
+final case class TimedMatchResult(
+    timeControl: TimeControl,
+    totalGames: Int,
+    wins: Int,
+    losses: Int,
+    draws: Int,
+    botTimeouts: Int,
+    baselineTimeouts: Int,
+    latency: LatencyStats,
+    durationMs: Long
+):
+  /** Win-rate of the bot under test, counting draws as half a point. */
+  def scorePercent: Double = (wins + 0.5 * draws) / totalGames * 100.0
