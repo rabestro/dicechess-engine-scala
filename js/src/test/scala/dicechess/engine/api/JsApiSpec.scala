@@ -2,6 +2,7 @@ package dicechess.engine.api
 
 import scala.scalajs.js
 import munit.FunSuite
+import dicechess.engine.search.{ClockState, TimeManager}
 
 class JsApiSpec extends FunSuite:
 
@@ -164,6 +165,45 @@ class JsApiSpec extends FunSuite:
   test("getBestMove: works without a time budget (backward compatible)") {
     val res = JsApi.getBestMove(budgetDfen, js.Dynamic.literal(algorithm = "monte-carlo"))
     assert(res.moves.length.asInstanceOf[Int] >= 1)
+    assertEquals(res.budgetMs.asInstanceOf[Int], 0) // unbounded search reports a zero budget
+  }
+
+  // A near-flag clock keeps these tests fast: the time-managed budget floors to MinThinkMs, so the
+  // search runs only a sliver while still exercising the full clock -> deadline wiring.
+  test("getBestMove: a clock budgets monte-carlo via TimeManager and reports the chosen budgetMs") {
+    val clock = js.Dynamic.literal(remainingMs = 400, incrementMs = 0, moveNumber = 40)
+    val res   = JsApi.getBestMove(budgetDfen, js.Dynamic.literal(algorithm = "monte-carlo", clock = clock))
+    assert(res.moves.length.asInstanceOf[Int] >= 1)
+    assertEquals(res.budgetMs.asInstanceOf[Int], TimeManager.budgetMs(ClockState(400, 0, 40), 150L).toInt)
+  }
+
+  test("getBestMove: a clock takes precedence over a raw timeBudgetMs") {
+    val clock = js.Dynamic.literal(remainingMs = 400, incrementMs = 0, moveNumber = 40)
+    val res   =
+      JsApi.getBestMove(budgetDfen, js.Dynamic.literal(algorithm = "monte-carlo", clock = clock, timeBudgetMs = 9999))
+    // The reported budget is the clock-derived one, not the 9999 override.
+    assertEquals(res.budgetMs.asInstanceOf[Int], TimeManager.budgetMs(ClockState(400, 0, 40), 150L).toInt)
+  }
+
+  test("getBestMove: clock moveNumber defaults to the position's full-move number") {
+    val clock = js.Dynamic.literal(remainingMs = 400, incrementMs = 0) // no moveNumber -> DFEN full-move (1)
+    val res   = JsApi.getBestMove(budgetDfen, js.Dynamic.literal(algorithm = "monte-carlo", clock = clock))
+    assertEquals(res.budgetMs.asInstanceOf[Int], TimeManager.budgetMs(ClockState(400, 0, 1), 150L).toInt)
+  }
+
+  test("getBestMove: a clock is ignored by a non-time-budgeted algorithm (budgetMs = 0)") {
+    val clock = js.Dynamic.literal(remainingMs = 60000, incrementMs = 0)
+    val res   = JsApi.getBestMove(budgetDfen, js.Dynamic.literal(algorithm = "greedy", clock = clock))
+    assert(res.moves.length.asInstanceOf[Int] >= 1)
+    assertEquals(res.budgetMs.asInstanceOf[Int], 0)
+  }
+
+  test("getBestMove: a malformed clock (no remainingMs) falls back to timeBudgetMs") {
+    val clock = js.Dynamic.literal(incrementMs = 5000) // missing required remainingMs
+    val res   =
+      JsApi.getBestMove(budgetDfen, js.Dynamic.literal(algorithm = "monte-carlo", clock = clock, timeBudgetMs = 25))
+    assert(res.moves.length.asInstanceOf[Int] >= 1)
+    assertEquals(res.budgetMs.asInstanceOf[Int], 25)
   }
 
   private val initialDfen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"

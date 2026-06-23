@@ -2,7 +2,14 @@ package dicechess.engine.api
 
 import dicechess.engine.domain.*
 import dicechess.engine.movegen.LegalMovesFilter
-import dicechess.engine.search.{BotRegistry, MonteCarloConfig, MonteCarloEquity, TimeBudgetedSearch}
+import dicechess.engine.search.{
+  BotRegistry,
+  ClockState,
+  MonteCarloConfig,
+  MonteCarloEquity,
+  TimeBudgetedSearch,
+  TimeManager
+}
 import scala.util.Random
 import scala.scalajs.js
 import scala.scalajs.js.annotation.*
@@ -69,43 +76,65 @@ object JsApi:
   def getPieceFromDice(dice: Int): String | Null =
     PieceType.fromDice(dice).map(_.asNotation).orNull
 
+  /** Web Worker transport + rollout-granularity slack subtracted from the time-managed budget (see
+    * [[dicechess.engine.search.TimeManager.budgetMs]]). The engine runs inside a worker, so a `postMessage` round-trip
+    * plus one uninterruptible rollout can push the realised think time past the deadline; this margin keeps that
+    * overrun off the game clock.
+    */
+  private val WorkerOverheadBufferMs: Long = 150L
+
   /** Computes the best sequence of micro-moves for the given position.
     *
     * @param dfen
     *   The position in DiceChess Forsyth-Edwards Notation.
     * @param options
-    *   Optional configuration, e.g.
+    *   Optional configuration. Two ways to bound a time-budgeted bot (a [[dicechess.engine.search.TimeBudgetedSearch]]
+    *   such as Monte-Carlo); other algorithms ignore both:
     *   ```json
-    *   { "algorithm": "monte-carlo", "timeBudgetMs": 2000 }
+    *   { "algorithm": "monte-carlo", "clock": { "remainingMs": 600000, "incrementMs": 10000 } }
     *   ```
-    *   `timeBudgetMs`, when positive and supported by the chosen algorithm (a
-    *   [[dicechess.engine.search.TimeBudgetedSearch]] such as Monte-Carlo), bounds per-move thinking time by a
-    *   wall-clock deadline; other algorithms ignore it.
+    *   - `clock` (preferred): the live game clock; the engine derives the per-turn budget via
+    *     [[dicechess.engine.search.TimeManager]], handling sudden-death and Fischer increment. Fields: `remainingMs`
+    *     (required), `incrementMs` (default 0), `moveNumber` (default: the DFEN full-move), and an optional explicit
+    *     `movesToGo`.
+    *   - `timeBudgetMs` (advanced override): a precomputed per-move budget in ms, bypassing time management. Used by
+    *     tests and arena tuning; ignored when `clock` is present.
     * @return
-    *   An object containing the array of moves, score, and time taken.
+    *   An object with `moves`, `score`, `timeTakenMs`, and `budgetMs` (the time-managed allocation actually used, or 0
+    *   when the search was unbounded).
     */
   @JSExport
   @JSExportTopLevel("getBestMove")
   def getBestMove(dfen: String, options: js.UndefOr[js.Dynamic]): js.Dynamic =
-    if Option(dfen).isEmpty then js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
+    if Option(dfen).isEmpty then js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0, budgetMs = 0)
     else
       val searchAlgo = resolveAlgorithm(options)
 
       FenParser.parse(dfen) match
-        case Left(_)      => js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0)
+        case Left(_)      => js.Dynamic.literal(moves = js.Array(), score = 0, timeTakenMs = 0, budgetMs = 0)
         case Right(state) =>
-          val start  = System.currentTimeMillis()
-          val scored = (intOption(options, "timeBudgetMs").filter(_ > 0), searchAlgo) match
-            case (Some(ms), tb: TimeBudgetedSearch) =>
-              tb.findBestMove(state, System.nanoTime() + ms.toLong * 1_000_000L, new Random())
+          val start    = System.currentTimeMillis()
+          val budgetMs = searchAlgo match
+            case _: TimeBudgetedSearch =>
+              clockOption(options, state.fullMoveNumber)
+                .map(clock => TimeManager.budgetMs(clock, WorkerOverheadBufferMs))
+                .orElse(intOption(options, "timeBudgetMs").filter(_ > 0).map(_.toLong))
+                .getOrElse(0L)
+            case _ => 0L
+
+          val scored = searchAlgo match
+            case tb: TimeBudgetedSearch if budgetMs > 0 =>
+              tb.findBestMove(state, System.nanoTime() + budgetMs * 1_000_000L, new Random())
             case _ =>
               searchAlgo.findBestMove(state)
+
           scored match
             case None =>
               js.Dynamic.literal(
                 moves = js.Array(),
                 score = 0,
-                timeTakenMs = (System.currentTimeMillis() - start).toInt
+                timeTakenMs = (System.currentTimeMillis() - start).toInt,
+                budgetMs = budgetMs.toInt
               )
             case Some(scoredSeq) =>
               val jsMoves = scoredSeq.moves.map { m =>
@@ -118,7 +147,8 @@ object JsApi:
               js.Dynamic.literal(
                 moves = jsMoves,
                 score = scoredSeq.score,
-                timeTakenMs = (System.currentTimeMillis() - start).toInt
+                timeTakenMs = (System.currentTimeMillis() - start).toInt,
+                budgetMs = budgetMs.toInt
               )
 
   /** Applies a move to the given DFEN and returns the resulting state.
@@ -273,6 +303,38 @@ object JsApi:
         val v = opt.selectDynamic(key)
         if scala.scalajs.js.typeOf(v) == "number" then Some(v.asInstanceOf[Double].toInt)
         else None
+      }
+
+  /** Reads a numeric field from a JS object as a [[Double]], or `None` when absent or not a number. */
+  private def numField(obj: js.Dynamic, key: String): Option[Double] =
+    val v = obj.selectDynamic(key)
+    if scala.scalajs.js.typeOf(v) == "number" then Some(v.asInstanceOf[Double])
+    else None
+
+  /** Reads an optional `clock` object from the options into a [[dicechess.engine.search.ClockState]].
+    *
+    * Returns `None` unless `clock` is a non-null object carrying a numeric `remainingMs`. `moveNumber` defaults to the
+    * position's full-move number so the caller need not duplicate it.
+    */
+  private def clockOption(options: js.UndefOr[js.Dynamic], fallbackMoveNumber: Int): Option[ClockState] =
+    options.toOption
+      .filter(Option(_).isDefined)
+      .flatMap { opt =>
+        val clk = opt.selectDynamic("clock")
+        // typeof null is "object", so guard the null case via Option(...) before reading any field.
+        Option(clk.asInstanceOf[AnyRef])
+          .filter(_ => scala.scalajs.js.typeOf(clk) == "object")
+          .map(_ => clk)
+      }
+      .flatMap { clk =>
+        numField(clk, "remainingMs").map { remaining =>
+          ClockState(
+            remainingMs = remaining.toLong,
+            incrementMs = numField(clk, "incrementMs").map(_.toLong).getOrElse(0L),
+            moveNumber = numField(clk, "moveNumber").map(_.toInt).getOrElse(fallbackMoveNumber),
+            movesToGo = numField(clk, "movesToGo").map(_.toInt)
+          )
+        }
       }
 
   private def resolveAlgorithm(options: js.UndefOr[js.Dynamic]): dicechess.engine.search.SearchAlgorithm =

@@ -35,7 +35,8 @@ Cross-compiled sbt project (JVM + Scala.js) — shared core, thin platform layer
 - `shared/.../movegen/` — bitboard move generation: `MagicBitboards` (sliding pieces),
   `LeaperAttacks`, `PawnGeneration`, `LegalMovesFilter` (Maximum Micro-moves Rule).
 - `shared/.../search/` — `TurnGenerator` (exhaustive micro-move paths), `Evaluator`,
-  `BotRegistry` (six strategies), `KingCaptureProbability` (216 dice outcomes).
+  `BotRegistry` (six strategies), `KingCaptureProbability` (216 dice outcomes),
+  `TimeManager` (pure clock→per-turn-budget policy; sudden-death + Fischer increment).
 - `jvm/` — JLine REPL CLI (`Main.scala`), bot arena (`bench/BotMatchRunner.scala`).
 - `js/` — `api/JsApi.scala`: the `@JSExportTopLevel("DiceChess")` public JS API.
 - `benchmark/` — JMH micro-benchmarks (excluded from coverage and publishing).
