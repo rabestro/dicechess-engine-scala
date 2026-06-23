@@ -83,6 +83,11 @@ object JsApi:
     */
   private val WorkerOverheadBufferMs: Long = 150L
 
+  /** Upper bound on a budget (ms) before converting it to a nanosecond deadline, so `budgetMs * 1_000_000` cannot
+    * overflow `Long`. Unreachable for any realistic clock (it is ~292 years); a pure guard against absurd input.
+    */
+  private val MaxDeadlineBudgetMs: Long = Long.MaxValue / 1_000_000L
+
   /** Computes the best sequence of micro-moves for the given position.
     *
     * @param dfen
@@ -124,7 +129,8 @@ object JsApi:
 
           val scored = searchAlgo match
             case tb: TimeBudgetedSearch if budgetMs > 0 =>
-              tb.findBestMove(state, System.nanoTime() + budgetMs * 1_000_000L, new Random())
+              val deadlineNanos = System.nanoTime() + math.min(budgetMs, MaxDeadlineBudgetMs) * 1_000_000L
+              tb.findBestMove(state, deadlineNanos, new Random())
             case _ =>
               searchAlgo.findBestMove(state)
 
@@ -134,7 +140,7 @@ object JsApi:
                 moves = js.Array(),
                 score = 0,
                 timeTakenMs = (System.currentTimeMillis() - start).toInt,
-                budgetMs = budgetMs.toInt
+                budgetMs = math.min(budgetMs, Int.MaxValue.toLong).toInt
               )
             case Some(scoredSeq) =>
               val jsMoves = scoredSeq.moves.map { m =>
@@ -148,7 +154,7 @@ object JsApi:
                 moves = jsMoves,
                 score = scoredSeq.score,
                 timeTakenMs = (System.currentTimeMillis() - start).toInt,
-                budgetMs = budgetMs.toInt
+                budgetMs = math.min(budgetMs, Int.MaxValue.toLong).toInt
               )
 
   /** Applies a move to the given DFEN and returns the resulting state.
@@ -305,10 +311,16 @@ object JsApi:
         else None
       }
 
-  /** Reads a numeric field from a JS object as a [[Double]], or `None` when absent or not a number. */
+  /** Reads a finite numeric field from a JS object as a [[Double]], or `None` when absent, not a number, or non-finite.
+    *
+    * `NaN` and `±Infinity` are JS numbers, so they are rejected explicitly here to keep them out of [[ClockState]] and
+    * the deadline arithmetic (an `Infinity` clock would otherwise overflow the nanosecond deadline).
+    */
   private def numField(obj: js.Dynamic, key: String): Option[Double] =
     val v = obj.selectDynamic(key)
-    if scala.scalajs.js.typeOf(v) == "number" then Some(v.asInstanceOf[Double])
+    if scala.scalajs.js.typeOf(v) == "number" then
+      val d = v.asInstanceOf[Double]
+      if d.isNaN || d.isInfinite then None else Some(d)
     else None
 
   /** Reads an optional `clock` object from the options into a [[dicechess.engine.search.ClockState]].
@@ -329,8 +341,8 @@ object JsApi:
       .flatMap { clk =>
         numField(clk, "remainingMs").map { remaining =>
           ClockState(
-            remainingMs = remaining.toLong,
-            incrementMs = numField(clk, "incrementMs").map(_.toLong).getOrElse(0L),
+            remainingMs = math.max(0L, remaining.toLong),
+            incrementMs = math.max(0L, numField(clk, "incrementMs").map(_.toLong).getOrElse(0L)),
             moveNumber = numField(clk, "moveNumber").map(_.toInt).getOrElse(fallbackMoveNumber),
             movesToGo = numField(clk, "movesToGo").map(_.toInt)
           )

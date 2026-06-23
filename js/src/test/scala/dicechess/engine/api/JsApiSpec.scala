@@ -206,6 +206,16 @@ class JsApiSpec extends FunSuite:
     assertEquals(res.budgetMs.asInstanceOf[Int], 25)
   }
 
+  test("getBestMove: a non-finite clock (Infinity/NaN) is rejected, not turned into an overflowing deadline") {
+    // An Infinity remainingMs must NOT propagate into the nanosecond deadline (it would overflow and hang);
+    // the clock is rejected and the advanced timeBudgetMs override is used instead.
+    val clock = js.Dynamic.literal(remainingMs = Double.PositiveInfinity, incrementMs = Double.NaN)
+    val res   =
+      JsApi.getBestMove(budgetDfen, js.Dynamic.literal(algorithm = "monte-carlo", clock = clock, timeBudgetMs = 25))
+    assert(res.moves.length.asInstanceOf[Int] >= 1)
+    assertEquals(res.budgetMs.asInstanceOf[Int], 25)
+  }
+
   private val initialDfen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
   test("estimateEquity: outcome masses sum to 1 and rollouts match the request") {
