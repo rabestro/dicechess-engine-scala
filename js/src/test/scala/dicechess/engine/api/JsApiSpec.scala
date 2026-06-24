@@ -2,7 +2,8 @@ package dicechess.engine.api
 
 import scala.scalajs.js
 import munit.FunSuite
-import dicechess.engine.search.{ClockState, TimeManager}
+import dicechess.engine.domain.*
+import dicechess.engine.search.{ClockState, OpeningBook, TimeManager, TurnGenerator}
 
 class JsApiSpec extends FunSuite:
 
@@ -243,4 +244,23 @@ class JsApiSpec extends FunSuite:
     assert(key.nonEmpty)
     assertEquals(JsApi.canonicalKey(key).toOption, Some(key)) // idempotent
     assertEquals(JsApi.canonicalKey("not-a-fen").toOption, None)
+  }
+
+  test("registerOpeningBookBot: registers a decorator that plays the booked move; rejects bad input") {
+    val dfen   = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 BPR"
+    val state  = FenParser.parse(dfen).toOption.get
+    val path   = TurnGenerator.generateAllLegalTurnPaths(state).head
+    val booked = path.map(m => m.fromSquare.toNotation + m.toSquare.toNotation)
+    val json   = s"""{"${OpeningBook.key(state).get}": "${booked.mkString(",")}"}"""
+
+    assert(JsApi.registerOpeningBookBot(json, "greedy", "greedy-book-test", "Greedy + Book"))
+    assert(!JsApi.registerOpeningBookBot(json, "no-such-bot", "x", "X"))   // unknown base bot
+    assert(!JsApi.registerOpeningBookBot("{not json", "greedy", "y", "Y")) // malformed JSON
+
+    val result = JsApi.getBestMove(dfen, js.Dynamic.literal(algorithm = "greedy-book-test"))
+    val played = result.moves
+      .asInstanceOf[js.Array[js.Dynamic]]
+      .toList
+      .map(m => m.from.asInstanceOf[String] + m.to.asInstanceOf[String])
+    assertEquals(played.sorted, booked.sorted)
   }

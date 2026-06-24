@@ -3,10 +3,13 @@ package dicechess.engine.api
 import dicechess.engine.domain.*
 import dicechess.engine.movegen.LegalMovesFilter
 import dicechess.engine.search.{
+  BotInfo,
   BotRegistry,
   ClockState,
   MonteCarloConfig,
   MonteCarloEquity,
+  OpeningBookBot,
+  OpeningBookParser,
   TimeBudgetedSearch,
   TimeManager
 }
@@ -75,6 +78,39 @@ object JsApi:
   @JSExportTopLevel("getPieceFromDice")
   def getPieceFromDice(dice: Int): String | Null =
     PieceType.fromDice(dice).map(_.asNotation).orNull
+
+  /** Registers a runtime bot that consults an opening book before delegating to an existing bot.
+    *
+    * `jsonString` is an [[dicechess.engine.search.OpeningBook]] JSON map (canonical key → comma-separated moves); the
+    * new bot wraps `baseBotId` with an [[dicechess.engine.search.OpeningBookBot]] and is exposed under `newBotId` for
+    * subsequent [[getBestMove]] calls. This lets a host (a private extension, the analytics backend, the trainer)
+    * attach a data-driven opening book at runtime without shipping the book inside the engine. See
+    * [[dicechess.engine.search.BotRegistry.registerCustomBot]] for the single-threaded-setup expectation.
+    *
+    * @return
+    *   `true` when the base bot exists and the JSON parses (the bot is registered); `false` otherwise (no change).
+    */
+  @JSExport
+  @JSExportTopLevel("registerOpeningBookBot")
+  def registerOpeningBookBot(
+      jsonString: String,
+      baseBotId: String,
+      newBotId: String,
+      newBotName: String
+  ): Boolean =
+    (BotRegistry.getAlgorithm(baseBotId), OpeningBookParser.parse(jsonString)) match
+      case (Some(baseBot), Right(book)) =>
+        val difficulty = BotRegistry.availableBots.find(_.id.equalsIgnoreCase(baseBotId)).map(_.difficulty).getOrElse(5)
+        val info       = BotInfo(
+          id = newBotId,
+          name = newBotName,
+          description = s"Opening-book bot decorating '$baseBotId'.",
+          difficulty = difficulty,
+          isExperimental = true
+        )
+        BotRegistry.registerCustomBot(info, new OpeningBookBot(baseBot, book))
+        true
+      case _ => false
 
   /** Web Worker transport + rollout-granularity slack subtracted from the time-managed budget (see
     * [[dicechess.engine.search.TimeManager.budgetMs]]). The engine runs inside a worker, so a `postMessage` round-trip
