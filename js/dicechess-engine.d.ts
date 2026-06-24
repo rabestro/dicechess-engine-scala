@@ -39,6 +39,15 @@ export interface DiceChessApi {
     getPieceFromDice(dice: number): string | null;
 
     /**
+     * Registers a runtime bot that consults an opening book before delegating to an existing bot.
+     * `jsonString` is a JSON map of canonical keys
+     * ("<placement> <color> <castling> <enPassant> <dice>") to comma-separated moves ("e2e4,f1c4").
+     * The decorated bot wraps `baseBotId` and is exposed under `newBotId` for later `getBestMove` calls.
+     * Returns `true` when registered, `false` when the base bot is unknown or the JSON is invalid.
+     */
+    registerOpeningBookBot(jsonString: string, baseBotId: string, newBotId: string, newBotName: string): boolean;
+
+    /**
      * Computes the best sequence of micro-moves for the given position.
      * `timeBudgetMs`, when positive and supported by the chosen algorithm (e.g. "monte-carlo"),
      * bounds per-move thinking time by a wall-clock deadline; other algorithms ignore it.
