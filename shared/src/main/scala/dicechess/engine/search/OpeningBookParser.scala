@@ -6,7 +6,7 @@ import io.circe.parser.*
 /** Deserialises an opening book from its on-the-wire JSON form: a flat object mapping each canonical
   * [[OpeningBook.key]] to the comma-separated continuation.
   *
-  * ```scala
+  * ```json
   * {
   *   "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - BPR": "e2e4,f1c4"
   * }
