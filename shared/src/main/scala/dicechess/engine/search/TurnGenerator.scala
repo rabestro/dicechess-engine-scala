@@ -159,46 +159,85 @@ object TurnGenerator:
     while curr.nonEmpty do
       val move = curr.head
       currentPath(depth) = move
-      val moverType = state.mailbox(move.fromSquare).pieceType
-      if isKingCapture(state, move) then
-        val consumed = diceConsumedSoFar + (if move.isCastling then 2 else 1)
+      processMove(state, currentPath, depth, diceConsumedSoFar, ctx, move, pool)
+      curr = curr.tail
+
+  private inline def processMove(
+      state: GameState,
+      currentPath: Array[Move],
+      depth: Int,
+      diceConsumedSoFar: Int,
+      ctx: TurnGenContext,
+      move: Move,
+      pool: List[Int]
+  ): Unit =
+    if isKingCapture(state, move) then handleKingCapture(currentPath, depth, diceConsumedSoFar, ctx, move)
+    else if move.isCastling then handleCastling(state, currentPath, depth, diceConsumedSoFar, ctx, move, pool)
+    else handleNormalMove(state, currentPath, depth, diceConsumedSoFar, ctx, move, pool)
+
+  private inline def handleKingCapture(
+      currentPath: Array[Move],
+      depth: Int,
+      diceConsumedSoFar: Int,
+      ctx: TurnGenContext,
+      move: Move
+  ): Unit =
+    val consumed = diceConsumedSoFar + (if move.isCastling then 2 else 1)
+    val packed   = packPath(currentPath, depth + 1, consumed)
+    ctx.addKingCapture(packed)
+
+  private inline def handleCastling(
+      state: GameState,
+      currentPath: Array[Move],
+      depth: Int,
+      diceConsumedSoFar: Int,
+      ctx: TurnGenContext,
+      move: Move,
+      pool: List[Int]
+  ): Unit =
+    if pool.contains(PieceType.King.diceValue) && pool.contains(PieceType.Rook.diceValue) then
+      val afterCastle = pool.diff(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
+      val next        = state.makeMove(move).withDicePool(afterCastle)
+      val subMoves    = MoveGenerator.generateMoves(next)
+      if subMoves.isEmpty then
+        val consumed = diceConsumedSoFar + 2
         val packed   = packPath(currentPath, depth + 1, consumed)
-        ctx.addKingCapture(packed)
-      else if move.isCastling then
-        if pool.contains(PieceType.King.diceValue) && pool.contains(PieceType.Rook.diceValue) then
-          val afterCastle = pool.diff(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
-          val next        = state.makeMove(move).withDicePool(afterCastle)
-          val subMoves    = MoveGenerator.generateMoves(next)
-          if subMoves.isEmpty then
-            val consumed = diceConsumedSoFar + 2
-            val packed   = packPath(currentPath, depth + 1, consumed)
-            ctx.addNormal(packed)
-          else
-            val normalBefore = ctx.normalCount
-            val kingBefore   = ctx.kingCaptureCount
-            generatePathsSinglePass(next, currentPath, depth + 1, diceConsumedSoFar + 2, ctx, subMoves)
-            if ctx.normalCount == normalBefore && ctx.kingCaptureCount == kingBefore then
-              val consumed = diceConsumedSoFar + 2
-              val packed   = packPath(currentPath, depth + 1, consumed)
-              ctx.addNormal(packed)
+        ctx.addNormal(packed)
       else
-        val afterMove = pool.diff(List(moverType.diceValue))
-        assert(
-          afterMove.size < pool.size,
-          s"CRITICAL: Dice pool $pool does not decrease! moverType=$moverType, moverType.diceValue=${moverType.diceValue}, move=${move.fromSquare.toNotation}${move.toSquare.toNotation}, state.activeColor=${state.activeColor}, state.mailbox(move.fromSquare)=${state.mailbox(move.fromSquare)}"
-        )
-        val next     = state.makeMove(move).withDicePool(afterMove)
-        val subMoves = MoveGenerator.generateMoves(next)
-        if subMoves.isEmpty then
-          val consumed = diceConsumedSoFar + 1
+        val normalBefore = ctx.normalCount
+        val kingBefore   = ctx.kingCaptureCount
+        generatePathsSinglePass(next, currentPath, depth + 1, diceConsumedSoFar + 2, ctx, subMoves)
+        if ctx.normalCount == normalBefore && ctx.kingCaptureCount == kingBefore then
+          val consumed = diceConsumedSoFar + 2
           val packed   = packPath(currentPath, depth + 1, consumed)
           ctx.addNormal(packed)
-        else
-          val normalBefore = ctx.normalCount
-          val kingBefore   = ctx.kingCaptureCount
-          generatePathsSinglePass(next, currentPath, depth + 1, diceConsumedSoFar + 1, ctx, subMoves)
-          if ctx.normalCount == normalBefore && ctx.kingCaptureCount == kingBefore then
-            val consumed = diceConsumedSoFar + 1
-            val packed   = packPath(currentPath, depth + 1, consumed)
-            ctx.addNormal(packed)
-      curr = curr.tail
+
+  private inline def handleNormalMove(
+      state: GameState,
+      currentPath: Array[Move],
+      depth: Int,
+      diceConsumedSoFar: Int,
+      ctx: TurnGenContext,
+      move: Move,
+      pool: List[Int]
+  ): Unit =
+    val moverType = state.mailbox(move.fromSquare).pieceType
+    val afterMove = pool.diff(List(moverType.diceValue))
+    assert(
+      afterMove.size < pool.size,
+      s"CRITICAL: Dice pool $pool does not decrease! moverType=$moverType, moverType.diceValue=${moverType.diceValue}, move=${move.fromSquare.toNotation}${move.toSquare.toNotation}, state.activeColor=${state.activeColor}, state.mailbox(move.fromSquare)=${state.mailbox(move.fromSquare)}"
+    )
+    val next     = state.makeMove(move).withDicePool(afterMove)
+    val subMoves = MoveGenerator.generateMoves(next)
+    if subMoves.isEmpty then
+      val consumed = diceConsumedSoFar + 1
+      val packed   = packPath(currentPath, depth + 1, consumed)
+      ctx.addNormal(packed)
+    else
+      val normalBefore = ctx.normalCount
+      val kingBefore   = ctx.kingCaptureCount
+      generatePathsSinglePass(next, currentPath, depth + 1, diceConsumedSoFar + 1, ctx, subMoves)
+      if ctx.normalCount == normalBefore && ctx.kingCaptureCount == kingBefore then
+        val consumed = diceConsumedSoFar + 1
+        val packed   = packPath(currentPath, depth + 1, consumed)
+        ctx.addNormal(packed)
