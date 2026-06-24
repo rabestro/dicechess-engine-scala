@@ -6,14 +6,14 @@ import org.scalacheck.Prop.*
 
 class TurnGeneratorPropertySpec extends ScalaCheckSuite:
 
-  private val domainProps = new dicechess.engine.domain.PropertySpec()
+  private val domainProps  = new dicechess.engine.domain.PropertySpec()
   private val gameStateGen = domainProps.gameStateGen.filter { state =>
     // Pawns cannot be on rank 1 (index 0-7) or rank 8 (index 56-63)
     val pawnsVal = state.pawns.value
-    var temp = pawnsVal
-    var ok = true
+    var temp     = pawnsVal
+    var ok       = true
     while temp != 0 && ok do
-      val idx = java.lang.Long.numberOfTrailingZeros(temp)
+      val idx  = java.lang.Long.numberOfTrailingZeros(temp)
       val rank = idx / 8
       if rank == 0 || rank == 7 then ok = false
       temp &= temp - 1
