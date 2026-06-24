@@ -131,10 +131,10 @@ object TurnGenerator:
       ctx: TurnGenContext,
       moves: List[Move]
   ): Unit =
-    var i    = 0
-    val size = moves.size
-    while i < size do
-      val move = moves(i)
+    val pool = state.dicePool
+    var curr = moves
+    while curr.nonEmpty do
+      val move = curr.head
       currentPath(depth) = move
       val moverType = state.mailbox(move.fromSquare).pieceType
       if isKingCapture(state, move) then
@@ -142,23 +142,41 @@ object TurnGenerator:
         val packed   = packPath(currentPath, depth + 1, consumed)
         ctx.addKingCapture(packed)
       else if move.isCastling then
-        if state.dicePool.contains(PieceType.King.diceValue) && state.dicePool.contains(PieceType.Rook.diceValue) then
-          val afterCastle = state.dicePool.diff(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
+        if pool.contains(PieceType.King.diceValue) && pool.contains(PieceType.Rook.diceValue) then
+          val afterCastle = pool.diff(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
           val next        = state.makeMove(move).withDicePool(afterCastle)
           val subMoves    = MoveGenerator.generateMoves(next)
           if subMoves.isEmpty then
             val consumed = diceConsumedSoFar + 2
             val packed   = packPath(currentPath, depth + 1, consumed)
             ctx.addNormal(packed)
-          else generatePathsSinglePass(next, currentPath, depth + 1, diceConsumedSoFar + 2, ctx, subMoves)
+          else
+            val normalBefore = ctx.normalCount
+            val kingBefore   = ctx.kingCaptureCount
+            generatePathsSinglePass(next, currentPath, depth + 1, diceConsumedSoFar + 2, ctx, subMoves)
+            if ctx.normalCount == normalBefore && ctx.kingCaptureCount == kingBefore then
+              val consumed = diceConsumedSoFar + 2
+              val packed   = packPath(currentPath, depth + 1, consumed)
+              ctx.addNormal(packed)
       else
-        val afterMove = state.dicePool.diff(List(moverType.diceValue))
-        if afterMove.size < state.dicePool.size then
+        val afterMove = pool.diff(List(moverType.diceValue))
+        if afterMove.size < pool.size then
           val next     = state.makeMove(move).withDicePool(afterMove)
           val subMoves = MoveGenerator.generateMoves(next)
           if subMoves.isEmpty then
             val consumed = diceConsumedSoFar + 1
             val packed   = packPath(currentPath, depth + 1, consumed)
             ctx.addNormal(packed)
-          else generatePathsSinglePass(next, currentPath, depth + 1, diceConsumedSoFar + 1, ctx, subMoves)
-      i += 1
+          else
+            val normalBefore = ctx.normalCount
+            val kingBefore   = ctx.kingCaptureCount
+            generatePathsSinglePass(next, currentPath, depth + 1, diceConsumedSoFar + 1, ctx, subMoves)
+            if ctx.normalCount == normalBefore && ctx.kingCaptureCount == kingBefore then
+              val consumed = diceConsumedSoFar + 1
+              val packed   = packPath(currentPath, depth + 1, consumed)
+              ctx.addNormal(packed)
+        else
+          sys.error(
+            s"CRITICAL: Dice pool $pool does not decrease! moverType=$moverType, moverType.diceValue=${moverType.diceValue}, move=${move.fromSquare.toNotation}${move.toSquare.toNotation}, state.activeColor=${state.activeColor}, state.mailbox(move.fromSquare)=${state.mailbox(move.fromSquare)}"
+          )
+      curr = curr.tail
