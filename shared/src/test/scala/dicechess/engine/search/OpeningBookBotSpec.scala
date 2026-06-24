@@ -63,7 +63,7 @@ class OpeningBookBotSpec extends FunSuite:
       override def findBestMove(state: GameState, deadlineNanos: Long, random: Random): Option[ScoredSequence] =
         seen = deadlineNanos
         fallback
-    val bot = new OpeningBookBot(underlying, Map.empty)
+    val bot = new TimeBudgetedOpeningBookBot(underlying, Map.empty)
     assertEquals(bot.findBestMove(state, 123456789L, new Random(1)), fallback)
     assertEquals(seen, 123456789L)
   }
@@ -78,10 +78,18 @@ class OpeningBookBotSpec extends FunSuite:
       override def findBestMove(state: GameState, deadlineNanos: Long, random: Random): Option[ScoredSequence] =
         called = true
         None
-    val bot    = new OpeningBookBot(underlying, book)
+    val bot    = new TimeBudgetedOpeningBookBot(underlying, book)
     val played = bot.findBestMove(state, 1L, new Random(1))
     assertEquals(played.get.moves.map(uci).sorted, path.map(uci).sorted)
     assert(!called, "underlying must not be consulted on a book hit")
+  }
+
+  test("decorate preserves the underlying's time-budget capability") {
+    assert(!OpeningBookBot.decorate(silentBot(), Map.empty).isInstanceOf[TimeBudgetedSearch])
+    val tb = new SearchAlgorithm with TimeBudgetedSearch:
+      def findBestMove(state: GameState): Option[ScoredSequence]                                               = None
+      override def findBestMove(state: GameState, deadlineNanos: Long, random: Random): Option[ScoredSequence] = None
+    assert(OpeningBookBot.decorate(tb, Map.empty).isInstanceOf[TimeBudgetedSearch])
   }
 
   test("proxies double decisions to a DrawOfferLogic underlying, else stays silent") {

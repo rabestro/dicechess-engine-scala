@@ -98,19 +98,26 @@ object JsApi:
       newBotId: String,
       newBotName: String
   ): Boolean =
-    (BotRegistry.getAlgorithm(baseBotId), OpeningBookParser.parse(jsonString)) match
-      case (Some(baseBot), Right(book)) =>
-        val difficulty = BotRegistry.availableBots.find(_.id.equalsIgnoreCase(baseBotId)).map(_.difficulty).getOrElse(5)
-        val info       = BotInfo(
-          id = newBotId,
-          name = newBotName,
-          description = s"Opening-book bot decorating '$baseBotId'.",
-          difficulty = difficulty,
-          isExperimental = true
-        )
-        BotRegistry.registerCustomBot(info, new OpeningBookBot(baseBot, book))
-        true
-      case _ => false
+    // Exported to JS, so any argument may arrive as `null`; reject rather than throw on eager parsing.
+    if Option(jsonString).isEmpty || Option(baseBotId).isEmpty
+      || Option(newBotId).isEmpty || Option(newBotName).isEmpty
+    then false
+    else
+      (BotRegistry.getAlgorithm(baseBotId), OpeningBookParser.parse(jsonString)) match
+        case (Some(baseBot), Right(book)) =>
+          val difficulty =
+            BotRegistry.availableBots.find(_.id.equalsIgnoreCase(baseBotId)).map(_.difficulty).getOrElse(5)
+          val info = BotInfo(
+            id = newBotId,
+            name = newBotName,
+            description = s"Opening-book bot decorating '$baseBotId'.",
+            difficulty = difficulty,
+            isExperimental = true
+          )
+          // `decorate` preserves the base bot's time-budget capability (a plain bot stays plain).
+          BotRegistry.registerCustomBot(info, OpeningBookBot.decorate(baseBot, book))
+          true
+        case _ => false
 
   /** Web Worker transport + rollout-granularity slack subtracted from the time-managed budget (see
     * [[dicechess.engine.search.TimeManager.budgetMs]]). The engine runs inside a worker, so a `postMessage` round-trip

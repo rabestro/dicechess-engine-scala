@@ -14,27 +14,20 @@ import scala.util.Random
   * the book does not matter and an entry that cannot be realised legally (a stale or corrupt book) is silently ignored
   * in favour of the underlying bot rather than played illegally.
   *
+  * Construct via [[OpeningBookBot.decorate]], which preserves the underlying bot's time-budget capability: wrapping a
+  * [[TimeBudgetedSearch]] yields a [[TimeBudgetedOpeningBookBot]] (the deadline reaches the underlying), while wrapping
+  * a plain bot yields a plain decorator — so a host's `getBestMove` does not advertise a time budget for a bot that
+  * ignores it.
+  *
   * @param underlying
-  *   the bot to consult when the position is not booked; may be any [[SearchAlgorithm]] (time-budgeted or not)
+  *   the bot to consult when the position is not booked
   * @param book
   *   the opening book, keyed per [[OpeningBook.key]]
   */
-class OpeningBookBot(val underlying: SearchAlgorithm, val book: Map[String, String])
-    extends SearchAlgorithm
-    with TimeBudgetedSearch:
+class OpeningBookBot(val underlying: SearchAlgorithm, val book: Map[String, String]) extends SearchAlgorithm:
 
   override def findBestMove(state: GameState): Option[ScoredSequence] =
     lookupMove(state).orElse(underlying.findBestMove(state))
-
-  /** Plays the booked move when present; otherwise forwards the deadline to a time-budgeted underlying bot, or falls
-    * back to its unbounded search when it is not time-budgeted.
-    */
-  override def findBestMove(state: GameState, deadlineNanos: Long, random: Random): Option[ScoredSequence] =
-    lookupMove(state).orElse {
-      underlying match
-        case tb: TimeBudgetedSearch => tb.findBestMove(state, deadlineNanos, random)
-        case _                      => underlying.findBestMove(state)
-    }
 
   override def shouldOfferDouble(state: GameState, currentStake: Int): Boolean =
     underlying match
@@ -66,7 +59,8 @@ class OpeningBookBot(val underlying: SearchAlgorithm, val book: Map[String, Stri
   private def signature(moves: List[String]): String =
     moves.sorted.mkString(",")
 
-  private def lookupMove(state: GameState): Option[ScoredSequence] =
+  /** The booked turn for `state`, if the position is booked and the entry is a legal turn here. */
+  protected def lookupMove(state: GameState): Option[ScoredSequence] =
     for
       key       <- OpeningBook.key(state)
       bookMoves <- book.get(key)
@@ -75,3 +69,25 @@ class OpeningBookBot(val underlying: SearchAlgorithm, val book: Map[String, Stri
         .generateAllLegalTurnPaths(state)
         .find(p => signature(p.map(uci)) == target)
     yield SearchScoring.scorePath(state, path)
+
+/** The time-budgeted [[OpeningBookBot]], used when the wrapped bot is itself a [[TimeBudgetedSearch]] so the deadline
+  * is forwarded on a book miss. Built by [[OpeningBookBot.decorate]].
+  */
+final class TimeBudgetedOpeningBookBot(
+    tbUnderlying: SearchAlgorithm & TimeBudgetedSearch,
+    book: Map[String, String]
+) extends OpeningBookBot(tbUnderlying, book)
+    with TimeBudgetedSearch:
+
+  override def findBestMove(state: GameState, deadlineNanos: Long, random: Random): Option[ScoredSequence] =
+    lookupMove(state).orElse(tbUnderlying.findBestMove(state, deadlineNanos, random))
+
+object OpeningBookBot:
+
+  /** Wraps `underlying` with `book`, preserving its time-budget capability: a [[TimeBudgetedSearch]] stays
+    * time-budgeted, any other algorithm stays plain.
+    */
+  def decorate(underlying: SearchAlgorithm, book: Map[String, String]): SearchAlgorithm =
+    underlying match
+      case tb: TimeBudgetedSearch => new TimeBudgetedOpeningBookBot(tb, book)
+      case _                      => new OpeningBookBot(underlying, book)

@@ -25,7 +25,7 @@ case class BotInfo(
   */
 object BotRegistry:
 
-  private var bots: Map[String, (BotInfo, SearchAlgorithm)] = Map(
+  @volatile private var bots: Map[String, (BotInfo, SearchAlgorithm)] = Map(
     "random" -> (
       BotInfo(
         id = "random",
@@ -106,9 +106,9 @@ object BotRegistry:
   /** Registers (or replaces) a bot at runtime under `info.id`, used to add decorator bots such as an [[OpeningBookBot]]
     * supplied by a host application (the JS API's `registerOpeningBookBot`).
     *
-    * The registry is a process-wide singleton, so this mutates shared state. It is intended for one-time setup during
-    * host initialisation (e.g. a single-threaded JS worker boot) rather than concurrent use; it is **not** safe to call
-    * while other threads resolve bots on the JVM.
+    * The registry is a process-wide singleton. Writes are `synchronized` and `bots` is `@volatile`, so a registration
+    * is published safely to concurrent readers (`availableBots` / `getAlgorithm`) on the JVM; it is still intended for
+    * host setup (e.g. a JS worker boot) rather than a high-churn write path.
     *
     * @param info
     *   metadata for the bot; `info.id` is the lookup key (lower-cased)
@@ -116,7 +116,9 @@ object BotRegistry:
     *   the search algorithm to register
     */
   def registerCustomBot(info: BotInfo, algorithm: SearchAlgorithm): Unit =
-    bots = bots + (info.id.toLowerCase -> (info, algorithm))
+    synchronized {
+      bots = bots + (info.id.toLowerCase -> (info, algorithm))
+    }
 
   /** Returns the default algorithm (Greedy). */
   def defaultAlgorithm: SearchAlgorithm = GreedySearch
