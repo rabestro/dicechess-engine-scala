@@ -31,18 +31,56 @@ object TurnGenerator:
     *   a (possibly empty) list of legal full-turn paths; each path contains 1–3 moves
     */
   def generateAllLegalTurnPaths(state: GameState): List[List[Move]] =
-    val allPaths = generateAllPaths(state).filter(_.nonEmpty)
-    if allPaths.isEmpty then Nil
-    else
-      val maxDice = allPaths.map(diceConsumed).maxOption.getOrElse(0)
-      allPaths.filter(p => isKingCapturePath(state, p) || diceConsumed(p) == maxDice)
+    val builder = List.newBuilder[List[Move]]
+    forEachLegalTurnPath(state) { (moves, len) =>
+      builder += moves.take(len).toList
+    }
+    builder.result()
 
-  /** Number of dice a path consumes: castling spends two dice (King + Rook) in a single move, while every other move
-    * spends one. Maximality is measured in dice consumed — not in move count — so a castling turn is not discarded in
-    * favor of a longer non-castling path that spends the same dice.
+  /** Traverses all legal turn paths (sequences of 1 to 3 moves) using a visitor/callback pattern.
+    *
+    * The callback `f` receives the path as an array of moves and the length of the path.
+    *
+    * @note
+    *   To avoid garbage collection pressure, the array passed to the callback is mutable and reused across calls. If
+    *   the callback needs to persist the path, it must copy the elements (e.g., using `moves.take(len).toList`).
+    *
+    * @param state
+    *   the current [[GameState]]
+    * @param f
+    *   the callback function invoked for each legal path
     */
-  private def diceConsumed(path: List[Move]): Int =
-    path.foldLeft(0)((acc, move) => acc + (if move.isCastling then 2 else 1))
+  def forEachLegalTurnPath(state: GameState)(f: (Array[Move], Int) => Unit): Unit =
+    val moves = MoveGenerator.generateMoves(state)
+    if moves.nonEmpty then
+      val ctx         = new TurnGenContext()
+      val currentPath = new Array[Move](3)
+      generatePathsSinglePass(state, currentPath, 0, 0, ctx, moves)
+
+      if ctx.kingCaptureCount > 0 || ctx.normalCount > 0 then
+        val outPath = new Array[Move](3)
+        var i       = 0
+        while i < ctx.kingCaptureCount do
+          val p   = ctx.kingCaptures(i)
+          val len = ((p >>> 48) & 0xffL).toInt
+          outPath(0) = (p & 0xffffL).toInt.asInstanceOf[Move]
+          outPath(1) = ((p >>> 16) & 0xffffL).toInt.asInstanceOf[Move]
+          outPath(2) = ((p >>> 32) & 0xffffL).toInt.asInstanceOf[Move]
+          f(outPath, len)
+          i += 1
+
+        i = 0
+        val maxDice = ctx.maxDice
+        while i < ctx.normalCount do
+          val p    = ctx.normalPaths(i)
+          val dice = ((p >>> 56) & 0xffL).toInt
+          if dice == maxDice then
+            val len = ((p >>> 48) & 0xffL).toInt
+            outPath(0) = (p & 0xffffL).toInt.asInstanceOf[Move]
+            outPath(1) = ((p >>> 16) & 0xffffL).toInt.asInstanceOf[Move]
+            outPath(2) = ((p >>> 32) & 0xffffL).toInt.asInstanceOf[Move]
+            f(outPath, len)
+          i += 1
 
   /** Returns `true` when `move` captures the opponent's King from `state`. */
   private def isKingCapture(state: GameState, move: Move): Boolean =
@@ -50,66 +88,77 @@ object TurnGenerator:
       .get(move.toSquare)
       .exists(p => p.pieceType == PieceType.King && p.color != state.activeColor)
 
-  /** Returns `true` when the *last* move in `path` captures the opponent's King.
-    *
-    * Replays all moves except the last to obtain the intermediate state, then delegates to [[isKingCapture]].
-    *
-    * @param initialState
-    *   the position before the turn starts
-    * @param path
-    *   the candidate move sequence; must be non-empty
-    */
-  private def isKingCapturePath(initialState: GameState, path: List[Move]): Boolean =
-    if path.isEmpty then false
-    else
-      val stateBeforeLast = path.init.foldLeft(initialState) { (s, m) =>
-        s.makeMove(m)
-      }
-      isKingCapture(stateBeforeLast, path.last)
+  private def packPath(path: Array[Move], len: Int, dice: Int): Long =
+    val m0 = if len > 0 then path(0).toInt else Move.empty.toInt
+    val m1 = if len > 1 then path(1).toInt else Move.empty.toInt
+    val m2 = if len > 2 then path(2).toInt else Move.empty.toInt
+    (m0.toLong & 0xffffL) |
+      ((m1.toLong & 0xffffL) << 16) |
+      ((m2.toLong & 0xffffL) << 32) |
+      ((len.toLong & 0xffL) << 48) |
+      ((dice.toLong & 0xffL) << 56)
 
-  /** Recursively enumerates all micro-move paths reachable from `state` using `state.dicePool`.
-    *
-    * Base case: when `state.dicePool` is empty, returns `List(Nil)` — a single empty path representing a pass.
-    *
-    * For each distinct die value, all pseudo-legal moves of the matching piece type are explored:
-    *   - **King capture** — terminal; recorded as a length-1 path without further recursion.
-    *   - **Castling** — requires both King (6) and Rook (4) dice; consumes both dice simultaneously.
-    *   - **Normal move** — consumes the matching die, recurses with the reduced dice multiset.
-    *
-    * If no move can be generated for any die (no piece of the matching type exists), returns `List(Nil)` to signal that
-    * this branch is a forced pass.
-    *
-    * @param state
-    *   the position to explore; active color is preserved by makeMove throughout the recursion
-    * @return
-    *   all reachable paths from this position, each encoded as a `List[Move]` (may include `Nil` for pass)
-    */
-  private def generateAllPaths(state: GameState): List[List[Move]] =
-    if state.dicePool.isEmpty then List(Nil)
-    else
-      val branches = List.newBuilder[List[Move]]
+  private class TurnGenContext:
+    var normalPaths      = new Array[Long](128)
+    var normalCount      = 0
+    var kingCaptures     = new Array[Long](32)
+    var kingCaptureCount = 0
+    var maxDice          = 0
 
-      for move <- MoveGenerator.generateMoves(state) do
-        val moverType = state.mailbox(move.fromSquare).pieceType
-        if isKingCapture(state, move) then branches += List(move)
-        else if move.isCastling then
-          if state.dicePool.contains(PieceType.King.diceValue) && state.dicePool.contains(PieceType.Rook.diceValue) then
-            // Castling consumes both King and Rook dice
-            val afterCastle = state.dicePool.diff(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
-            val next        = state.makeMove(move).withDicePool(afterCastle)
-            val subPaths    = generateAllPaths(next)
-            if subPaths.isEmpty || subPaths == List(Nil) then branches += List(move)
-            else for p <- subPaths if p.nonEmpty do branches += (move :: p)
-        else
-          val afterMove = state.dicePool.diff(List(moverType.diceValue))
-          if afterMove.size >= state.dicePool.size then
-            sys.error(
-              s"CRITICAL: Dice pool ${state.dicePool} does not decrease! moverType=$moverType, moverType.diceValue=${moverType.diceValue}, move=${move.fromSquare.toNotation}${move.toSquare.toNotation}, state.activeColor=${state.activeColor}, state.mailbox(move.fromSquare)=${state.mailbox(move.fromSquare)}"
-            )
+    def addNormal(p: Long): Unit =
+      val dice = ((p >>> 56) & 0xffL).toInt
+      if dice > maxDice then maxDice = dice
+      if normalCount >= normalPaths.length then
+        val next = new Array[Long](normalPaths.length * 2)
+        System.arraycopy(normalPaths, 0, next, 0, normalPaths.length)
+        normalPaths = next
+      normalPaths(normalCount) = p
+      normalCount += 1
+
+    def addKingCapture(p: Long): Unit =
+      if kingCaptureCount >= kingCaptures.length then
+        val next = new Array[Long](kingCaptures.length * 2)
+        System.arraycopy(kingCaptures, 0, next, 0, kingCaptures.length)
+        kingCaptures = next
+      kingCaptures(kingCaptureCount) = p
+      kingCaptureCount += 1
+
+  private def generatePathsSinglePass(
+      state: GameState,
+      currentPath: Array[Move],
+      depth: Int,
+      diceConsumedSoFar: Int,
+      ctx: TurnGenContext,
+      moves: List[Move]
+  ): Unit =
+    var i    = 0
+    val size = moves.size
+    while i < size do
+      val move = moves(i)
+      currentPath(depth) = move
+      val moverType = state.mailbox(move.fromSquare).pieceType
+      if isKingCapture(state, move) then
+        val consumed = diceConsumedSoFar + (if move.isCastling then 2 else 1)
+        val packed   = packPath(currentPath, depth + 1, consumed)
+        ctx.addKingCapture(packed)
+      else if move.isCastling then
+        if state.dicePool.contains(PieceType.King.diceValue) && state.dicePool.contains(PieceType.Rook.diceValue) then
+          val afterCastle = state.dicePool.diff(List(PieceType.King.diceValue, PieceType.Rook.diceValue))
+          val next        = state.makeMove(move).withDicePool(afterCastle)
+          val subMoves    = MoveGenerator.generateMoves(next)
+          if subMoves.isEmpty then
+            val consumed = diceConsumedSoFar + 2
+            val packed   = packPath(currentPath, depth + 1, consumed)
+            ctx.addNormal(packed)
+          else generatePathsSinglePass(next, currentPath, depth + 1, diceConsumedSoFar + 2, ctx, subMoves)
+      else
+        val afterMove = state.dicePool.diff(List(moverType.diceValue))
+        if afterMove.size < state.dicePool.size then
           val next     = state.makeMove(move).withDicePool(afterMove)
-          val subPaths = generateAllPaths(next)
-          if subPaths.isEmpty || subPaths == List(Nil) then branches += List(move)
-          else for p <- subPaths if p.nonEmpty do branches += (move :: p)
-
-      val res = branches.result()
-      if res.isEmpty then List(Nil) else res
+          val subMoves = MoveGenerator.generateMoves(next)
+          if subMoves.isEmpty then
+            val consumed = diceConsumedSoFar + 1
+            val packed   = packPath(currentPath, depth + 1, consumed)
+            ctx.addNormal(packed)
+          else generatePathsSinglePass(next, currentPath, depth + 1, diceConsumedSoFar + 1, ctx, subMoves)
+      i += 1

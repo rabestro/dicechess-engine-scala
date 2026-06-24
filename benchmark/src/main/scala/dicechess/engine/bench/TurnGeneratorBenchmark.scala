@@ -31,3 +31,11 @@ class TurnGeneratorBenchmark:
   @Benchmark
   def generateAllLegalTurnPaths(): List[List[Move]] =
     TurnGenerator.generateAllLegalTurnPaths(state)
+
+  @Benchmark
+  def forEachLegalTurnPath(): Int =
+    var count = 0
+    TurnGenerator.forEachLegalTurnPath(state) { (moves, len) =>
+      count += len
+    }
+    count
