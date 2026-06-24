@@ -1,6 +1,7 @@
 package dicechess.engine.bench
 
 import org.openjdk.jmh.annotations.*
+import org.openjdk.jmh.infra.Blackhole
 import java.util.concurrent.TimeUnit
 import dicechess.engine.domain.*
 import dicechess.engine.search.TurnGenerator
@@ -31,3 +32,15 @@ class TurnGeneratorBenchmark:
   @Benchmark
   def generateAllLegalTurnPaths(): List[List[Move]] =
     TurnGenerator.generateAllLegalTurnPaths(state)
+
+  @Benchmark
+  def forEachLegalTurnPath(blackhole: Blackhole): Int =
+    var count = 0
+    TurnGenerator.forEachLegalTurnPath(state) { (moves, len) =>
+      var i = 0
+      while i < len do
+        blackhole.consume(moves(i))
+        i += 1
+      count += len
+    }
+    count
