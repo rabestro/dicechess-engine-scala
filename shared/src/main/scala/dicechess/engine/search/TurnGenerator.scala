@@ -63,6 +63,9 @@ object TurnGenerator:
         while i < ctx.kingCaptureCount do
           val p   = ctx.kingCaptures(i)
           val len = ((p >>> 48) & 0xffL).toInt
+          // Extract 16-bit packed moves.
+          // Since packPath asserts that each Move fits within 16 bits (0x0000 - 0xFFFF),
+          // slicing via `& 0xffffL` is guaranteed to be lossless.
           outPath(0) = (p & 0xffffL).toInt.asInstanceOf[Move]
           outPath(1) = ((p >>> 16) & 0xffffL).toInt.asInstanceOf[Move]
           outPath(2) = ((p >>> 32) & 0xffffL).toInt.asInstanceOf[Move]
@@ -76,6 +79,9 @@ object TurnGenerator:
           val dice = ((p >>> 56) & 0xffL).toInt
           if dice == maxDice then
             val len = ((p >>> 48) & 0xffL).toInt
+            // Extract 16-bit packed moves.
+            // Since packPath asserts that each Move fits within 16 bits (0x0000 - 0xFFFF),
+            // slicing via `& 0xffffL` is guaranteed to be lossless.
             outPath(0) = (p & 0xffffL).toInt.asInstanceOf[Move]
             outPath(1) = ((p >>> 16) & 0xffffL).toInt.asInstanceOf[Move]
             outPath(2) = ((p >>> 32) & 0xffffL).toInt.asInstanceOf[Move]
@@ -88,10 +94,27 @@ object TurnGenerator:
       .get(move.toSquare)
       .exists(p => p.pieceType == PieceType.King && p.color != state.activeColor)
 
+  /** Packs a path of up to 3 moves, its length, and the total dice consumed into a single 64-bit Long.
+    *
+    * The packing layout is:
+    *   - Bits 0-15: Move 1 (16 bits)
+    *   - Bits 16-31: Move 2 (16 bits)
+    *   - Bits 32-47: Move 3 (16 bits)
+    *   - Bits 48-55: Path length (8 bits)
+    *   - Bits 56-63: Dice consumed (8 bits)
+    *
+    * This layout relies on [[Move]] being represented as a 16-bit encoded integer.
+    */
   private def packPath(path: Array[Move], len: Int, dice: Int): Long =
-    val m0 = if len > 0 then path(0).toInt else Move.empty.toInt
+    val m0 = path(0).toInt
     val m1 = if len > 1 then path(1).toInt else Move.empty.toInt
     val m2 = if len > 2 then path(2).toInt else Move.empty.toInt
+
+    // Verify moves fit in 16-bit encoding to prevent silent corruption if Move layout changes
+    assert((m0 & ~0xffff) == 0, s"Move exceeds 16-bit range: $m0")
+    assert((m1 & ~0xffff) == 0, s"Move exceeds 16-bit range: $m1")
+    assert((m2 & ~0xffff) == 0, s"Move exceeds 16-bit range: $m2")
+
     (m0.toLong & 0xffffL) |
       ((m1.toLong & 0xffffL) << 16) |
       ((m2.toLong & 0xffffL) << 32) |
@@ -160,23 +183,22 @@ object TurnGenerator:
               ctx.addNormal(packed)
       else
         val afterMove = pool.diff(List(moverType.diceValue))
-        if afterMove.size < pool.size then
-          val next     = state.makeMove(move).withDicePool(afterMove)
-          val subMoves = MoveGenerator.generateMoves(next)
-          if subMoves.isEmpty then
+        assert(
+          afterMove.size < pool.size,
+          s"CRITICAL: Dice pool $pool does not decrease! moverType=$moverType, moverType.diceValue=${moverType.diceValue}, move=${move.fromSquare.toNotation}${move.toSquare.toNotation}, state.activeColor=${state.activeColor}, state.mailbox(move.fromSquare)=${state.mailbox(move.fromSquare)}"
+        )
+        val next     = state.makeMove(move).withDicePool(afterMove)
+        val subMoves = MoveGenerator.generateMoves(next)
+        if subMoves.isEmpty then
+          val consumed = diceConsumedSoFar + 1
+          val packed   = packPath(currentPath, depth + 1, consumed)
+          ctx.addNormal(packed)
+        else
+          val normalBefore = ctx.normalCount
+          val kingBefore   = ctx.kingCaptureCount
+          generatePathsSinglePass(next, currentPath, depth + 1, diceConsumedSoFar + 1, ctx, subMoves)
+          if ctx.normalCount == normalBefore && ctx.kingCaptureCount == kingBefore then
             val consumed = diceConsumedSoFar + 1
             val packed   = packPath(currentPath, depth + 1, consumed)
             ctx.addNormal(packed)
-          else
-            val normalBefore = ctx.normalCount
-            val kingBefore   = ctx.kingCaptureCount
-            generatePathsSinglePass(next, currentPath, depth + 1, diceConsumedSoFar + 1, ctx, subMoves)
-            if ctx.normalCount == normalBefore && ctx.kingCaptureCount == kingBefore then
-              val consumed = diceConsumedSoFar + 1
-              val packed   = packPath(currentPath, depth + 1, consumed)
-              ctx.addNormal(packed)
-        else
-          sys.error(
-            s"CRITICAL: Dice pool $pool does not decrease! moverType=$moverType, moverType.diceValue=${moverType.diceValue}, move=${move.fromSquare.toNotation}${move.toSquare.toNotation}, state.activeColor=${state.activeColor}, state.mailbox(move.fromSquare)=${state.mailbox(move.fromSquare)}"
-          )
       curr = curr.tail
