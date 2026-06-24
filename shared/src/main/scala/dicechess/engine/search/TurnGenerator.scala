@@ -61,15 +61,7 @@ object TurnGenerator:
         val outPath = new Array[Move](3)
         var i       = 0
         while i < ctx.kingCaptureCount do
-          val p   = ctx.kingCaptures(i)
-          val len = ((p >>> 48) & 0xffL).toInt
-          // Extract 16-bit packed moves.
-          // Since packPath asserts that each Move fits within 16 bits (0x0000 - 0xFFFF),
-          // slicing via `& 0xffffL` is guaranteed to be lossless.
-          outPath(0) = (p & 0xffffL).toInt.asInstanceOf[Move]
-          outPath(1) = ((p >>> 16) & 0xffffL).toInt.asInstanceOf[Move]
-          outPath(2) = ((p >>> 32) & 0xffffL).toInt.asInstanceOf[Move]
-          f(outPath, len)
+          f(outPath, unpackPath(ctx.kingCaptures(i), outPath))
           i += 1
 
         i = 0
@@ -77,15 +69,7 @@ object TurnGenerator:
         while i < ctx.normalCount do
           val p    = ctx.normalPaths(i)
           val dice = ((p >>> 56) & 0xffL).toInt
-          if dice == maxDice then
-            val len = ((p >>> 48) & 0xffL).toInt
-            // Extract 16-bit packed moves.
-            // Since packPath asserts that each Move fits within 16 bits (0x0000 - 0xFFFF),
-            // slicing via `& 0xffffL` is guaranteed to be lossless.
-            outPath(0) = (p & 0xffffL).toInt.asInstanceOf[Move]
-            outPath(1) = ((p >>> 16) & 0xffffL).toInt.asInstanceOf[Move]
-            outPath(2) = ((p >>> 32) & 0xffffL).toInt.asInstanceOf[Move]
-            f(outPath, len)
+          if dice == maxDice then f(outPath, unpackPath(p, outPath))
           i += 1
 
   /** Returns `true` when `move` captures the opponent's King from `state`. */
@@ -103,23 +87,36 @@ object TurnGenerator:
     *   - Bits 48-55: Path length (8 bits)
     *   - Bits 56-63: Dice consumed (8 bits)
     *
-    * This layout relies on [[Move]] being represented as a 16-bit encoded integer.
+    * This layout relies on [[Move]] being represented as a 16-bit encoded integer. The invariant is enforced
+    * unconditionally via `require` so that corruption is caught in production, not only under `-ea`.
     */
   private def packPath(path: Array[Move], len: Int, dice: Int): Long =
     val m0 = path(0).toInt
     val m1 = if len > 1 then path(1).toInt else Move.empty.toInt
     val m2 = if len > 2 then path(2).toInt else Move.empty.toInt
 
-    // Verify moves fit in 16-bit encoding to prevent silent corruption if Move layout changes
-    assert((m0 & ~0xffff) == 0, s"Move exceeds 16-bit range: $m0")
-    assert((m1 & ~0xffff) == 0, s"Move exceeds 16-bit range: $m1")
-    assert((m2 & ~0xffff) == 0, s"Move exceeds 16-bit range: $m2")
+    // Verify moves fit in 16-bit encoding — unconditional guard against silent corruption
+    // if the Move representation is ever widened beyond 16 bits.
+    require((m0 & ~0xffff) == 0, s"Move exceeds 16-bit range: $m0")
+    require((m1 & ~0xffff) == 0, s"Move exceeds 16-bit range: $m1")
+    require((m2 & ~0xffff) == 0, s"Move exceeds 16-bit range: $m2")
 
     (m0.toLong & 0xffffL) |
       ((m1.toLong & 0xffffL) << 16) |
       ((m2.toLong & 0xffffL) << 32) |
       ((len.toLong & 0xffL) << 48) |
       ((dice.toLong & 0xffL) << 56)
+
+  /** Unpacks a packed path `Long` into `out` and returns the path length.
+    *
+    * Extracts three 16-bit move slots and the 8-bit length field from the layout produced by [[packPath]]. The
+    * `& 0xffffL` slicing is lossless because [[packPath]] guarantees each move fits within 16 bits.
+    */
+  private inline def unpackPath(p: Long, out: Array[Move]): Int =
+    out(0) = (p & 0xffffL).toInt.asInstanceOf[Move]
+    out(1) = ((p >>> 16) & 0xffffL).toInt.asInstanceOf[Move]
+    out(2) = ((p >>> 32) & 0xffffL).toInt.asInstanceOf[Move]
+    ((p >>> 48) & 0xffL).toInt
 
   private class TurnGenContext:
     var normalPaths      = new Array[Long](128)
@@ -223,7 +220,7 @@ object TurnGenerator:
   ): Unit =
     val moverType = state.mailbox(move.fromSquare).pieceType
     val afterMove = pool.diff(List(moverType.diceValue))
-    assert(
+    require(
       afterMove.size < pool.size,
       s"CRITICAL: Dice pool $pool does not decrease! moverType=$moverType, moverType.diceValue=${moverType.diceValue}, move=${move.fromSquare.toNotation}${move.toSquare.toNotation}, state.activeColor=${state.activeColor}, state.mailbox(move.fromSquare)=${state.mailbox(move.fromSquare)}"
     )
