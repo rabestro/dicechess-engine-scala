@@ -1,6 +1,7 @@
 package dicechess.engine.search
 
 import dicechess.engine.domain.*
+import dicechess.engine.movegen.Dfen
 
 /** The opening-book key contract shared between the engine (the consumer, via [[OpeningBookBot]]) and the analytics
   * exporter (the producer, `dicechess-analytics`).
@@ -10,10 +11,12 @@ import dicechess.engine.domain.*
   * <piece-placement> <active-color> <castling> <en-passant> <dice>
   * ```
   *
-  *   - The first four fields are the FEN fields exactly as produced by [[FenParser.serialize]] — byte-for-byte the
-  *     analytics `normalized_fen`. The half-move and full-move clocks are deliberately **omitted**: an opening book is
+  *   - The first four fields are the canonical normalized FEN from [[Dfen.normalizedFen]] — byte-for-byte the analytics
+  *     `normalized_fen`. The half-move and full-move clocks are deliberately **omitted**: an opening book is
   *     independent of the move counters, and dropping them lets concrete positions that differ only by clock share a
-  *     single book entry.
+  *     single book entry. The en-passant field is canonicalised (kept only when actually capturable) so positions that
+  *     differ only by an uncapturable en-passant target — common when a Dice Chess turn double-pushes mid-turn — share
+  *     one entry.
   *   - `<dice>` is the rolled piece letters (`p n b r q k`), sorted ascending and cased by the side to move —
   *     upper-case for White, lower-case for Black. This is identical to the analytics `dice_sorted` column. Example for
   *     White rolling bishop + pawn + rook: `BPR`.
@@ -41,8 +44,8 @@ object OpeningBook:
     val pool = state.flags.dicePool
     if pool.isEmpty then None
     else
-      // First four FEN fields == analytics `normalized_fen`; clocks and the engine's dice field are dropped.
-      val position = FenParser.serialize(state).split(" ").take(4).mkString(" ")
+      // Canonical normalized FEN == analytics `normalized_fen`; clocks and the engine's dice field are dropped.
+      val position = Dfen.normalizedFen(state)
       val letters  = pool.flatMap(PieceType.fromDice).map(_.asNotation).mkString
       val dice     = (if state.flags.activeColor.isWhite then letters.toUpperCase else letters).sorted
       Some(s"$position $dice")
