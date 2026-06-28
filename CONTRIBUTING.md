@@ -2,13 +2,13 @@
 
 ## Development Workflow
 
-**Workflow Order: Issue → Branch → Implementation → PR (mandatory).**
+**Workflow order for issue-driven work: Issue → Branch → Implementation → PR.** Routine work (`refactor`, `chore`, `docs`, `ci`, `test`, `perf`) may skip the issue.
 
-- Create an issue (Context, Objective, Definition of Done) before implementation.
-- Create a branch using the naming convention: `task/<ID>-<short-desc>`, `feat/<ID>-<short-desc>`, `bug/<ID>-<short-desc>`.
+- For issue-driven work, create an issue (Context, Objective, Definition of Done) before implementation.
+- Create a branch: `<type>/<short-desc>`, optionally `<type>/<id>-<short-desc>` to link an issue. Types: `task` / `feat` / `bug` (issue-driven), `refactor` / `chore` / `docs` / `ci` / `test` / `perf` (issueless).
 - Implement changes on that branch only. Do not work directly on `main`.
 - Run `mise run check` to validate formatting, compilation, and tests before opening a PR.
-- In PR body include `Closes #<issue-number>` and a checklist matching the issue DoD.
+- When the branch references an issue, include `Closes #<issue-number>` in the PR body and a checklist matching the issue DoD.
 
 See `AGENTS.md` for branch-name patterns and agent-specific guidance.
 
