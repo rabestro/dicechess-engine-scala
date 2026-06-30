@@ -4,6 +4,7 @@ import org.openjdk.jmh.annotations.*
 import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 
+import scala.compiletime.uninitialized
 import scala.util.boundary, boundary.break
 
 @State(Scope.Benchmark)
@@ -15,7 +16,7 @@ import scala.util.boundary, boundary.break
 class DicePoolParserBenchmark {
 
   @Param(Array("-", "p", "pnb"))
-  var dicePool: String = _
+  var dicePool: String = uninitialized
 
   @Benchmark
   def parseOriginal(): List[Int] = boundary {
