@@ -13,9 +13,9 @@ Our codebase is continuously monitored using industry-standard static analysis a
 
 | Layer | Tool / Service | Security Focus |
 | :--- | :--- | :--- |
-| **Local Pre-commit** | `gitleaks` | Prevents API keys, credentials, and secrets from entering git history. |
+| **Local Pre-commit** | `betterleaks` | Prevents API keys, credentials, and secrets from entering git history. |
 | **CI Static Analysis** | **CodeQL** | Analyzes the codebase for security flaws, syntax bugs, and common vulnerability patterns (SQL injections, path traversals). |
-| **CI Secret Scan** | `gitleaks` (via CodeRabbit) | Double-checks all PR changes for secrets before merging to `main`. |
+| **CI Secret Scan** | `betterleaks` (via CodeRabbit) | Double-checks all PR changes for secrets before merging to `main`. |
 | **Vulnerability Scanning** | **SonarCloud** | Automatically flags code smells, logic errors, and security issues. |
 | **Dependency Audits** | **Dependabot** | Regularly monitors and generates automated PRs to patch vulnerable NPM/Scala packages. |
 | **Push Protection** | GitHub Secret Scanning | Rejects push events containing detected credentials. |

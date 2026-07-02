@@ -47,7 +47,7 @@ reviews:
     actionlint:
       enabled: true        # Validate GitHub Actions workflow YAML syntax
     gitleaks:
-      enabled: true        # Detect leaked secrets (complements pre-commit hook)
+      enabled: true        # Detect leaked secrets (complements betterleaks pre-commit hook)
     shellcheck:
       enabled: true        # Lint shell scripts in mise.toml and CI workflows
     markdownlint:
