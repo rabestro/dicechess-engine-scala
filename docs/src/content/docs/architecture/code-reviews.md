@@ -26,7 +26,7 @@ graph LR
 
 | Layer | Tool | Purpose |
 | :--- | :--- | :--- |
-| Pre-commit | `gitleaks` | Intercept leaked secrets before they reach Git history |
+| Pre-commit | `betterleaks` | Intercept leaked secrets before they reach Git history |
 | Pre-commit | `pre-commit-hooks` | Trailing whitespace, YAML syntax, merge conflicts |
 | CI | `scalafmt` | Enforce consistent Scala code formatting |
 | CI | `scalafix` | Enforce strict syntax rules (ban null, throw, return) |
@@ -75,7 +75,7 @@ The review profile is set to **assertive**, which provides rigorous, performance
 | Tool | What It Checks |
 | :--- | :--- |
 | `actionlint` | Validates GitHub Actions workflow YAML syntax and expressions |
-| `gitleaks` | Detects leaked secrets (complements the pre-commit hook) |
+| `betterleaks` | Detects leaked secrets (complements the pre-commit hook) |
 | `shellcheck` | Lints shell scripts embedded in `mise.toml` and CI workflows |
 | `markdownlint` | Validates documentation and README markdown formatting |
 
