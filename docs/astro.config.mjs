@@ -45,6 +45,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Testing Strategy & DSL', slug: 'architecture/testing' },
 						{ label: 'CI/CD & Releases', slug: 'architecture/releases' },
+						{ label: 'Dependency Updates', slug: 'architecture/dependency-updates' },
 						{ label: 'Automated Code Reviews', slug: 'architecture/code-reviews' },
 						{ label: 'Security Policy', slug: 'architecture/security' },
 					],

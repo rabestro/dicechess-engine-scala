@@ -17,7 +17,7 @@ Our codebase is continuously monitored using industry-standard static analysis a
 | **CI Static Analysis** | **CodeQL** | Analyzes the codebase for security flaws, syntax bugs, and common vulnerability patterns (SQL injections, path traversals). |
 | **CI Secret Scan** | `betterleaks` (via CodeRabbit) | Double-checks all PR changes for secrets before merging to `main`. |
 | **Vulnerability Scanning** | **SonarCloud** | Automatically flags code smells, logic errors, and security issues. |
-| **Dependency Audits** | **Dependabot** | Regularly monitors and generates automated PRs to patch vulnerable NPM/Scala packages. |
+| **Dependency Audits** | **Dependabot** | Regularly monitors and generates automated PRs for sbt (libraries, plugins, sbt version), NPM, GitHub Actions, and pre-commit dependencies. See [Dependency Updates](/dicechess-engine-scala/architecture/dependency-updates/). |
 | **Push Protection** | GitHub Secret Scanning | Rejects push events containing detected credentials. |
 
 ---
