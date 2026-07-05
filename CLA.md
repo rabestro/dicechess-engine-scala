@@ -88,11 +88,15 @@ Signing is self-service and happens in Your first pull request:
    in the same pull request as your first contribution:
 
    ```json
-   { "github": "your-github-username", "name": "Your Full Name", "date": "YYYY-MM-DD" }
+   { "github": "your-github-username", "name": "Your Full Name", "date": "YYYY-MM-DD", "claVersion": "1.0" }
    ```
 
 3. The commit adding your entry constitutes your electronic signature of this
    Agreement, and the git history serves as the signature record.
 
+The `claVersion` field records which version of this Agreement you signed. If the
+Agreement is revised, the registry's top-level version is bumped, and you will be
+asked to re-sign (add an updated entry) before your next contribution is accepted.
+
 The `CI: CLA` status check verifies the entry automatically and will fail the pull
-request until the signature is present.
+request until a signature matching the current Agreement version is present.
