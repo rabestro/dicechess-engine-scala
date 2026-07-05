@@ -1,6 +1,6 @@
 ThisBuild / organization := "lv.id.jc"
 ThisBuild / version      := "1.6.2-SNAPSHOT"
-ThisBuild / scalaVersion := "3.8.3"
+ThisBuild / scalaVersion := "3.8.4"
 
 ThisBuild / description := "High-performance Dice Chess engine and probability calculator in Scala 3."
 ThisBuild / homepage    := Some(url("https://jc.id.lv/dicechess-engine-scala/"))
