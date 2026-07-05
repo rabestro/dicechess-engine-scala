@@ -24,6 +24,12 @@ jobs:
           cache: sbt
       - name: Setup sbt
         uses: sbt/setup-sbt@93e926cbdb4a428e41b4ef754124ec82925ffdc2 # v1.1.5
+      - name: Setup Node.js
+        # Scala.js runs JS/Wasm tests on Node; the Wasm backend (1.22+) emits
+        # ES2022 + WebAssembly GC, which needs a current Node, not the runner default.
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: "26"
       - name: Show sbt version
         run: sbt --version
       - name: scalafmt check
