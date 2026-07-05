@@ -62,11 +62,40 @@ class TurnGeneratorPropertySpec extends ScalaCheckSuite:
         mailbox(Square.fromIndex(56)).pieceType == PieceType.Rook && mailbox(Square.fromIndex(56)).color == Color.Black
       if !blackKingOnHome || !rookOnHome then newRights &= ~8
 
+    // 3. Validate en passant. A real ep target only exists directly behind an enemy pawn that just
+    // double-pushed; the engine maintains this invariant (a target is created by a double push and
+    // dropped when that pawn leaves or is captured). gameStateGen places ep squares freely, which can
+    // put a target behind a friendly piece or a non-pawn — MoveGenerator would then emit an
+    // en-passant "capture" of that piece and desync makeMove. Keep only targets backed by a real
+    // enemy pawn on the capturable rank, with the ep square itself empty.
+    val activeColor  = state.activeColor
+    val enemyColor   = activeColor.opponent
+    val validEPRank  = if activeColor.isWhite then 6 else 3
+    val victimOffset = if activeColor.isWhite then -8 else 8
+    var newEP        = Bitboard.empty
+    var epv          = state.enPassant.value
+    while epv != 0 do
+      val epIdx = java.lang.Long.numberOfTrailingZeros(epv)
+      val epSq  = Square.fromIndex(epIdx)
+      val vIdx  = epIdx + victimOffset
+      if epSq.rank == validEPRank && vIdx >= 0 && vIdx < 64 && mailbox(epSq).isEmpty then
+        val victim = mailbox(Square.fromIndex(vIdx))
+        if !victim.isEmpty && victim.pieceType == PieceType.Pawn && victim.color == enemyColor then
+          newEP = newEP.add(epSq)
+      epv &= epv - 1
+
+    var newEpFiles = 0
+    var nv         = newEP.value
+    while nv != 0 do
+      newEpFiles |= (1 << (java.lang.Long.numberOfTrailingZeros(nv) % 8))
+      nv &= nv - 1
+
     state.copy(
       pawns = pawnsBB,
       bishops = bishopsBB,
       mailbox = mailbox,
-      flags = state.flags.withCastlingRights(newRights)
+      flags = state.flags.withCastlingRights(newRights).withEnPassantFiles(newEpFiles),
+      enPassant = newEP
     )
 
   // The old list-based implementation to verify against
