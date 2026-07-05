@@ -43,6 +43,14 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
 
+      - name: Setup Node.js
+        # Scala.js runs JS/Wasm tests on Node; the Wasm backend (1.22+) emits
+        # ES2022 + WebAssembly GC, which needs a current Node, not the runner default.
+        uses: actions/setup-node@v6
+        with:
+          node-version: "26"
+          registry-url: "https://npm.pkg.github.com"
+
       # Run sbt directly (no mise): the runner already has the JVM toolchain, jq, and gh,
       # so mise would only install the local-dev tool set for nothing. Mirrors `mise run check`.
       - name: Run validation checks
@@ -127,12 +135,6 @@ jobs:
         run: sbt "set ThisBuild / version := \"${{ steps.bump_version.outputs.new_version }}\"" rootJVM/publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "26"
-          registry-url: "https://npm.pkg.github.com"
 
       # package:prepare is a plain bash script (sbt + jq, both on the runner). Run its
       # js:build dependency first, then the script directly — no mise needed.
