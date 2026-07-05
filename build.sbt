@@ -65,7 +65,7 @@ lazy val root = crossProject(JSPlatform, JVMPlatform)
   .settings(commonSettings)
   .jvmSettings(
     // JVM-specific settings
-    libraryDependencies += "org.jline" % "jline" % "3.26.3",
+    libraryDependencies += "org.jline" % "jline" % "4.3.1",
     Compile / doc / scalacOptions ++= Seq(
       "-project",
       name.value,
