@@ -2,7 +2,7 @@ name: "CD: Deploy Documentation"
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
     paths:
       - 'docs/**'
       - 'src/main/scala/**'
@@ -68,10 +68,10 @@ jobs:
       - name: Generate Scaladoc
         run: sbt doc
 
-       - name: Merge Scaladoc into Astro dist
-         run: |
-           mkdir -p ${{ env.BUILD_PATH }}/dist/api
-           cp -r jvm/target/scala-3.8.4/api/* ${{ env.BUILD_PATH }}/dist/api/
+      - name: Merge Scaladoc into Astro dist
+        run: |
+          mkdir -p ${{ env.BUILD_PATH }}/dist/api
+          cp -r jvm/target/scala-3.8.4/api/* ${{ env.BUILD_PATH }}/dist/api/
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v5
