@@ -1,3 +1,5 @@
+import org.scalajs.linker.interface.ESVersion
+
 ThisBuild / organization := "lv.id.jc"
 ThisBuild / version      := "1.6.2-SNAPSHOT"
 ThisBuild / scalaVersion := "3.8.4"
@@ -111,8 +113,10 @@ lazy val rootWasm = project
     coverageEnabled                 := false,
     scalaJSUseMainModuleInitializer := false,
     scalaJSLinkerConfig ~= {
+      // Scala.js 1.22 moved WebAssembly out of "experimental" (now set via
+      // ESFeatures) and its backend requires ECMAScript 2022 or later.
       _.withModuleKind(ModuleKind.ESModule)
-        .withExperimentalUseWebAssembly(true)
+        .withESFeatures(_.withESVersion(ESVersion.ES2022).withUseWebAssembly(true))
     }
   )
 
