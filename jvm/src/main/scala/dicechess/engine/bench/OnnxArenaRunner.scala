@@ -29,16 +29,19 @@ object OnnxArenaRunner:
       .getOrElse(sys.error(s"Unknown opponent bot '$opponentId'"))
 
     val onnxId = "onnx-eval"
-    BotRegistry.registerCustomBot(
-      BotInfo(
-        id = onnxId,
-        name = "ONNX LightGBM Eval",
-        description = s"One-ply search scored by an externally-trained LightGBM model ($modelPath)",
-        difficulty = opponentInfo.difficulty,
-        isExperimental = true
-      ),
-      new OnnxEvalSearch(modelPath)
-    )
+    val bot    = new OnnxEvalSearch(modelPath)
+    try
+      BotRegistry.registerCustomBot(
+        BotInfo(
+          id = onnxId,
+          name = "ONNX LightGBM Eval",
+          description = s"One-ply search scored by an externally-trained LightGBM model ($modelPath)",
+          difficulty = opponentInfo.difficulty,
+          isExperimental = true
+        ),
+        bot
+      )
 
-    println(s"Loaded ONNX model from $modelPath")
-    BotMatchRunner.runArena(onnxId, Some(opponentId), games, StartFen)
+      println(s"Loaded ONNX model from $modelPath")
+      BotMatchRunner.runArena(onnxId, Some(opponentId), games, StartFen)
+    finally bot.close()
