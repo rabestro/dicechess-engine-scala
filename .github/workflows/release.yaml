@@ -33,13 +33,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-       - name: Setup Java
-         uses: actions/setup-java@v4
-         with:
-           distribution: 'temurin'
-           java-version: '25'
-           cache: 'sbt'
-           node-version: '26'
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+         distribution: 'temurin'
+         java-version: '25'
+         cache: 'sbt'
 
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
