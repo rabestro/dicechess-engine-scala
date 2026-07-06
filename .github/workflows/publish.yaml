@@ -16,12 +16,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "25"
-          cache: "sbt"
+       - name: Setup Java
+         uses: actions/setup-java@v4
+         with:
+           distribution: temurin
+           java-version: "25"
+           cache: "sbt"
+           node-version: "26"
 
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
