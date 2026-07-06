@@ -50,10 +50,7 @@ object FenParser {
       if parts.length < 4 then break(Left("Invalid FEN: insufficient parts"))
 
       val board       = parts(0)
-      val activeColor = parts(1) match
-        case "w"   => Color.White
-        case "b"   => Color.Black
-        case other => break(Left(s"Invalid active color '$other'"))
+      val activeColor = parseActiveColor(parts(1))
       val castling    = parts(2)
       val castlingInt = parseCastling(castling)
 
@@ -77,21 +74,29 @@ object FenParser {
       var kings       = Bitboard.empty
       val mailbox     = new Array[Piece](64)
 
-      var r = 0
-      while r < ranks.length do {
-        val rankStr   = ranks(r)
-        val rankIndex = 7 - r
-        var file      = 0
-        var i         = 0
-        while i < rankStr.length do {
+      inline def addPiece(color: Color, pt: PieceType, bb: Bitboard): Unit =
+        if color.isWhite then whitePieces |= bb else blackPieces |= bb
+        pt match
+          case PieceType.Pawn   => pawns |= bb
+          case PieceType.Knight => knights |= bb
+          case PieceType.Bishop => bishops |= bb
+          case PieceType.Rook   => rooks |= bb
+          case PieceType.Queen  => queens |= bb
+          case PieceType.King   => kings |= bb
+          case _                => ()
+
+      inline def parseRank(rankIndex: Int, rankStr: String): Unit =
+        var file = 0
+        var i    = 0
+        val len  = rankStr.length
+        while i < len do
           val char = rankStr.charAt(i)
-          if char.isDigit then {
-            file += char.asDigit
-          } else {
+          if char.isDigit then file += char.asDigit
+          else
             if file >= 8 then break(Left(s"Rank $rankIndex overflows 8 files"))
             val sq    = Square.fromIndex(rankIndex * 8 + file)
             val color = if char.isUpper then Color.White else Color.Black
-            val pt    = char.toLower match {
+            val pt    = char.toLower match
               case 'p' => PieceType.Pawn
               case 'n' => PieceType.Knight
               case 'b' => PieceType.Bishop
@@ -99,31 +104,18 @@ object FenParser {
               case 'q' => PieceType.Queen
               case 'k' => PieceType.King
               case _   => break(Left(s"Unknown piece character '$char'"))
-            }
 
             val piece = Piece(color, pt)
             mailbox(sq.index) = piece
-
-            val bb = Bitboard.fromSquare(sq)
-            if color.isWhite then whitePieces |= bb else blackPieces |= bb
-
-            pt match {
-              case PieceType.Pawn   => pawns |= bb
-              case PieceType.Knight => knights |= bb
-              case PieceType.Bishop => bishops |= bb
-              case PieceType.Rook   => rooks |= bb
-              case PieceType.Queen  => queens |= bb
-              case PieceType.King   => kings |= bb
-              case _                => ()
-            }
-
+            addPiece(color, pt, Bitboard.fromSquare(sq))
             file += 1
-          }
           i += 1
-        }
         if file != 8 then break(Left(s"Rank $rankIndex must have 8 files, found $file"))
+
+      var r = 0
+      while r < 8 do
+        parseRank(7 - r, ranks(r))
         r += 1
-      }
 
       Right(
         GameState(
@@ -145,6 +137,12 @@ object FenParser {
   catch {
     case e: Exception => Left(s"FEN parsing error: ${e.getMessage}")
   }
+
+  private inline def parseActiveColor(s: String)(using boundary.Label[Either[String, GameState]]): Color =
+    s match
+      case "w"   => Color.White
+      case "b"   => Color.Black
+      case other => break(Left(s"Invalid active color '$other'"))
 
   /** Serialises a [[GameState]] back to a FEN string.
     *

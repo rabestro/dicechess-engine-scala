@@ -30,3 +30,10 @@ class OpeningBookSpec extends FunSuite:
     val state = FenParser.parse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").toOption.get
     assertEquals(OpeningBook.key(state), None)
   }
+
+  test("key canonicalises an uncapturable en-passant target to '-'") {
+    // White pushed h2-h4 (target h3) but no black pawn can take it; the key must drop the target so
+    // it matches the analytics exporter's canonical normalized_fen.
+    val state = FenParser.parse("rnbqkbnr/pppppppp/8/8/7P/8/PPPPPPP1/RNBQKBNR b KQkq h3 0 1 bpr").toOption.get
+    assertEquals(OpeningBook.key(state), Some("rnbqkbnr/pppppppp/8/8/7P/8/PPPPPPP1/RNBQKBNR b KQkq - bpr"))
+  }

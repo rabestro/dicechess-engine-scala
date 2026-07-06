@@ -1,6 +1,8 @@
+import org.scalajs.linker.interface.ESVersion
+
 ThisBuild / organization := "lv.id.jc"
-ThisBuild / version      := "1.6.0-SNAPSHOT"
-ThisBuild / scalaVersion := "3.8.3"
+ThisBuild / version      := "1.6.3-SNAPSHOT"
+ThisBuild / scalaVersion := "3.8.4"
 
 ThisBuild / description := "High-performance Dice Chess engine and probability calculator in Scala 3."
 ThisBuild / homepage    := Some(url("https://jc.id.lv/dicechess-engine-scala/"))
@@ -65,7 +67,7 @@ lazy val root = crossProject(JSPlatform, JVMPlatform)
   .settings(commonSettings)
   .jvmSettings(
     // JVM-specific settings
-    libraryDependencies += "org.jline" % "jline" % "3.26.3",
+    libraryDependencies += "org.jline" % "jline" % "4.3.1",
     Compile / doc / scalacOptions ++= Seq(
       "-project",
       name.value,
@@ -111,8 +113,10 @@ lazy val rootWasm = project
     coverageEnabled                 := false,
     scalaJSUseMainModuleInitializer := false,
     scalaJSLinkerConfig ~= {
+      // Scala.js 1.22 moved WebAssembly out of "experimental" (now set via
+      // ESFeatures) and its backend requires ECMAScript 2022 or later.
       _.withModuleKind(ModuleKind.ESModule)
-        .withExperimentalUseWebAssembly(true)
+        .withESFeatures(_.withESVersion(ESVersion.ES2022).withUseWebAssembly(true))
     }
   )
 

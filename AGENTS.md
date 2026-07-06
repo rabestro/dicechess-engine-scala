@@ -97,24 +97,23 @@ expensive than tokens.
 
 ## Branch Naming & Agent Rules
 
-Allowed branch prefixes:
-- `task` — work items / tasks
-- `feat` — new features
-- `bug` — bug fixes
+Branch name pattern: `<type>/<short-description>`, optionally `<type>/<id>-<short-description>` to link an issue.
 
-Branch name pattern (required):
-  (task|feat|bug)/<issue-number>-<short-description>
-Example: `task/1234-fen-parser`
+Allowed prefixes:
+- Issue-driven: `task` (work items), `feat` (features), `bug` (fixes) — typically carry an `<id>`.
+- Issueless: `refactor`, `chore`, `docs`, `ci`, `test`, `perf` — no issue required.
+
+Examples: `feat/1234-fen-parser`, `refactor/extract-evaluator`, `chore/bump-deps`.
 
 Agent rules (Claude / Copilot / automation):
-- Do not implement or open a PR unless an issue exists and the branch is named according to the pattern.
-- Agents may create draft changes, suggest code, and open the PR linked to the issue.
+- Issue-driven work (`task`/`feat`/`bug`) starts from an issue; the branch carries its `<id>` and the PR links it with `Closes #<id>`. Issueless work (`refactor`/`chore`/`docs`/`ci`/`test`/`perf`) needs no issue.
+- Agents may create draft changes, suggest code, and open the PR.
 - Agents should run `mise run format` on any generated code and ensure `mise run check` passes successfully locally before proposing a PR.
 - Human retains the ultimate authority to review, approve, and merge the PR.
 
 ## Issue & Branch Management
 
-- **Branch Naming**: Always create a dedicated branch for each task using the format `task/[ID]-[description]`, `feat/[ID]-[description]`, or `bug/[ID]-[description]`.
+- **Branch Naming**: Always work on a dedicated branch, never `main`. Use `<type>/<short-description>` (add `<id>-` to link an issue) — see "Branch Naming & Agent Rules" above for the allowed types.
 - **Workflow**:
   1. Create a GitHub Issue with Context, Objective, and DoD (Definition of Done).
   2. Create a branch and an Implementation Plan (if the task is complex).

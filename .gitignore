@@ -19,6 +19,10 @@ project/project/
 .vscode/
 .DS_Store
 dist/
+
+# Local opening book(s) for the arena/eval — never commit book data to this public repo
+opening_book.json
+*.book.json
 dist-wasm/
 .wasm/
 node_modules/

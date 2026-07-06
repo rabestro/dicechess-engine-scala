@@ -75,6 +75,10 @@ run = "sbt 'rootJVM/runMain dicechess.engine.bench.BotMatchRunner {{arg(name=\"b
 description = "⏱️  Run the time-controlled arena (bot vs baseline across time controls; the #372 gate)"
 run = "sbt 'rootJVM/runMain dicechess.engine.bench.TimedArenaRunner {{arg(name=\"bot\", default=\"monte-carlo\")}} {{arg(name=\"baseline\", default=\"aggressive\")}} {{arg(name=\"games\", default=\"10\")}} {{arg(name=\"presets\", default=\"1+0,3+2,10+10\")}}'"
 
+[tasks."arena:book"]
+description = "📖⚔️  Arena: <base> bot vs the same bot + a local opening book (book read from a path, never committed). Usage: arena:book <base> <bookPath> [games]"
+run = "sbt 'rootJVM/runMain dicechess.engine.bench.OpeningBookArenaRunner {{arg(name=\"base\", default=\"aggressive\")}} {{arg(name=\"book\", default=\"opening_book.json\")}} {{arg(name=\"games\", default=\"50\")}}'"
+
 [tasks.clean]
 description = "🧹 Remove build artifacts"
 run = "sbt clean"
