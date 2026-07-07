@@ -16,7 +16,7 @@ sed -i.bak "s/\"version\": \"[^\"]*\"/\"version\": \"$CLEAN_VERSION\"/" package.
 rm package.json.bak
 
 # Copy assets to the distribution folder
-cp js/target/scala-3.8.3/dicechess-engine-scala-opt/main.js dist/dicechess-engine.js
+cp js/target/scala-3.*/dicechess-engine-scala-opt/main.js dist/dicechess-engine.js
 cp js/dicechess-engine.d.ts dist/
 cp js/README.md dist/README.md
 
