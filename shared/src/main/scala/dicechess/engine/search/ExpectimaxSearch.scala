@@ -32,20 +32,30 @@ final case class ExpectimaxConfig(candidateLimit: Int = 8):
   *   - a leaf where the opponent captures our king is worth [[ExpectimaxSearch.LossValue]] — below any real score on
   *     any scale — so the opponent always takes it and we always rank that line last.
   *
-  * Depth is fixed at two plies; the per-move deadline and the batched-model wiring arrive with the model-backed bot.
+  * Depth is fixed at two plies. As a [[TimeBudgetedSearch]] it also honours a wall-clock deadline, expanding
+  * material-ranked candidates until time runs out.
   */
 final class ExpectimaxSearch(
     evalBatch: (Array[GameState], Color) => Array[Int],
     config: ExpectimaxConfig = ExpectimaxConfig()
-) extends SearchAlgorithm:
+) extends TimeBudgetedSearch:
 
   import ExpectimaxSearch.*
 
   override def findBestMove(state: GameState): Option[ScoredSequence] =
     findBestMove(state, new Random())
 
-  /** Finds the best turn with an explicit `Random` for reproducible tie-breaking among equally-valued turns. */
+  /** Finds the best turn with an explicit `Random`, running to completion over every candidate. */
   def findBestMove(state: GameState, rand: Random): Option[ScoredSequence] =
+    findBestMove(state, NoDeadline, rand)
+
+  /** Finds the best turn under a wall-clock deadline.
+    *
+    * Candidates are expanded in material-ranked order; the top one is always evaluated, and the deadline is honoured
+    * between candidates thereafter, so the result is the best turn found so far when time runs out (anytime search).
+    * This matters because a single roll can generate thousands of opponent replies (the Dice Chess branching tail).
+    */
+  override def findBestMove(state: GameState, deadlineNanos: Long, random: Random): Option[ScoredSequence] =
     val myColor = state.activeColor
     val paths   = TurnGenerator.generateAllLegalTurnPaths(state)
     if paths.isEmpty then None
@@ -58,10 +68,18 @@ final class ExpectimaxSearch(
         val candidates = paths
           .sortBy(path => -SearchScoring.scorePath(state, path, Evaluator.evaluateMaterial).score)
           .take(config.candidateLimit)
-        val scored = candidates.map(path => path -> turnValue(state, path, myColor))
-        val bestQ  = scored.map(_._2).max
-        val best   = scored.collect { case (path, q) if q == bestQ => path }
-        Some(ScoredSequence(best(rand.nextInt(best.length)), bestQ.toInt))
+        val scored   = List.newBuilder[(List[Move], Double)]
+        var i        = 0
+        var continue = true
+        while i < candidates.length && continue do
+          scored += candidates(i) -> turnValue(state, candidates(i), myColor)
+          i += 1
+          // Always finish the top candidate, then stop as soon as the deadline has passed.
+          if i < candidates.length && System.nanoTime() >= deadlineNanos then continue = false
+        val evaluated = scored.result()
+        val bestQ     = evaluated.map(_._2).max
+        val best      = evaluated.collect { case (path, q) if q == bestQ => path }
+        Some(ScoredSequence(best(random.nextInt(best.length)), bestQ.toInt))
 
   /** The expectimax value of playing `path`: apply it, hand the turn over, and average the opponent's best reply across
     * every possible roll.
@@ -131,3 +149,6 @@ object ExpectimaxSearch:
     * last — without tying the search to a particular evaluator's range.
     */
   private val LossValue: Double = -1e9
+
+  /** Sentinel deadline for the un-timed entry points: `System.nanoTime()` never reaches it in practice. */
+  private val NoDeadline: Long = Long.MaxValue
