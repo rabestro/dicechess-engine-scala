@@ -15,32 +15,6 @@ import scala.util.boundary, boundary.break
   */
 object KingCaptureProbability:
 
-  /** Pre‑computed unique dice‑roll multisets with their occurrence weights.
-    *
-    * | Pattern | Example   | Weight | Count |
-    * |:--------|:----------|-------:|------:|
-    * | AAA     | `[1,1,1]` |      1 |     6 |
-    * | AAB     | `[1,1,2]` |      3 |    30 |
-    * | ABC     | `[1,2,3]` |      6 |    20 |
-    *
-    * Total: 6×1 + 30×3 + 20×6 = 216 ordered rolls.
-    */
-  private val weightedRolls: Array[(List[Int], Int)] =
-    val seen = collection.mutable.Set.empty[List[Int]]
-    val b    = List.newBuilder[(List[Int], Int)]
-    for d1 <- 1 to 6; d2 <- 1 to 6; d3 <- 1 to 6 do {
-      val ms = List(d1, d2, d3).sorted
-      if seen.add(ms) then
-        val weight = ms.distinct.size match
-          case 1 => 1
-          case 2 => 3
-          case _ => 6
-        b += ((ms, weight))
-    }
-    b.result().toArray
-
-  private val TotalRolls: Double = 216.0
-
   /** Returns the probability `[0.0, 1.0]` that the opponent can capture the defender's king on their next turn. */
   def kingCaptureProbability(state: GameState, defenderColor: Color): Double =
     captureProbability(state, defenderColor, state.kings)
@@ -61,12 +35,12 @@ object KingCaptureProbability:
     val opponent = defenderColor.opponent
     var count    = 0
     var i        = 0
-    while i < weightedRolls.length do
-      val (rolls, weight) = weightedRolls(i)
+    while i < DiceRolls.weighted.length do
+      val (rolls, weight) = DiceRolls.weighted(i)
       val testState       = state.withActiveColor(opponent).withDicePool(rolls)
       if captureDFS(testState, targets) then count += weight
       i += 1
-    count / TotalRolls
+    count.toDouble / DiceRolls.totalOrderedRolls
   }
 
   /** Depth‑first search over all micro‑move sequences.

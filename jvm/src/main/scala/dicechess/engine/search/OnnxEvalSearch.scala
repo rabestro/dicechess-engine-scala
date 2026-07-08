@@ -19,19 +19,43 @@ class OnnxEvalSearch(modelPath: String) extends SearchAlgorithm with AutoCloseab
   private val env     = OrtEnvironment.getEnvironment
   private val session = env.createSession(modelPath, new OrtSession.SessionOptions())
 
-  /** Runs the ONNX session on `state`'s material features from `color`'s perspective, scaled onto `scorePath`'s Int
-    * axis. The model's raw output is a probability in [0, 1]; ×10000 keeps it far below
-    * [[SearchScoring.TerminalWinScore]] (`Int.MaxValue`) while preserving resolution to discriminate between close
-    * positions.
+  /** The model's raw output is a probability in [0, 1]; scaling by this keeps every score far below
+    * [[SearchScoring.TerminalWinScore]] (`Int.MaxValue`) while preserving enough resolution to discriminate between
+    * close positions.
     */
-  def onnxEval(state: GameState, color: Color): Int =
-    val features    = OnnxFeatures.extract(state, color)
-    val inputTensor = OnnxTensor.createTensor(env, Array(features))
+  private val ScoreScale = 10000
+
+  /** Runs the ONNX session on a batch of feature rows (`[batch × 7]`) and returns the scaled scores in row order.
+    *
+    * The session run is the shared inference primitive behind [[onnxEval]] and [[onnxEvalBatch]]; both funnel through
+    * here so the tensor lifecycle and scaling stay in one place. The output tensor is `[batch × 1]` (one probability
+    * per row).
+    */
+  private def runScaled(features: Array[Array[Float]]): Array[Int] =
+    val inputTensor = OnnxTensor.createTensor(env, features)
     try
       val result = session.run(Collections.singletonMap("input", inputTensor))
-      try (result.get(0).getValue.asInstanceOf[Array[Array[Float]]](0)(0) * 10000).toInt
+      try result.get(0).getValue.asInstanceOf[Array[Array[Float]]].map(row => (row(0) * ScoreScale).toInt)
       finally result.close()
     finally inputTensor.close()
+
+  /** Runs the ONNX session on `state`'s material features from `color`'s perspective, scaled onto `scorePath`'s Int
+    * axis.
+    */
+  def onnxEval(state: GameState, color: Color): Int =
+    runScaled(Array(OnnxFeatures.extract(state, color)))(0)
+
+  /** Batched [[onnxEval]]: evaluates many positions from a single `color`'s perspective in one session run.
+    *
+    * Session-run cost is dominated by per-call overhead (JNI boundary, graph setup), not by the number of rows, so
+    * folding N positions into one `[N × 7]` tensor is far cheaper than N separate `[1 × 7]` runs. This is the hot path
+    * for a multi-leaf search — e.g. an expectimax chance node integrating over the 56 dice outcomes (see
+    * [[DiceRolls]]), whose leaves are all scored from the root mover's perspective. Scores come back on the same scaled
+    * axis as [[onnxEval]], one per input in order; an empty input yields an empty result.
+    */
+  def onnxEvalBatch(states: Array[GameState], color: Color): Array[Int] =
+    if states.isEmpty then Array.emptyIntArray
+    else runScaled(states.map(OnnxFeatures.extract(_, color)))
 
   override def findBestMove(state: GameState): Option[ScoredSequence] =
     findBestMove(state, new Random())

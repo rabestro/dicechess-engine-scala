@@ -42,3 +42,26 @@ class OnnxEvalSearchSpec extends FunSuite:
       assert(result.isDefined)
     finally bot.close()
   }
+
+  // A few materially-distinct positions so the batch has real variation to reproduce.
+  private val fens = List(
+    FenParser.InitialPosition,
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNB1KBNR w KQkq - 0 1", // White missing a queen
+    "r1bqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"  // Black missing a knight
+  )
+
+  test("onnxEvalBatch matches evaluating each position individually, in order") {
+    val bot    = new OnnxEvalSearch(modelPath)
+    val states = fens.map(fen => FenParser.parse(fen).toOption.get).toArray
+    try
+      val batched    = bot.onnxEvalBatch(states, Color.White)
+      val individual = states.map(bot.onnxEval(_, Color.White))
+      assertEquals(batched.toList, individual.toList)
+    finally bot.close()
+  }
+
+  test("onnxEvalBatch on an empty input yields an empty result") {
+    val bot = new OnnxEvalSearch(modelPath)
+    try assertEquals(bot.onnxEvalBatch(Array.empty, Color.White).toList, Nil)
+    finally bot.close()
+  }
