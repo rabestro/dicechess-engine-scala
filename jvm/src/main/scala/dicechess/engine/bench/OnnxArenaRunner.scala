@@ -6,6 +6,10 @@ import dicechess.engine.search.{BotInfo, BotRegistry, OnnxEvalSearch}
   * acceptance-gate check for the Dice Chess AI hackathon project (>= 55% win rate over enough games to be a real
   * signal).
   *
+  * The built-in bot is passed to [[BotMatchRunner.runArena]] as the BASELINE and the ONNX bot as the opponent, because
+  * the summary table reports each opponent's wins against the baseline — this way the printed row is the MODEL's
+  * win/loss/win-rate, which is the number the gate is about (same orientation as [[OpeningBookArenaRunner]]).
+  *
   * The ONNX model file is read from a path at runtime, so it never has to be committed to this public repository — keep
   * it outside version control (it lives in a private repository's `models/` directory, not published alongside this
   * codebase).
@@ -43,5 +47,6 @@ object OnnxArenaRunner:
       )
 
       println(s"Loaded ONNX model from $modelPath")
-      BotMatchRunner.runArena(onnxId, Some(opponentId), games, StartFen)
+      // Opponent as baseline, ONNX bot as the measured side: the table row is the model's stats.
+      BotMatchRunner.runArena(opponentInfo.id, Some(onnxId), games, StartFen)
     finally bot.close()
