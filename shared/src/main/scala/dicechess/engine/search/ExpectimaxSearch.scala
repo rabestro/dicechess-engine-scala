@@ -82,7 +82,11 @@ final class ExpectimaxSearch(
       val rolled         = oppToMove.withDicePool(roll)
       val replies        = TurnGenerator.generateAllLegalTurnPaths(rolled)
       val rollValue      =
-        if replies.isEmpty then evalOne(oppToMove, myColor) // forced pass: the position stands
+        // A forced pass still ends the opponent's (empty) turn and hands the move back to us, so the leaf is
+        // `oppToMove.endTurn()` — our turn — consistent with every other leaf, not `oppToMove` (still their turn).
+        // Material is blind to the difference, but an evaluator that reads side-to-move, en passant, or move counters
+        // would otherwise score the wrong position.
+        if replies.isEmpty then evalOne(oppToMove.endTurn(), myColor)
         else opponentMinValue(rolled, replies, myColor)
       acc += (weight.toDouble / DiceRolls.totalOrderedRolls) * rollValue
       i += 1

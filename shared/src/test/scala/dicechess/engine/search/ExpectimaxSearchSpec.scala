@@ -58,5 +58,17 @@ class ExpectimaxSearchSpec extends FunSuite:
       s"expected the 2-ply search to decline the hanging grab a1a7, got $expectimaxMove"
     )
 
+  test("every evaluated leaf is from the mover's perspective, including forced passes"):
+    // The opponent is a lone king: on every roll without a king die it has no legal move and must pass. All leaves —
+    // ordinary replies and passes alike — must be scored with the mover to move, so an evaluator that reads
+    // side-to-move never sees the opponent's turn. This guards the forced-pass leaf against a regression to the
+    // pre-endTurn state (invisible to material, but wrong for any richer evaluator).
+    val state = parse("4k3/8/8/8/8/8/8/R3K3 w - - 0 1").withDicePool(List(1, 4, 6))
+    val checkingBatch: (Array[GameState], Color) => Array[Int] =
+      (states, color) =>
+        states.foreach(s => assert(s.activeColor == color, s"leaf must be from the mover's perspective"))
+        states.map(s => Evaluator.evaluateMaterial(s, color))
+    assert(ExpectimaxSearch(checkingBatch).findBestMove(state, Random(0)).isDefined)
+
   test("candidateLimit must be positive"):
     intercept[IllegalArgumentException](ExpectimaxConfig(candidateLimit = 0))
