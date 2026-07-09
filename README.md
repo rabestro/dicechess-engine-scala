@@ -2,7 +2,7 @@
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=rabestro_dicechess-engine-scala&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=rabestro_dicechess-engine-scala)
 [![CI Pipeline](https://github.com/rabestro/dicechess-engine-scala/actions/workflows/ci.yaml/badge.svg)](https://github.com/rabestro/dicechess-engine-scala/actions/workflows/ci.yaml)
-[![Play Live](https://img.shields.io/badge/Play-Live-success)](https://dc.jc.id.lv/)
+[![Play Live](https://img.shields.io/badge/Play-Live-success)](https://play.jc.id.lv/)
 [![Architecture Docs](https://img.shields.io/badge/Docs-Architecture-orange)](https://jc.id.lv/dicechess-engine-scala/)
 [![Scaladoc API](https://img.shields.io/badge/Scaladoc-API-blue)](https://jc.id.lv/dicechess-engine-scala/api/)
 
@@ -45,7 +45,7 @@ This project is built using a **monorepo / cross-project** structure enabling se
 
 * **Language**: Scala 3 (leveraging modern opaque types, enums, and zero-cost abstractions)
 * **Cross-Compilation**: `sbt-crossproject` compiling to:
-  * **JS Platform (Scala.js)**: Produces an optimized, fast ES Module running directly in the [Svelte PWA Frontend](https://dc.jc.id.lv/).
+  * **JS Platform (Scala.js)**: Produces an optimized, fast ES Module running directly in the [Svelte PWA Frontend](https://play.jc.id.lv/).
   * **JVM Platform**: For high-speed simulations, deep search tree experiments, and performance profiling.
 * **JSON Serialization**: Circe (cross-platform)
 * **Benchmarking**: Java Microbenchmark Harness (`sbt-jmh`)
@@ -147,7 +147,7 @@ mise run publish:local
 
 ## 📚 Documentation & API Reference
 
-* **[Live Web App](https://dc.jc.id.lv/)**: Play Dice Chess against our engine's active search algorithms in a premium Svelte PWA environment.
+* **[Live Web App](https://play.jc.id.lv/)**: Play Dice Chess against our engine's active search algorithms in a premium Svelte PWA environment.
 * **[Architecture & Developer Guide](https://jc.id.lv/dicechess-engine-scala/)**: Read about our Zero-Cost Abstractions, Hybrid Mailbox, and Milestone roadmap.
 * **[Scaladoc API Reference](https://jc.id.lv/dicechess-engine-scala/api/)**: Comprehensive technical API documentation automatically generated from our codebase.
 
