@@ -46,7 +46,7 @@ final class ExpectimaxSearch(
     findBestMove(state, new Random())
 
   /** Finds the best turn with an explicit `Random`, running to completion over every candidate. */
-  def findBestMove(state: GameState, rand: Random): Option[ScoredSequence] =
+  override def findBestMove(state: GameState, rand: Random): Option[ScoredSequence] =
     findBestMove(state, NoDeadline, rand)
 
   /** Finds the best turn under a wall-clock deadline.

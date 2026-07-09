@@ -8,11 +8,19 @@ import scala.util.Random
 class BotMatchRunnerSpec extends FunSuite:
 
   test("simulateGame completes successfully and returns a valid outcome") {
-    val rand    = new Random(42)
-    val outcome = BotMatchRunner.simulateGame(GreedySearch, GreedySearch, rand)
+    val outcome = BotMatchRunner.simulateGame(GreedySearch, GreedySearch, new Random(42), new Random(1000))
 
     // Outcome must be either a Win or a Draw
     assert(outcome == GameOutcome.Draw || outcome.isInstanceOf[GameOutcome.Win])
+  }
+
+  test("runMatch is reproducible across runs (bot tie-breaking is seeded, not fresh per move)") {
+    def counts(r: MatchResult) =
+      (r.winsAsWhite, r.winsAsBlack, r.lossesAsWhite, r.lossesAsBlack, r.drawsAsWhite, r.drawsAsBlack)
+    // Both bots break ties randomly; only a seeded bot source makes two runs identical (this fails before the fix).
+    val a = BotMatchRunner.runMatch(GreedySearch, AggressiveSearch, 4)
+    val b = BotMatchRunner.runMatch(GreedySearch, AggressiveSearch, 4)
+    assertEquals(counts(a), counts(b))
   }
 
   test("runMatch executes the correct number of games and enforces alternating colors") {

@@ -29,6 +29,9 @@ class OpeningBookBot(val underlying: SearchAlgorithm, val book: Map[String, Stri
   override def findBestMove(state: GameState): Option[ScoredSequence] =
     lookupMove(state).orElse(underlying.findBestMove(state))
 
+  override def findBestMove(state: GameState, random: Random): Option[ScoredSequence] =
+    lookupMove(state).orElse(underlying.findBestMove(state, random))
+
   override def shouldOfferDouble(state: GameState, currentStake: Int): Boolean =
     underlying match
       case drawLogic: DrawOfferLogic => drawLogic.shouldOfferDouble(state, currentStake)

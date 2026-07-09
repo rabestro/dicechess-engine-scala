@@ -88,6 +88,14 @@ class MonteCarloSearchSuite extends FunSuite:
     assertEquals(best.moves.last.toSquare, Square('e', 8))
   }
 
+  test("the default-budget seeded overload (state, random) short-circuits a forced pass") {
+    // Lone White king + all-knight dice: no legal move, so the overload returns None without running any rollout
+    // (keeps it instant on the slow instrumented JS/Wasm runners — the default budget over real rollouts would time
+    // out there).
+    val state = parseFen("7k/8/8/8/8/8/8/K7 w - - 0 1").withDicePool(List(2, 2, 2))
+    assertEquals(MonteCarloSearch.findBestMove(state, new Random(0)), None)
+  }
+
   test("returns None when there is no legal move (forced pass)") {
     // Lone White king, dice are all knight dice — no knight exists, so no move is possible.
     val state = parseFen("7k/8/8/8/8/8/8/K7 w - - 0 1").withDicePool(List(2, 2, 2))

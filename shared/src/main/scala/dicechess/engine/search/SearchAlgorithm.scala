@@ -2,6 +2,9 @@ package dicechess.engine.search
 
 import dicechess.engine.domain.*
 
+import scala.annotation.unused
+import scala.util.Random
+
 /** The scored result of a full-turn path evaluation.
   *
   * @param moves
@@ -29,6 +32,16 @@ trait SearchAlgorithm:
     *   `Some([[ScoredSequence]])` when at least one legal path exists; `None` when the player must pass
     */
   def findBestMove(state: GameState): Option[ScoredSequence]
+
+  /** Finds the best full-turn path, drawing any randomness (e.g. tie-breaking among equally-valued turns) from the
+    * supplied `random`. Lets a caller make a whole game reproducible from one seed — most importantly the bot arena,
+    * which otherwise gets a fresh unseeded `Random` per move and so is non-deterministic.
+    *
+    * The default ignores `random` and delegates to the no-arg [[findBestMove]]; randomised strategies override it to
+    * route their tie-breaking through the given source.
+    */
+  def findBestMove(state: GameState, @unused random: Random): Option[ScoredSequence] =
+    findBestMove(state)
 
   /** Determines whether the bot should offer a double before its dice roll.
     *

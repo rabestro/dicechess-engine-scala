@@ -41,7 +41,7 @@ object RandomSearch extends SearchAlgorithm:
     * @return
     *   a randomly chosen [[ScoredSequence]], or `None` if no legal move exists (forced pass)
     */
-  def findBestMove(state: GameState, random: Random): Option[ScoredSequence] =
+  override def findBestMove(state: GameState, random: Random): Option[ScoredSequence] =
     val paths = TurnGenerator.generateAllLegalTurnPaths(state)
     if paths.isEmpty then None
     else

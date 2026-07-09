@@ -29,3 +29,6 @@ class OnnxExpectimaxSearchSpec extends FunSuite:
 
   test("respects candidateLimit without error"):
     withBot(ExpectimaxConfig(candidateLimit = 2))(bot => assert(bot.findBestMove(state).isDefined))
+
+  test("seeded findBestMove(state, random) returns a legal turn"):
+    withBot()(bot => assert(bot.findBestMove(state, Random(0)).isDefined))

@@ -42,6 +42,10 @@ object MonteCarloSearch extends SearchAlgorithm with DrawOfferLogic with TimeBud
   override def findBestMove(state: GameState): Option[ScoredSequence] =
     findBestMove(state, DefaultConfig, rand)
 
+  /** Reproducible entry point (e.g. the arena): the default rollout budget, driven by the supplied `random`. */
+  override def findBestMove(state: GameState, random: Random): Option[ScoredSequence] =
+    findBestMove(state, DefaultConfig, random)
+
   /** Finds the best turn under an explicit rollout budget and random source. */
   def findBestMove(state: GameState, config: MonteCarloConfig, random: Random): Option[ScoredSequence] =
     val paths = TurnGenerator.generateAllLegalTurnPaths(state)
