@@ -18,6 +18,24 @@ class RichFeaturesSpec extends FunSuite:
     assertEquals(features.length, RichFeatures.columnNames.length)
     assertEquals(features.length, 9)
 
+  test("columnNames pins the exact header strings (the train/serve CSV contract)"):
+    // A silent rename of any column would still pass the length/indexOf tests but corrupt the CSV
+    // headers the enrichment step writes, desyncing training from serving. Pin the whole layout.
+    assertEquals(
+      RichFeatures.columnNames,
+      List(
+        "p_diff",
+        "n_diff",
+        "b_diff",
+        "r_diff",
+        "q_diff",
+        "material_diff",
+        "total_material",
+        "mobility_diff",
+        "king_safety_diff"
+      )
+    )
+
   test("the material block is identical to OnnxFeatures (reuse, not a re-implementation)"):
     val state = parse("r1bqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") // Black missing a knight
     for color <- List(Color.White, Color.Black) do
