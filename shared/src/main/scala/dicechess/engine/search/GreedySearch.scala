@@ -33,7 +33,7 @@ object GreedySearch extends SearchAlgorithm:
     * @return
     *   the highest-scoring [[ScoredSequence]], or `None` if no legal move exists
     */
-  def findBestMove(state: GameState, rand: Random): Option[ScoredSequence] =
+  override def findBestMove(state: GameState, rand: Random): Option[ScoredSequence] =
     val paths = TurnGenerator.generateAllLegalTurnPaths(state)
     if paths.isEmpty then None
     else

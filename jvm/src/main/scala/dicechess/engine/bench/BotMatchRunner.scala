@@ -73,7 +73,10 @@ object BotMatchRunner:
       gamesPerColor: Int,
       startFen: GameState = FenParser.parse(StartFen).toOption.get
   ): MatchResult =
-    val rand          = new Random(42) // Fixed seed for reproducible run results
+    // Two fixed seeds — one for the dice, one for the bots' tie-breaking — so a whole run is reproducible. Without
+    // seeding the bot source, each move drew a fresh unseeded Random and results swung several points run to run.
+    val diceRand      = new Random(42)
+    val botRand       = new Random(1000)
     var winsAsWhite   = 0
     var winsAsBlack   = 0
     var lossesAsWhite = 0
@@ -85,7 +88,7 @@ object BotMatchRunner:
 
     // 1. Play games with Opponent as White and Base Bot as Black
     for _ <- 1 to gamesPerColor do
-      simulateGame(opponentAlgo, baseAlgo, rand, startFen) match
+      simulateGame(opponentAlgo, baseAlgo, diceRand, botRand, startFen) match
         case GameOutcome.Win(color) =>
           if color.isWhite then winsAsWhite += 1 else lossesAsWhite += 1
         case GameOutcome.Draw =>
@@ -93,7 +96,7 @@ object BotMatchRunner:
 
     // 2. Play games with Base Bot as White and Opponent as Black
     for _ <- 1 to gamesPerColor do
-      simulateGame(baseAlgo, opponentAlgo, rand, startFen) match
+      simulateGame(baseAlgo, opponentAlgo, diceRand, botRand, startFen) match
         case GameOutcome.Win(color) =>
           if color.isBlack then winsAsBlack += 1 else lossesAsBlack += 1
         case GameOutcome.Draw =>
@@ -117,7 +120,8 @@ object BotMatchRunner:
   private[bench] def simulateGame(
       whiteBot: SearchAlgorithm,
       blackBot: SearchAlgorithm,
-      rand: Random,
+      diceRand: Random,
+      botRand: Random,
       startState: GameState = FenParser.parse(StartFen).toOption.get
   ): GameOutcome =
     var state                = startState
@@ -130,10 +134,10 @@ object BotMatchRunner:
         outcome = GameOutcome.Draw
       else
         // Roll 3 random dice
-        val dice           = List.fill(3)(rand.nextInt(6) + 1)
+        val dice           = List.fill(3)(diceRand.nextInt(6) + 1)
         val stateWithDice  = state.withDicePool(dice)
         val activeBot      = if state.activeColor.isWhite then whiteBot else blackBot
-        val (next, winner) = playTurn(state, activeBot.findBestMove(stateWithDice))
+        val (next, winner) = playTurn(state, activeBot.findBestMove(stateWithDice, botRand))
         winner match
           case Some(color) =>
             outcome = GameOutcome.Win(color)
@@ -235,7 +239,7 @@ object BotMatchRunner:
             val budgetMs =
               TimeManager.budgetMs(ClockState(remaining, tc.incrementMs, state.fullMoveNumber), ArenaOverheadBufferMs)
             tb.findBestMove(stateWithDice, startNanos + budgetMs * 1_000_000L, botRandom)
-          case None => activeBot.findBestMove(stateWithDice)
+          case None => activeBot.findBestMove(stateWithDice, botRandom)
         val elapsedMs = (System.nanoTime() - startNanos) / 1_000_000L
 
         if timed.isDefined then latencies += ((mover, elapsedMs))

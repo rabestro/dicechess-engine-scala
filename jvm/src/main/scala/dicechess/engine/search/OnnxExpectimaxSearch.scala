@@ -24,6 +24,9 @@ final class OnnxExpectimaxSearch(modelPath: String, config: ExpectimaxConfig = E
   override def findBestMove(state: GameState): Option[ScoredSequence] =
     expectimax.findBestMove(state)
 
+  override def findBestMove(state: GameState, random: Random): Option[ScoredSequence] =
+    expectimax.findBestMove(state, random)
+
   override def findBestMove(state: GameState, deadlineNanos: Long, random: Random): Option[ScoredSequence] =
     expectimax.findBestMove(state, deadlineNanos, random)
 

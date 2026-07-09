@@ -60,7 +60,7 @@ class OnnxEvalSearch(modelPath: String) extends SearchAlgorithm with AutoCloseab
   override def findBestMove(state: GameState): Option[ScoredSequence] =
     findBestMove(state, new Random())
 
-  def findBestMove(state: GameState, rand: Random): Option[ScoredSequence] =
+  override def findBestMove(state: GameState, rand: Random): Option[ScoredSequence] =
     val paths = TurnGenerator.generateAllLegalTurnPaths(state)
     if paths.isEmpty then None
     else
