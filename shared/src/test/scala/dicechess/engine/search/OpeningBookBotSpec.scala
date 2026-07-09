@@ -42,6 +42,13 @@ class OpeningBookBotSpec extends FunSuite:
     assertEquals(bot.findBestMove(state), fallback)
   }
 
+  test("findBestMove(state, random) routes the seed to the underlying bot") {
+    // silentBot has no seeded overload, so this also exercises SearchAlgorithm's default findBestMove(state, random).
+    val state = FenParser.parse(startWithDice).toOption.get
+    val bot   = new OpeningBookBot(silentBot(fallback), Map.empty)
+    assertEquals(bot.findBestMove(state, Random(0)), fallback)
+  }
+
   test("delegates to underlying when the booked move cannot be played legally") {
     val state = FenParser.parse(startWithDice).toOption.get
     val book  = Map(OpeningBook.key(state).get -> "a1a8") // not a legal turn from the start
