@@ -32,3 +32,8 @@ class OnnxExpectimaxSearchSpec extends FunSuite:
 
   test("seeded findBestMove(state, random) returns a legal turn"):
     withBot()(bot => assert(bot.findBestMove(state, Random(0)).isDefined))
+
+  test("threads the feature extractor to the leaf evaluator (9-wide RichFeatures is rejected by this 7-feature model)"):
+    val bot = new OnnxExpectimaxSearch(modelPath, ExpectimaxConfig(), RichFeatures.extract)
+    try intercept[Exception](bot.findBestMove(state))
+    finally bot.close()

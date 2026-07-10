@@ -1,6 +1,6 @@
 package dicechess.engine.search
 
-import dicechess.engine.domain.GameState
+import dicechess.engine.domain.{Color, GameState}
 
 import scala.util.Random
 
@@ -14,11 +14,14 @@ import scala.util.Random
   * Owns the ONNX session (through the wrapped [[OnnxEvalSearch]]); call [[close]] when done. Not safe for concurrent
   * calls, matching every other bot here.
   */
-final class OnnxExpectimaxSearch(modelPath: String, config: ExpectimaxConfig = ExpectimaxConfig())
-    extends TimeBudgetedSearch
+final class OnnxExpectimaxSearch(
+    modelPath: String,
+    config: ExpectimaxConfig = ExpectimaxConfig(),
+    extractFeatures: (GameState, Color) => Array[Float] = OnnxFeatures.extract
+) extends TimeBudgetedSearch
     with AutoCloseable:
 
-  private val onnx       = new OnnxEvalSearch(modelPath)
+  private val onnx       = new OnnxEvalSearch(modelPath, extractFeatures)
   private val expectimax = new ExpectimaxSearch((states, color) => onnx.onnxEvalBatch(states, color), config)
 
   override def findBestMove(state: GameState): Option[ScoredSequence] =
