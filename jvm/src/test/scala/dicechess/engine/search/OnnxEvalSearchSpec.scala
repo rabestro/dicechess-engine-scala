@@ -65,3 +65,20 @@ class OnnxEvalSearchSpec extends FunSuite:
     try assertEquals(bot.onnxEvalBatch(Array.empty, Color.White).toList, Nil)
     finally bot.close()
   }
+
+  test("onnxEval feeds the supplied extractor's output to the model (9-wide RichFeatures is rejected here)") {
+    // Proves the constructor's extractor actually drives the tensor: RichFeatures' 9 columns can't
+    // fit this 7-feature model, so the session run must fail. The default (OnnxFeatures, 7) is
+    // exercised by every other test.
+    val bot   = new OnnxEvalSearch(modelPath, RichFeatures.extract)
+    val state = FenParser.parse(FenParser.InitialPosition).toOption.get
+    try intercept[Exception](bot.onnxEval(state, Color.White))
+    finally bot.close()
+  }
+
+  test("onnxEvalBatch also routes through the supplied extractor (9-wide RichFeatures is rejected here)") {
+    val bot    = new OnnxEvalSearch(modelPath, RichFeatures.extract)
+    val states = Array(FenParser.parse(FenParser.InitialPosition).toOption.get)
+    try intercept[Exception](bot.onnxEvalBatch(states, Color.White))
+    finally bot.close()
+  }
