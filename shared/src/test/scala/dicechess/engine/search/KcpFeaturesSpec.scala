@@ -57,3 +57,12 @@ class KcpFeaturesSpec extends FunSuite:
     // No queens on the board.
     assertEquals(white(QueenAttack), 0f)
     assertEquals(white(QueenDanger), 0f)
+
+  test("a rook bearing on the enemy queen raises the queen-capture probability"):
+    // White rook e1 bears on the Black queen e5 down the open e-file; both kings are tucked in a corner.
+    val state = parse("k7/8/8/4q3/8/8/8/K3R3 w - - 0 1")
+    val white = KcpFeatures.extract(state, Color.White)
+    assert(white(QueenAttack) > 0f, "White's rook can capture Black's queen")
+    // The same threat is queen DANGER from Black's perspective; White has no queen to lose.
+    assertEquals(KcpFeatures.extract(state, Color.Black)(QueenDanger), white(QueenAttack))
+    assertEquals(white(QueenDanger), 0f)
