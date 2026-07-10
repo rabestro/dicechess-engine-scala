@@ -5,6 +5,7 @@ import dicechess.engine.search.{
   BotInfo,
   BotRegistry,
   ExpectimaxConfig,
+  KcpFeatures,
   OnnxExpectimaxSearch,
   OnnxFeatures,
   RichFeatures
@@ -20,8 +21,9 @@ import dicechess.engine.search.{
   * The model file is read from a runtime path and never committed to this public repository.
   *
   * Usage: `runMain dicechess.engine.bench.OnnxExpectimaxArenaRunner <modelPath> [opponentBotId] [gamesPerColor]
-  * [candidateLimit] [features]`, where `features` is `material` (default, the 7-feature [[OnnxFeatures]] model) or
-  * `rich` (the 9-feature [[RichFeatures]] model — must match how the model at `modelPath` was trained).
+  * [candidateLimit] [features]`, where `features` selects the extractor (must match the trained model): `material`
+  * (default, 7-feature [[OnnxFeatures]]) or `rich` (9-feature [[RichFeatures]]). `kcp` exists but is one-ply only (see
+  * [[OnnxArenaRunner]]) — its capture-probability columns are far too heavy for a 2-ply search's leaves.
   */
 object OnnxExpectimaxArenaRunner:
 
@@ -41,7 +43,8 @@ object OnnxExpectimaxArenaRunner:
     val extractFeatures: (GameState, Color) => Array[Float] = featureSet.toLowerCase match
       case "material" => OnnxFeatures.extract
       case "rich"     => RichFeatures.extract
-      case other      => sys.error(s"Unknown feature set '$other' (expected 'material' or 'rich')")
+      case "kcp"      => KcpFeatures.extract
+      case other      => sys.error(s"Unknown feature set '$other' (expected 'material', 'rich', or 'kcp')")
 
     val opponentInfo = BotRegistry.availableBots
       .find(_.id.equalsIgnoreCase(opponentId))

@@ -1,7 +1,7 @@
 package dicechess.engine.bench
 
 import dicechess.engine.domain.{Color, GameState}
-import dicechess.engine.search.{BotInfo, BotRegistry, OnnxEvalSearch, OnnxFeatures, RichFeatures}
+import dicechess.engine.search.{BotInfo, BotRegistry, KcpFeatures, OnnxEvalSearch, OnnxFeatures, RichFeatures}
 
 /** Local arena between an externally-trained (LightGBM, via ONNX) one-ply evaluator and a built-in bot — the
   * acceptance-gate check for the Dice Chess AI hackathon project (>= 55% win rate over enough games to be a real
@@ -16,8 +16,9 @@ import dicechess.engine.search.{BotInfo, BotRegistry, OnnxEvalSearch, OnnxFeatur
   * codebase).
   *
   * Usage: `runMain dicechess.engine.bench.OnnxArenaRunner <modelPath> [opponentBotId] [gamesPerColor] [features]`,
-  * where `features` is `material` (default, the 7-feature [[OnnxFeatures]] model) or `rich` (the 9-feature
-  * [[RichFeatures]] model — must match how the model at `modelPath` was trained).
+  * where `features` selects the extractor (must match how the model at `modelPath` was trained): `material` (default,
+  * 7-feature [[OnnxFeatures]]), `rich` (9-feature [[RichFeatures]]), or `kcp` (13-feature [[KcpFeatures]] — one-ply
+  * only; its capture-probability columns are far too heavy for a deep search's leaves).
   */
 object OnnxArenaRunner:
 
@@ -34,7 +35,8 @@ object OnnxArenaRunner:
     val extractFeatures: (GameState, Color) => Array[Float] = featureSet.toLowerCase match
       case "material" => OnnxFeatures.extract
       case "rich"     => RichFeatures.extract
-      case other      => sys.error(s"Unknown feature set '$other' (expected 'material' or 'rich')")
+      case "kcp"      => KcpFeatures.extract
+      case other      => sys.error(s"Unknown feature set '$other' (expected 'material', 'rich', or 'kcp')")
 
     val opponentInfo = BotRegistry.availableBots
       .find(_.id.equalsIgnoreCase(opponentId))
