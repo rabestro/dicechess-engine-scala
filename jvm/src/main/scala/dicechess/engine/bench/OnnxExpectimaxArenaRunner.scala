@@ -8,7 +8,8 @@ import dicechess.engine.search.{
   KcpFeatures,
   OnnxExpectimaxSearch,
   OnnxFeatures,
-  RichFeatures
+  RichFeatures,
+  RootRescoreModel
 }
 
 /** Acceptance-gate arena for the 2-ply ONNX expectimax bot against a built-in baseline (`aggressive` by default) — the
@@ -21,9 +22,15 @@ import dicechess.engine.search.{
   * The model file is read from a runtime path and never committed to this public repository.
   *
   * Usage: `runMain dicechess.engine.bench.OnnxExpectimaxArenaRunner <modelPath> [opponentBotId] [gamesPerColor]
-  * [candidateLimit] [features]`, where `features` selects the extractor (must match the trained model): `material`
-  * (default, 7-feature [[OnnxFeatures]]) or `rich` (9-feature [[RichFeatures]]). `kcp` exists but is one-ply only (see
-  * [[OnnxArenaRunner]]) — its capture-probability columns are far too heavy for a 2-ply search's leaves.
+  * [candidateLimit] [features] [rescoreModelPath] [rescoreWeight]`, where `features` selects the leaf extractor (must
+  * match `modelPath`'s trained model): `material` (default, 7-feature [[OnnxFeatures]]) or `rich` (9-feature
+  * [[RichFeatures]]). `kcp` exists but is one-ply only at the leaves (see [[OnnxArenaRunner]]) — its
+  * capture-probability columns are far too heavy under a chance node's hundreds of leaves.
+  *
+  * `rescoreModelPath`, when given (non-empty), wires a *second* model — always [[KcpFeatures]] (13-feature), the one
+  * root rescoring is for — as the root-level rescorer blended in at `rescoreWeight` (default `0.5`); see
+  * [[dicechess.engine.search.RootRescore]]. This is the affordable way to bring KCP's tactical signal into a live bot:
+  * full leaf-level KCP is ~18x too slow (measured), but scoring only the handful of root candidates once is not.
   */
 object OnnxExpectimaxArenaRunner:
 
@@ -46,12 +53,16 @@ object OnnxExpectimaxArenaRunner:
       case "kcp"      => KcpFeatures.extract
       case other      => sys.error(s"Unknown feature set '$other' (expected 'material', 'rich', or 'kcp')")
 
+    val rescoreModelPath = args.lift(5).map(_.trim).filter(_.nonEmpty)
+    val rescoreWeight    = args.lift(6).flatMap(_.toDoubleOption).getOrElse(0.5)
+    val rootRescore      = rescoreModelPath.map(path => RootRescoreModel(path, KcpFeatures.extract, rescoreWeight))
+
     val opponentInfo = BotRegistry.availableBots
       .find(_.id.equalsIgnoreCase(opponentId))
       .getOrElse(sys.error(s"Unknown opponent bot '$opponentId'"))
 
     val botId = "onnx-expectimax"
-    val bot   = new OnnxExpectimaxSearch(modelPath, ExpectimaxConfig(candidateLimit), extractFeatures)
+    val bot   = new OnnxExpectimaxSearch(modelPath, ExpectimaxConfig(candidateLimit), extractFeatures, rootRescore)
     try
       BotRegistry.registerCustomBot(
         BotInfo(
@@ -64,7 +75,8 @@ object OnnxExpectimaxArenaRunner:
         bot
       )
 
-      println(s"Loaded ONNX model from $modelPath (candidateLimit=$candidateLimit, features=$featureSet)")
+      val rescoreNote = rootRescore.fold("")(r => s", rootRescore=${r.modelPath} (weight=${r.weight})")
+      println(s"Loaded ONNX model from $modelPath (candidateLimit=$candidateLimit, features=$featureSet$rescoreNote)")
       // Opponent as baseline, expectimax bot as the measured side: the table row is the model bot's stats.
       BotMatchRunner.runArena(opponentInfo.id, Some(botId), games, StartFen)
     finally bot.close()

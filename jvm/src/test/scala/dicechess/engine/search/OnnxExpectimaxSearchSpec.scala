@@ -37,3 +37,15 @@ class OnnxExpectimaxSearchSpec extends FunSuite:
     val bot = new OnnxExpectimaxSearch(modelPath, ExpectimaxConfig(), RichFeatures.extract)
     try intercept[Exception](bot.findBestMove(state))
     finally bot.close()
+
+  test("wires an optional second session as the root rescorer and closes both on close()"):
+    // Same throwaway synthetic model in both slots — this is a plumbing check (two ONNX sessions, both closed), not
+    // a strength test (real rescoring behaviour is covered against a stub evalBatch in ExpectimaxSearchSpec).
+    val bot = new OnnxExpectimaxSearch(
+      modelPath,
+      ExpectimaxConfig(),
+      OnnxFeatures.extract,
+      Some(RootRescoreModel(modelPath, OnnxFeatures.extract, weight = 0.5))
+    )
+    try assert(bot.findBestMove(state).isDefined)
+    finally bot.close() // must not throw closing two sessions

@@ -4,6 +4,23 @@ import dicechess.engine.domain.{Color, GameState}
 
 import scala.util.Random
 
+/** A second ONNX model that rescores [[ExpectimaxSearch]]'s root candidates (see [[RootRescore]]) rather than
+  * evaluating chance-node leaves — a tactically sharp but leaf-prohibitive model (e.g. trained on
+  * [[dicechess.engine.search.KcpFeatures]]) that only the handful of root candidates can afford.
+  *
+  * @param modelPath
+  *   path to the rescoring model, independent of the main model
+  * @param extractFeatures
+  *   the rescoring model's own feature extractor — need not match the main model's
+  * @param weight
+  *   blend weight, forwarded to [[RootRescore]] (`(0, 1]`)
+  */
+final case class RootRescoreModel(
+    modelPath: String,
+    extractFeatures: (GameState, Color) => Array[Float],
+    weight: Double
+)
+
 /** A 2-ply expectimax bot whose leaf evaluator is an externally-trained model (LightGBM, via ONNX).
   *
   * This is the payoff of the search work: [[ExpectimaxSearch]] supplies the lookahead (my turn, the opponent's roll,
@@ -11,18 +28,30 @@ import scala.util.Random
   * leaves under one chance node cost a single inference call. It fixes the one-ply model bot's recapture blindness —
   * the same model, but now it sees the reply.
   *
-  * Owns the ONNX session (through the wrapped [[OnnxEvalSearch]]); call [[close]] when done. Not safe for concurrent
-  * calls, matching every other bot here.
+  * `rootRescore`, when given, wires a *second* ONNX session as [[ExpectimaxSearch]]'s root rescorer — see
+  * [[RootRescoreModel]].
+  *
+  * Owns the ONNX session(s) — the main model's, and the rescorer's when configured; call [[close]] when done. Not safe
+  * for concurrent calls, matching every other bot here.
   */
 final class OnnxExpectimaxSearch(
     modelPath: String,
     config: ExpectimaxConfig = ExpectimaxConfig(),
-    extractFeatures: (GameState, Color) => Array[Float] = OnnxFeatures.extract
+    extractFeatures: (GameState, Color) => Array[Float] = OnnxFeatures.extract,
+    rootRescore: Option[RootRescoreModel] = None
 ) extends TimeBudgetedSearch
     with AutoCloseable:
 
-  private val onnx       = new OnnxEvalSearch(modelPath, extractFeatures)
-  private val expectimax = new ExpectimaxSearch((states, color) => onnx.onnxEvalBatch(states, color), config)
+  private val onnx        = new OnnxEvalSearch(modelPath, extractFeatures)
+  private val rescoreOnnx = rootRescore.map(r => new OnnxEvalSearch(r.modelPath, r.extractFeatures))
+  private val expectimax  = new ExpectimaxSearch(
+    (states, color) => onnx.onnxEvalBatch(states, color),
+    config,
+    for
+      session <- rescoreOnnx
+      r       <- rootRescore
+    yield RootRescore((states, color) => session.onnxEvalBatch(states, color), r.weight)
+  )
 
   override def findBestMove(state: GameState): Option[ScoredSequence] =
     expectimax.findBestMove(state)
@@ -33,4 +62,6 @@ final class OnnxExpectimaxSearch(
   override def findBestMove(state: GameState, deadlineNanos: Long, random: Random): Option[ScoredSequence] =
     expectimax.findBestMove(state, deadlineNanos, random)
 
-  override def close(): Unit = onnx.close()
+  override def close(): Unit =
+    onnx.close()
+    rescoreOnnx.foreach(_.close())

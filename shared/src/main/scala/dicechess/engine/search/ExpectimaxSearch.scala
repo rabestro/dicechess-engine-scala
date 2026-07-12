@@ -14,6 +14,27 @@ import scala.util.Random
 final case class ExpectimaxConfig(candidateLimit: Int = 8):
   require(candidateLimit > 0, s"candidateLimit must be positive, got $candidateLimit")
 
+/** Root-level rescoring: after the search's own chance-node expectation is computed for each root candidate, blend it
+  * with a second, cheaper-at-the-root evaluator run *once* on the candidates' own resulting positions (before the
+  * opponent's roll) — `finalScore = (1 - weight) * searchValue + weight * rescoreValue`.
+  *
+  * Meant for a tactically sharp but leaf-prohibitive evaluator: e.g. king/queen capture-probability features cost a
+  * 216-outcome DFS each, far too expensive under a chance node's hundreds of leaves, but cheap enough for the handful
+  * of root candidates ([[ExpectimaxConfig.candidateLimit]]).
+  *
+  * A candidate where at least one dice roll loses our king outright ([[ExpectimaxSearch.LossValue]]) is never rescored,
+  * at any weight — that sentinel must always rank last regardless of what the rescorer thinks of the resulting position
+  * (see `findBestMove`'s loss-taint tracking).
+  *
+  * @param evalBatch
+  *   the rescoring evaluator, same batching contract as the search's own `evalBatch`
+  * @param weight
+  *   blend weight; must be in `(0, 1]` (0 would be indistinguishable from omitting rescoring entirely, so `None` is the
+  *   only way to express "disabled")
+  */
+final case class RootRescore(evalBatch: (Array[GameState], Color) => Array[Int], weight: Double):
+  require(weight > 0.0 && weight <= 1.0, s"weight must be in (0, 1], got $weight")
+
 /** Two-ply expectimax search for Dice Chess: my turn, then the opponent's dice roll, then the opponent's best reply.
   *
   * Unlike a one-ply evaluator ([[GreedySearch]], [[OnnxEvalSearch]]), this looks one full turn ahead and so sees
@@ -37,7 +58,8 @@ final case class ExpectimaxConfig(candidateLimit: Int = 8):
   */
 final class ExpectimaxSearch(
     evalBatch: (Array[GameState], Color) => Array[Int],
-    config: ExpectimaxConfig = ExpectimaxConfig()
+    config: ExpectimaxConfig = ExpectimaxConfig(),
+    rootRescore: Option[RootRescore] = None
 ) extends TimeBudgetedSearch:
 
   import ExpectimaxSearch.*
@@ -68,33 +90,48 @@ final class ExpectimaxSearch(
         val candidates = paths
           .sortBy(path => -SearchScoring.scorePath(state, path, Evaluator.evaluateMaterial).score)
           .take(config.candidateLimit)
-        val scored   = List.newBuilder[(List[Move], Double)]
-        var i        = 0
-        var continue = true
+        // Each candidate's own resulting position (before the opponent's roll) is kept alongside its chance-node
+        // value: the chance node needs it, and — when a root rescorer is configured — so does the rescore batch,
+        // scored once over exactly these states rather than recomputed.
+        val evaluated = List.newBuilder[(List[Move], GameState, Double, Boolean)]
+        var i         = 0
+        var continue  = true
         while i < candidates.length && continue do
-          scored += candidates(i) -> turnValue(state, candidates(i), myColor)
+          val path                 = candidates(i)
+          val resultState          = applyTurn(state, path)
+          val (value, lossTainted) = chanceNodeValue(resultState, myColor)
+          evaluated += ((path, resultState, value, lossTainted))
           i += 1
           // Always finish the top candidate, then stop as soon as the deadline has passed.
           if i < candidates.length && System.nanoTime() >= deadlineNanos then continue = false
-        val evaluated = scored.result()
-        val bestQ     = evaluated.map(_._2).max
-        val best      = evaluated.collect { case (path, q) if q == bestQ => path }
+        val results = evaluated.result()
+        val scores  = rootRescore match
+          case None                                   => results.map { case (path, _, value, _) => path -> value }
+          case Some(RootRescore(rescoreEval, weight)) =>
+            val states   = results.map(_._2).toArray
+            val rescored = rescoreEval(states, myColor)
+            results.zip(rescored).map { case ((path, _, value, lossTainted), rescoreValue) =>
+              // A line where every roll loses our king outright must never be masked by a favorable rescore —
+              // LossValue sits below any real evaluator scale precisely so it always ranks last (see RootRescore).
+              val blended = if lossTainted then value else (1 - weight) * value + weight * rescoreValue
+              path -> blended
+            }
+        val bestQ = scores.map(_._2).max
+        val best  = scores.collect { case (path, q) if q == bestQ => path }
         Some(ScoredSequence(best(random.nextInt(best.length)), bestQ.toInt))
 
-  /** The expectimax value of playing `path`: apply it, hand the turn over, and average the opponent's best reply across
-    * every possible roll.
-    */
-  private def turnValue(state: GameState, path: List[Move], myColor: Color): Double =
-    chanceNodeValue(applyTurn(state, path), myColor)
-
-  /** The expectation, over the 56 weighted dice outcomes, of the opponent's best reply value (from `myColor`'s view).
+  /** The expectation, over the 56 weighted dice outcomes, of the opponent's best reply value (from `myColor`'s view),
+    * alongside whether any single roll forced [[LossValue]] (the opponent capturing our king outright) — tracked
+    * precisely per roll (an exact match against the sentinel, not a threshold on the weighted average) so
+    * [[RootRescore]] can never rescue a line that is lost on even one roll, however small its weight.
     *
     * @param oppToMove
     *   position after our turn: the opponent is to move and the dice pool is empty.
     */
-  private def chanceNodeValue(oppToMove: GameState, myColor: Color): Double =
-    var acc = 0.0
-    var i   = 0
+  private def chanceNodeValue(oppToMove: GameState, myColor: Color): (Double, Boolean) =
+    var acc         = 0.0
+    var lossTainted = false
+    var i           = 0
     while i < DiceRolls.weighted.length do
       val (roll, weight) = DiceRolls.weighted(i)
       val rolled         = oppToMove.withDicePool(roll)
@@ -106,9 +143,10 @@ final class ExpectimaxSearch(
         // would otherwise score the wrong position.
         if replies.isEmpty then evalOne(oppToMove.endTurn(), myColor)
         else opponentMinValue(rolled, replies, myColor)
+      if rollValue == LossValue then lossTainted = true
       acc += (weight.toDouble / DiceRolls.totalOrderedRolls) * rollValue
       i += 1
-    acc
+    (acc, lossTainted)
 
   /** The opponent picks the reply that is worst for us. A reply capturing our king is worst of all ([[LossValue]]);
     * otherwise the resulting leaves are scored in one batch and the minimum is taken.
