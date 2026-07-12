@@ -1,243 +1,172 @@
 # AGENTS.md
 
-Guidance for AI agents and contributors working on the Dice Chess engine.
+Cross-compiled Scala 3 Dice Chess rules engine — the single source of truth for game rules across the dicechess ecosystem.
 
-## Project Context & Ecosystem Role
+## Project context
 
-This engine is the **single source of truth for Dice Chess rules** across the whole ecosystem.
-Complex game logic (move legality, the Maximum Micro-moves Rule, DFEN parsing/validation,
-probability calculations) lives here, in Scala 3 — downstream projects must consume it rather
-than re-implement it.
+- Public repository, AGPL-3.0 (see `LICENSE`); contributions require a CLA (`CLA.md`, part of an open-core strategy) — external contributors sign inside their first PR (`.github/cla-signatures.json`, enforced by the `CI: CLA` workflow).
+- Ships three artifacts per release, all to GitHub Packages: Maven jar `lv.id.jc:dicechess-engine-scala_3` (JVM), npm `@rabestro/dicechess-engine` (Scala.js, from `dist/`), npm `@rabestro/dicechess-engine-wasm` (WebAssembly, from `dist-wasm/`).
+- Published contracts consumed by dicechess-analytics, the play site, and bots:
+  - The DFEN string format (FEN extended with a 7th field = remaining dice pool) — parser in `shared/src/main/scala/dicechess/engine/domain/FenParser.scala`, canonicalization in `movegen/Dfen.scala`.
+  - Two exported JS objects: `DiceChess` (`js/src/main/scala/dicechess/engine/api/JsApi.scala`) and `EngineFacade` (`js/src/main/scala/dicechess/engine/EngineFacade.scala`), both typed by the hand-written `js/dicechess-engine.d.ts`.
+- Changing any of these contracts is a cross-repo event — flag it in the PR description and treat as high blast radius.
 
-Published artifacts and their consumers:
+## Architecture map
 
-| Artifact | Registry | Consumers |
-|---|---|---|
-| `@rabestro/dicechess-engine` (npm, Scala.js ES module) | GitHub Packages npm | `dicechess-analytics-ui`, web frontends |
-| `lv.id.jc:dicechess-engine-scala_3` (JVM jar) | GitHub Packages Maven | `dicechess-analytics` (Scala 3 backend), ETL, bots |
-
-Consequences for development:
-
-- **Public API stability matters.** Breaking changes to the JS API (`js/src/.../api/JsApi.scala`),
-  the DFEN format, or public JVM types require a deliberate decision and a minor/major version bump.
-- The DFEN format is the shared contract:
-  `<placement> <activeColor> <castling> <enPassant> <halfMove> <fullMove> [<dicePool>]`.
-- Sibling repositories: `dicechess-analytics` (PostgreSQL + Scala 3 backend, the games database),
-  `dicechess-analytics-ui` (SvelteKit frontend), `dicechess-bots`.
-  `dicechess-lab` is frozen and serves only as an experiments archive.
-
-## Architecture Map
-
-Cross-compiled sbt project (JVM + Scala.js) — shared core, thin platform layers:
-
-- `shared/src/main/scala/dicechess/engine/domain/` — immutable game state: opaque types
-  (`Bitboard`, `Square`, `Piece`, `Color`), `Position`, `GameFlags`, `FenParser` (DFEN).
-- `shared/.../movegen/` — bitboard move generation: `MagicBitboards` (sliding pieces),
-  `LeaperAttacks`, `PawnGeneration`, `LegalMovesFilter` (Maximum Micro-moves Rule).
-- `shared/.../search/` — `TurnGenerator` (exhaustive micro-move paths), `Evaluator`,
-  `BotRegistry` (six strategies), `KingCaptureProbability` (216 dice outcomes),
-  `TimeManager` (pure clock→per-turn-budget policy; sudden-death + Fischer increment).
-- `jvm/` — JLine REPL CLI (`Main.scala`), bot arena (`bench/BotMatchRunner.scala`).
-- `js/` — `api/JsApi.scala`: the `@JSExportTopLevel("DiceChess")` public JS API.
+- `shared/src/main/scala/dicechess/engine/` — cross-compiled core (JVM + JS + Wasm):
+  - `domain/` — opaque-type game state: `Bitboard`/`Square`/`Piece`/`Color` (`Models.scala`), `Position`, `GameFlags`, `Move`, `FenParser` (DFEN), `Symmetry`.
+  - `movegen/` — `MagicBitboards`, `LeaperAttacks`, `PawnGeneration`, `MoveGenerator`, `LegalMovesFilter`, `Dfen`. Allocation-sensitive hot path.
+  - `search/` — `TurnGenerator` (exhaustive micro-move paths), `Evaluator`, `BotRegistry` (six built-in bots + runtime `registerCustomBot`), `KingCaptureProbability` (216 dice outcomes), `MonteCarloEquity`/`MonteCarloSearch`, `ExpectimaxSearch`, `OpeningBook`(+`Bot`/`Parser`), `TimeManager`/`TimeBudgetedSearch`, `DrawOfferLogic`, ONNX feature extractors (`OnnxFeatures`, `RichFeatures`, `KcpFeatures`).
+- `jvm/src/main/scala/dicechess/engine/` — entry point `Main.scala` (JLine REPL CLI, `cli/`), five arena runners in `bench/` (`BotMatchRunner`, `TimedArenaRunner`, `OpeningBookArenaRunner`, `OnnxArenaRunner`, `OnnxExpectimaxArenaRunner`), and JVM-only ONNX inference bots (`search/OnnxEvalSearch.scala`, `OnnxExpectimaxSearch.scala` on onnxruntime). ONNX bots are absent from the npm bundles.
+- `js/` — Scala.js facade layer; `.wasm/` — the `rootWasm` project relinking the same sources to WebAssembly (ES2022 + WasmGC).
 - `benchmark/` — JMH micro-benchmarks (excluded from coverage and publishing).
+- `docs/` — Astro + Starlight documentation site (see Documentation below).
+- There is no HTTP/WebSocket API, no database, and no effect system here — plain Scala 3 with opaque types; errors via `Either`.
 
-## Quality Gates (non-negotiable)
+## Commands
 
-- `mise run check` must pass before any PR: scalafmt + scalafix checks, full test suite, coverage.
-- The compiler is strict: `-Werror`, `-Wunused:all`, `-language:strictEquality`, `-Yexplicit-nulls`.
-- Statement coverage minimum: **85%** (`coverageFailOnMinimum := true`).
-- Hot paths (movegen, search) are allocation-sensitive: prefer opaque types, `inline def`,
-  bitwise ops; validate performance-affecting changes with JMH (`mise run bench:quick`).
-- SonarCloud scans run in CI; locally, agents can query issues and quality gates via the
-  SonarQube MCP server configured in `.mcp.json` (requires `SONARQUBE_TOKEN` in the environment).
+Prerequisites first:
 
-## Releases & Publishing
+```bash
+mise install     # java temurin-25, node 26, lefthook, betterleaks, scalafmt (pinned), gh, jq
+mise run setup   # brew install sbt universal-ctags tree + install git hooks
+```
 
-- Releases are cut via the manual **"Ops: Release"** workflow (`release.yaml`): version bump in
-  `build.sbt` → git tag `vX.Y.Z` → npm package + Maven artifact + GitHub Release assets.
-- `publish.yaml` handles manually pushed tags. Tags pushed by `release.yaml` via `GITHUB_TOKEN`
-  do **not** trigger `publish.yaml` (GitHub recursion guard) — that is why both workflows
-  contain the same publish steps.
-- Both registries receive the clean version (no `-SNAPSHOT`); CI overrides the sbt version
-  from the tag.
-- Downstream development against unreleased changes: `mise run publish:local` publishes the
-  JVM artifact to the local Ivy repository.
+- Node is required even for plain `sbt test` — JS/Wasm tests execute on Node. Missing/old Node fails the JS test run, not just docs.
+- Consuming the published Maven/npm artifacts (in downstream repos) needs a `read:packages` GitHub token even though the packages are public. Inside this repo use `mise run publish:local` instead.
 
-## Developer Workflows
+Daily tasks (defined in `mise.toml` + executable file tasks under `.mise/tasks/`):
 
-- **Core Runner**: Use `mise run <task>` from the root of the repository for all development tasks.
-- **Task Naming Convention**: bare verbs for repo-wide lifecycle tasks (`setup`, `compile`,
-  `test`, `check`, `format`, `run`, `clean`); `domain:action` with a colon for namespaced
-  tasks (`js:build`, `docs:dev`, `bench:quick`, `hook:install`). Same convention across all
-  Dice Chess repositories.
-- **Code Formatting**: `mise run format` will run scalafmt across all sources.
-- **Local CI validation**: `mise run check` automatically runs formatting checks, compiles everything, and executes the tests.
-- **Interactive Shell**: `mise run console` spins up a Scala 3 REPL pre-configured with your project context.
-- **Static Analysis (SonarCloud)**: Use the SonarQube MCP server (configured in `.mcp.json`,
-  Docker-based) to list issues and check quality gates for project
-  `rabestro_dicechess-engine-scala`. Requires the `SONARQUBE_TOKEN` environment variable
-  (generate at https://sonarcloud.io/account/security).
+```bash
+mise run check          # THE pre-PR gate: scalafix check, clean, scalafmt check, coverage test + report
+mise run test           # sbt test (all scopes: JVM + JS + Wasm on Node)
+mise run format         # sbt scalafmtAll scalafixAll — git add new .scala files FIRST
+mise run compile | run | console | coverage | clean
+mise run bench | bench:quick | bench:filter <regex>     # JMH benchmarks
+mise run arena [base] [games]                           # bot arena (BotMatchRunner)
+mise run arena:timed | arena:book                       # time-controlled / opening-book arenas
+mise run js:build | js:dev | wasm:build                 # bundles
+mise run publish:local                                  # JVM jar to local Ivy for downstream dev
+mise run docs:dev | docs:build                          # docs site (runs the doc generators first)
+sbt doc                                                 # Scaladoc with COMPILED snippets — not in check
+```
 
-## Task Routing & Model Economy
+- ONNX arena runners have no mise task — run via `sbt "rootJVM/runMain dicechess.engine.bench.OnnxArenaRunner <model.onnx> ..."`. Trained models are never committed (the tiny `synthetic_test_model.onnx` test fixtures are the deliberate exception).
+- Releases are human-only: `gh workflow run release.yaml -f bump=patch|minor|major` (or local `mise run release:prepare`). Propose, never execute.
 
-Tasks differ in the AI-model capability they require; route deliberately instead of
-defaulting to the strongest model:
+Common failure signatures:
 
-- **Frontier tier** — architecture decisions, engine algorithms, cross-repo work,
-  ambiguous problems, high blast radius (schema, public APIs, release pipelines).
-- **Mid tier** — well-scoped features following existing patterns, refactors under
-  good test coverage, addressing review feedback.
-- **Routine tier** — config rollouts, documentation fixes, mechanical edits, tests
-  written from a complete spec. The quality gates (`mise run check`, CI, review
-  bots) catch failures cheaply, which is what makes this tier safe.
+- Pre-commit hook rejects a file that `mise run format` claims is already formatted → the file is untracked; `git add` it, format again.
+- `sbt doc` errors inside a Scaladoc comment → a non-Scala example sits in a ```scala fence (see Gotchas).
+- Second concurrent `sbt` invocation hangs/fails → sbt server socket collision; run sequential commands in one sbt session (#326).
 
-Orchestrating agents should delegate routine sub-tasks to cheaper models where the
-harness supports it. When in doubt, escalate one tier up: reviewer time is more
-expensive than tokens.
+## Quality gates — Definition of Done
 
-## Branch Naming & Agent Rules
+- `mise run check` passes locally. It is stricter than PR CI: **PR CI (`ci.yaml`) does not run scalafix** — only `check` and the release/publish workflows do, so code can pass PR CI yet fail at release.
+- Statement coverage >= 85%, enforced by `build.sbt` (`coverageFailOnMinimum`). JVM-only; `benchmark/` and `.*Main\.scala` excluded.
+- The compiler is a gate: `-Werror`, `-Wunused:all`, `-language:strictEquality`, `-Yexplicit-nulls` — any warning fails the build.
+- CI also runs SonarCloud and Qodana scans; PR policy workflow enforces branch naming and issue links (see Git & PR workflow).
+- Per-change-type extras:
+  - Touched Scaladoc → run `sbt doc` locally (snippet compiler runs only in the docs-deploy CI, after merge).
+  - Touched `movegen/` or `search/` hot paths → attach JMH evidence (`mise run bench:filter <pattern>`) to the PR.
+  - Changed bot behavior/strength → attach an arena run (`mise run arena` or `arena:timed`).
+  - Touched `.github/workflows/` → trigger the run manually with `gh workflow run ci.yaml`; such PRs have been observed not to trigger `pull_request` CI. `main` is not a protected branch — extra care.
+  - Changed the JS API surface → update `js/dicechess-engine.d.ts` in the same PR.
 
-Branch name pattern: `<type>/<short-description>`, optionally `<type>/<id>-<short-description>` to link an issue.
+## Code conventions
 
-Allowed prefixes:
-- Issue-driven: `task` (work items), `feat` (features), `bug` (fixes) — typically carry an `<id>`.
-- Issueless: `refactor`, `chore`, `docs`, `ci`, `test`, `perf` — no issue required.
+- Scala 3 "new" syntax enforced (scalafmt `convertToNewSyntax`, Scala3 dialect): braceless bodies with colons, extension methods, opaque types. `maxColumn` 120, 2-space indent, LF.
+- Forbidden by scalafix `DisableSyntax`: `null`, `return`, `throw`. Errors via `Either` (e.g. `FenParser.parse`).
+- `strictEquality` is on: derive `CanEqual` before using `==` on custom types. `-Yexplicit-nulls` is on: Java interop values are typed `| Null` and must be handled.
+- Opaque types must document their bitwise memory layout in Scaladoc; companion objects carry the ops.
+- Hot paths (`movegen/`, `search/`): bitwise ops on `Long`, `inline`/opaque zero-cost abstractions, avoid allocations in loops.
+- Scaladoc: document *why*, not *what*; Markdown fences (never `{{{ }}}`); `[[Type]]` cross-references; strictly English.
 
-Examples: `feat/1234-fen-parser`, `refactor/extract-evaluator`, `chore/bump-deps`.
+## Testing conventions
 
-Agent rules (Claude / Copilot / automation):
-- Issue-driven work (`task`/`feat`/`bug`) starts from an issue; the branch carries its `<id>` and the PR links it with `Closes #<id>`. Issueless work (`refactor`/`chore`/`docs`/`ci`/`test`/`perf`) needs no issue.
-- Agents may create draft changes, suggest code, and open the PR.
-- Agents should run `mise run format` on any generated code and ensure `mise run check` passes successfully locally before proposing a PR.
-- Human retains the ultimate authority to review, approve, and merge the PR.
+- MUnit `FunSuite` + `munit-scalacheck` for properties. Suites named `*Suite`/`*Spec`; sentence-style test names; regression suites cite the issue number in the Scaladoc header.
+- Two accepted ways to build positions: most suites use `FenParser.parse` + `.withDicePool(...)` directly; the JSON-fixture specs use the `ChessDsl` test DSL (`shared/src/test/scala/dicechess/engine/movegen/ChessDsl.scala`: `"<fen>".withDice(...)` builders taking a die or a tuple, `Move.toNotation`). Both patterns are fine.
+- JSON fixture catalogs live in `shared/src/test/resources/movegen/` (`perft_suite.json`, `movegen_{1,2,3}_dice.json`) and `jvm/src/test/resources/search/king_capture_probabilities.json`. They double as docs-site content via the DocGenerators — changing them changes the published docs.
+- Single suite: `sbt "rootJVM/testOnly dicechess.engine.search.TurnGeneratorSuite"` (JVM-only, fastest loop). Beware: a non-matching FQCN exits 0 with zero tests run — confirm the suite actually executed.
+- Shared-code tests also run on the JS/Wasm Node runner, which is slower — avoid tight time budgets in tests or they will flake there (a MonteCarlo test already timed out once).
+- No Docker is needed for any test in this repo.
 
-## Issue & Branch Management
+## Gotchas
 
-- **Branch Naming**: Always work on a dedicated branch, never `main`. Use `<type>/<short-description>` (add `<id>-` to link an issue) — see "Branch Naming & Agent Rules" above for the allowed types.
-- **Workflow**:
-  1. Create a GitHub Issue with Context, Objective, and DoD (Definition of Done).
-  2. Create a branch and an Implementation Plan (if the task is complex).
-  3. Execute, verify (`mise run check`), and create a Pull Request.
-  4. Wait 1–3 minutes for automated comments or reviews on the PR, then read and address them.
+- Every ```` ```scala ```` fence in Scaladoc is **compiled** by `sbt doc` (`-snippet-compiler:compile`). Non-Scala examples (JSON, pseudocode) must use ```` ```text ````/```` ```json ```` fences — `mise run check` will not catch a bad fence, and it breaks the *next* docs deploy (see Documentation for why not necessarily yours).
+- `git add` new `.scala` files **before** `mise run format`: `sbt scalafmtAll` skips untracked files, then the native-scalafmt pre-commit hook fails the commit.
+- Do not "optimize" the `check` task order: `clean` runs before `scalafmtCheckAll` deliberately — sbt-scalafmt's warm cache can skip a misformatted file (#354).
+- `publish.yaml` and `release.yaml` duplicate publish steps intentionally: tags created by `release.yaml` via `GITHUB_TOKEN` do not trigger `publish.yaml` (GitHub anti-recursion). Edit both in sync.
+- `deploy-docs.yaml` hardcodes `jvm/target/scala-<version>/api` for the Scaladoc merge — it goes stale on every Scala version bump; check it whenever `scalaVersion` changes.
+- Turn maximality is measured in **dice consumed, not move count** — castling spends two dice in one move; the active color never changes within a turn. Regression suites: `TurnGeneratorSuite` (#347), `EnPassantMicroMoveSuite`.
+- The engine does **not** support Chess960 castling — squares e1/h1/a1 are hardcoded.
+- Root `package.json` version is dead weight — the real version comes from sbt at `package:prepare` time. Never "fix" or trust it.
+- `BotRegistry` is a process-wide mutable singleton (`registerCustomBot`) — arena runners and the JS `registerOpeningBookBot` mutate global state; isolate tests that depend on registry contents.
+- The pinned scalafmt version in `mise.toml` must exactly match `version` in `.scalafmt.conf` — the native pre-commit CLI does not auto-dispatch versions.
+- Doc generators must run in ONE sbt session (`mise run docs:generate:all`); two parallel sbt boots collide on the server socket (#326).
+- Exclude `.claude/worktrees/` from repo-wide greps — a leftover worktree contains a full source copy and produces duplicate hits.
 
-- **Issue Creation Detail**: 
-  1. Define Context, Objective, and Definition of Done (DoD)
-  2. Choose appropriate **Milestone** and **Labels** (e.g., `core-types`, `move-gen`, `testing`)
-  3. Write the body to a temporary file
-  4. Execute `gh issue create --title "..." --body-file "temp_issue.md" --milestone "..." --label "..."`
-  5. Remove the temporary file
+## Git & PR workflow
+<!-- dc-shared:git-pr v1 — keep identical across dicechess repos -->
+- Never commit to `main`. Branch: `<type>/<short-desc>` or `<type>/<id>-<short-desc>`
+  (types: `task|feat|bug|refactor|chore|docs|ci|test|perf`). If the branch carries an issue
+  id, the PR body must contain `Closes #<id>`.
+- Before editing anything: run `git status`. If the tree has unrelated uncommitted work,
+  stop and report — never let it bleed into your commit.
+- Stage specific files by name. `git add -A` / `git add .` are forbidden.
+- Commits, PR descriptions, issues, and review replies are English-only. Commit subjects
+  use conventional style: `feat: …`, `fix: …`, `docs: …`, `test: …`, `chore: …`.
+- Before opening a PR: make the repo check task pass locally. Never pipe test output
+  through `grep`/`head` — it masks exit codes.
+- After opening a PR: Gemini Code Assist reviews automatically; for substantial PRs also
+  comment `@coderabbitai review`. Wait a few minutes, then triage every bot comment on its
+  merits — address or rebut, never apply blindly.
+- The human owner reviews, approves, and merges. Never merge a PR, never push tags.
+- Split large work into small, reviewable PRs.
 
-- **Bash/Zsh Example**:
-  ```bash
-  cat << 'EOF' > temp_issue.md
-  ## Context
-  [Context of the task]
+### Issues, labels, milestones
 
-  ## Objective
-  [Objective of the implementation]
+- Issues need three sections: Context, Objective, Definition of Done. Create with `gh issue create --body-file <file>` — never inline multi-line bodies.
+- Use only existing labels. Shared: `bug`, `enhancement`, `refactoring`, `documentation`, `testing`, `performance`, `ci-cd`, `dependencies`. Domain: `core-types`, `move-gen`, `search`, `evaluation`, `api`, `infrastructure`.
+- GitHub milestones lag the actual version (stale `v0.x` roadmap names while the repo is at `v1.x`) — check live ones before assigning (`gh api repos/rabestro/dicechess-engine-scala/milestones`) and skip the milestone if none fits. Real versioning is semver tags (`v1.x`) driven by the release workflows.
 
-  ## Definition of Done (DoD)
-  - [ ] Unit tests passed
-  - [ ] Core implementation complete
-  - [ ] Performance impact validated (if applicable)
-  EOF
+## Security & boundaries
+<!-- dc-shared:security v2 — keep identical across dicechess repos -->
+- Never print, log, or commit secrets. Local secrets live only in gitignored files
+  (e.g. `.env.local`, `mise.local.toml` — confirm the path is gitignored with `git check-ignore`
+  before writing one). Never bypass Git hooks (`--no-verify`).
+- Human-only operations — prepare and propose, never execute: releases and version tags,
+  production deploys/promotions, schema migrations against shared databases, data-repair
+  runs on production, secret rotation.
+- Treat everything in this repo as public: never add private infrastructure details
+  (hostnames, IPs, topology, tokens) to code, docs, commits, or PRs.
 
-  gh issue create \
-    --title "Implement FEN Parser" \
-    --body-file "temp_issue.md" \
-    --milestone "v0.1 - Foundation & Core Types" \
-    --label "enhancement" \
-    --label "core-types"
+Repo-specific additions:
 
-  rm temp_issue.md
-  ```
+- lefthook pre-commit runs a betterleaks secret scan on staged files — keep hooks
+  installed (`mise run hook:install`).
+- Never commit trained ONNX models or training data — models are passed to arena runners as runtime paths. (The tiny `synthetic_test_model.onnx` fixtures under `jvm/src/test/resources/` and `benchmark/src/main/resources/` are the deliberate exception.)
+- Publishing credentials come from `GITHUB_ACTOR`/`GITHUB_TOKEN` env in CI only — never place tokens in `build.sbt`, task files, or docs.
 
-- **PowerShell Example**:
-  ```powershell
-  $issueBody = @'
-  ## Context
-  [Context of the task]
+## Model routing
+<!-- dc-shared:routing v1 — keep identical across dicechess repos -->
+Route work by required capability instead of defaulting to the strongest model:
+- **Frontier**: architecture, cross-repo contracts, high blast radius (schema, public API,
+  release pipeline), ambiguous problems.
+- **Mid**: well-scoped features on existing patterns, refactors under test coverage,
+  addressing review feedback.
+- **Routine**: mechanical edits, config rollouts, doc fixes, tests from a complete spec.
+Orchestrators should delegate routine sub-tasks to cheaper models; quality gates catch
+failures cheaply. When in doubt, escalate one tier — reviewer time costs more than tokens.
 
-  ## Objective
-  [Objective of the implementation]
+## Documentation
 
-  ## Definition of Done (DoD)
-  - [ ] Unit tests passed
-  - [ ] Core implementation complete
-  - [ ] Performance impact validated (if applicable)
-  '@
-
-  $issueBody | Out-File -FilePath "temp_issue.md" -Encoding utf8
-
-  gh issue create `
-    --title "Implement FEN Parser" `
-    --body-file "temp_issue.md" `
-    --milestone "v0.1 - Foundation & Core Types" `
-    --label "enhancement" `
-    --label "core-types"
-
-  Remove-Item "temp_issue.md"
-  ```
-
-## Approved Milestones
-
-Assign tasks to these milestones logically. Each milestone must be fully tested (including performance benchmarks) before moving to the next.
-
-[View current milestones on GitHub](https://github.com/rabestro/dicechess-engine-scala/milestones?sort=title&direction=asc)
-
-> [!IMPORTANT]
-> You MUST strictly assign tasks ONLY to the following milestones. Do not create or invent new milestone names.
-
-* **v0.1 - Foundation & Core Types**: Project setup (SBT 1.x / Scala 3), configuration, `mise` setup. Implementation of basic Opaque Types (`Bitboard`, `Square`, `Piece`, `Color`). Basic FEN parsing and serialization. *(closed)*
-* **v0.2 - Move Generation (Classic)**: Bitwise operations, precomputed attack tables (Magic Bitboards). Pawn, knight, king, and sliding piece move generation. Perft (Performance Test) framework integration to verify move correctness.
-* **v0.3 - Dice Chess Mechanics**: Dice roll representations, filtering pseudo-legal moves based on dice outcomes. Game state management with random events.
-* **v0.4 - Basic Bot & Gameplay**: Dedicated test harness (Svelte/Vite PWA). Implementation of a simple random or greedy bot using Scala.js to validate game state transitions and dice mechanics in a live browser environment.
-* **v0.5 - Evaluation & Heuristics**: Static evaluation function (Material balance, Piece-Square Tables). Zobrist Hashing and Transposition Tables (TT) for caching board states.
-* **v0.6 - Expectimax Search Engine**: Core search algorithm implementation. Integration of Virtual Threads (`Ox`) for parallelizing probability branches. Mathematical expectation calculations.
-* **v0.7 - WebSocket API**: Integration of `Http4s` (or `Cask`). Implementing the command protocol (`start_search`, `stop`, `info`, `bestmove`). Structured concurrency for search cancellation.
-* **v1.0 - Production & Native Image**: GraalVM Native Image compilation, Dockerfile optimization, CI/CD pipelines, deployment configurations for Homelab / Oracle Cloud.
-
-## Approved GitHub Labels
-
-Use ONLY these labels when generating `gh` commands. Do not use any labels outside of this list.
-
-* **Shared core** (identical across all Dice Chess repositories):
-  * `bug` — Code issues, logical defects, or runtime failures.
-  * `enhancement` — Functional improvements or new features.
-  * `refactoring` — Design restructuring without behavioral changes.
-  * `documentation` — Inline docstrings, guides, or AGENTS.md updates.
-  * `testing` — Adding unit, property-based, or integration tests.
-  * `performance` — Micro-optimizations and engine search speedups.
-  * `ci-cd` — GitHub Actions, build scripts, or mise configuration.
-  * `dependencies` — Dependency updates (applied by Dependabot).
-
-* **Domains** (this repository only):
-  * `core-types` — Board, Bitboards, Pieces, and FEN parser.
-  * `move-gen` — Move generator, Bitwise operations, attack tables.
-  * `search` — Expectimax, Loom/Virtual Threads, pruning, Transposition Tables.
-  * `evaluation` — Static board evaluators, Piece-Square tables.
-  * `api` — HTTP, WebSockets, JSON serialization.
-  * `infrastructure` — Docker, cloud hosting, VM configurations.
-
-## Documentation Standards (Scaladoc 3)
-
-All engine code must follow these Scaladoc conventions:
-* **Balanced Approach:** Do not document self-evident code (e.g., `def isWhite`). Document *Why*, not *What*.
-* **Opaque Types:** Always document `opaque type` declarations, specifically describing their bitwise memory layout (e.g., Bit X-Y means Z) and companion objects.
-* **Language:** All comments must be written strictly in **English**.
-* **Formatting:**
-  * Use standard triple-quote Scaladoc: `/** ... */`.
-  * Leverage Markdown instead of HTML for lists and formatting.
-  * Enclose code snippets and examples in standard Markdown code fences (e.g., ```scala). Do NOT use legacy `{{{ ... }}}` syntax.
-  * Use double brackets `[[Type]]` to reference other classes/objects.
-
-## Testing Guidelines (Scala Engine)
-
-* **Unit Testing**: Powered by `MUnit`. This is modern, incredibly fast, and has native-level support for Scala 3 and rich assertion diffs.
-* **Property-Based Testing**: Use `ScalaCheck` via `munit-scalacheck` integration. Crucial for engine logic (e.g., *Property: FEN parsed to Board and serialized back must equal original FEN*).
-* **Performance Testing (Perft)**:
-* Move generator must be validated against standard Perft results (counting all possible nodes to depth N).
-* Use `sbt-jmh` (Java Microbenchmark Harness) for micro-optimizations of bitwise operations. Engine code must be fast, allocations (GC) must be minimized.
-
-* **API Testing**: WebSocket endpoints must be tested using local client mocks bypassing the actual search engine delay.
-* **Fixtures**: Store standard FEN positions and their expected Perft node counts in `src/test/resources/perft_suite.json`.
+- Docs site: `docs/` (Astro + Starlight, mermaid + KaTeX), deployed together with Scaladoc to GitHub Pages by `deploy-docs.yaml` on pushes to `main` touching `docs/**`, the movegen/search test-resource fixtures, or the workflow itself. Local dev: `mise run docs:dev`.
+- Caveat: the workflow's `src/main/scala/**` path filter matches nothing in the crossProject layout (sources live under `shared/`, `jvm/`, `js/`), so engine-source changes do NOT trigger a deploy — a broken Scaladoc fence surfaces on the next unrelated docs deploy, not on your merge. Run `sbt doc` locally; fixing the filter to `{shared,jvm,js}/src/main/scala/**` is a known open item.
+- Update-trigger map:
+  - Changed movegen/KCP JSON fixtures → catalog pages regenerate; preview with `mise run docs:generate:all`.
+  - Changed the JS API → update `js/dicechess-engine.d.ts` and the README usage examples.
+  - Changed DFEN semantics or turn rules → update the architecture pages under `docs/src/content/docs/architecture/`.
+  - Touched Scaladoc → run `sbt doc` locally before pushing.
+- Known-stale page: `docs/src/content/docs/guidelines/agent-workflows.md` understates the allowed branch types and the `check` task — this file (AGENTS.md) and `enforce-pr-policy.yaml` are authoritative.
+- All documentation, comments, and commit text: English only.
