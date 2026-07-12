@@ -78,3 +78,44 @@ class ExpectimaxSearchSpec extends FunSuite:
 
   test("candidateLimit must be positive"):
     intercept[IllegalArgumentException](ExpectimaxConfig(candidateLimit = 0))
+
+  test("RootRescore.weight must be in (0, 1]"):
+    intercept[IllegalArgumentException](RootRescore((_, _) => Array.empty, 0.0))
+    intercept[IllegalArgumentException](RootRescore((_, _) => Array.empty, 1.5))
+    RootRescore((_, _) => Array.empty, 1.0) // no throw at either boundary that should succeed
+    RootRescore((_, _) => Array.empty, 0.5)
+
+  // White's king (e1) can step to d1, d2, e2, or f1 (f2 is blocked by White's own pawn, keeping the candidate set to
+  // exactly these four; the only die White can use is the king-die, 6 — no knight/bishop on the board). Black's
+  // bishop (a5) sits on the a5-e1 diagonal, so it directly threatens d2 (same diagonal, same square color) the
+  // moment it rolls a bishop die — d2 is loss-tainted. A bishop is forever confined to one square color, so it can
+  // NEVER reach d1, e2, or f1 (the opposite color) no matter how many micro-moves it chains: those three are
+  // structurally, permanently safe, and tie exactly under material scoring (verified empirically: all three win
+  // across different seeds with an identical score, d2 never wins).
+  private val rootRescorePosition = parse("7k/8/8/b7/8/8/5P2/4K3 w - - 0 1").withDicePool(List(6, 2, 3))
+
+  private def prefers(square: (Char, Int)): (Array[GameState], Color) => Array[Int] =
+    (states, _) =>
+      states.map(s =>
+        if s.mailbox.get(Square(square._1, square._2)).exists(_.pieceType == PieceType.King) then 1 else 0
+      )
+
+  test("rootRescore deterministically breaks a tie among otherwise-equal candidates"):
+    val rescore = Some(RootRescore(prefers('d', 1), weight = 0.5))
+    for seed <- 0 to 9 do
+      val move = ExpectimaxSearch(materialBatch, rootRescore = rescore).findBestMove(rootRescorePosition, Random(seed))
+      assertEquals(move.map(s => uci(s.moves)), Some("e1d1"), s"seed $seed")
+
+  test("rootRescore never rescues a candidate that loses the king on some roll, even at weight 1.0"):
+    // Rig the rescorer to WANT the loss-tainted d2 as strongly as possible; the search must still never choose it.
+    val rescore = Some(RootRescore(prefers('d', 2), weight = 1.0))
+    for seed <- 0 to 9 do
+      val move = ExpectimaxSearch(materialBatch, rootRescore = rescore)
+        .findBestMove(rootRescorePosition, Random(seed))
+        .map(s => uci(s.moves))
+      assert(move.exists(_ != "e1d2"), s"seed $seed: must never expose the king to the bishop, got $move")
+
+  test("without rootRescore the tie is broken randomly (precondition for the determinism test above)"):
+    val outcomes =
+      (0 to 30).map(seed => search().findBestMove(rootRescorePosition, Random(seed)).map(s => uci(s.moves)))
+    assert(outcomes.toSet.size > 1, s"expected more than one winner across seeds without a rescorer, got $outcomes")
