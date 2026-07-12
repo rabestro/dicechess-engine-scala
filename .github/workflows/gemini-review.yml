@@ -57,8 +57,8 @@ jobs:
           gcp_project_id: ${{ vars.GOOGLE_CLOUD_PROJECT }}
           gcp_location: ${{ vars.GOOGLE_CLOUD_LOCATION }}
           gemini_model: ${{ vars.GEMINI_MODEL }}
-          gemini_debug: ${{ fromJSON(vars.GEMINI_DEBUG || false) }}
-          upload_artifacts: ${{ vars.GEMINI_DEBUG || 'false' }}
+          gemini_debug: ${{ vars.GEMINI_DEBUG == 'true' }}
+          upload_artifacts: ${{ vars.GEMINI_DEBUG == 'true' }}
           workflow_name: gemini-review
           github_pr_number: ${{ github.event.pull_request.number }}
           # NOTE: this settings block is written to .gemini/settings.json for the
