@@ -2,8 +2,8 @@ name: 'CI: Gemini Review'
 
 # Automated PR review via the official run-gemini-cli action (replaces the
 # consumer Gemini Code Assist GitHub app, sunset 2026-07-17).
-# - Reviews every non-fork PR on open; re-review on demand with a
-#   "@gemini-cli /review" comment from the owner or collaborators.
+# - Reviews every non-fork PR on open, on new pushes (synchronize), and when a
+#   draft is marked ready. Fork PRs are excluded for security (see the job `if`).
 # - Auth: Vertex AI via Workload Identity Federation (keyless). Usage bills to
 #   the Google Cloud project's billing account (trial + GDP credits) — the
 #   AI Studio API-key path cannot use those credits (prepay-only), so we use
@@ -19,23 +19,18 @@ name: 'CI: Gemini Review'
 
 on:
   pull_request:
-    types: [opened, ready_for_review]
-  issue_comment:
-    types: [created]
+    types: [opened, ready_for_review, synchronize]
 
 concurrency:
-  group: '${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number }}'
+  group: '${{ github.workflow }}-${{ github.event.pull_request.number }}'
   cancel-in-progress: true
 
 jobs:
   review:
-    # Fork PRs are excluded (WIF id-token is not minted for forks anyway);
-    # comment-trigger is restricted to owner/members/collaborators.
-    if: |-
-      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false) ||
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
-       contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
-       startsWith(github.event.comment.body, '@gemini-cli /review'))
+    # Fork PRs are excluded: WIF id-tokens are not minted for forks, and fork
+    # code must never be checked out with workspace trust enabled. To re-review
+    # without a new commit, toggle the PR draft/ready state.
+    if: github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -45,7 +40,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -65,7 +60,7 @@ jobs:
           gemini_debug: ${{ fromJSON(vars.GEMINI_DEBUG || false) }}
           upload_artifacts: ${{ vars.GEMINI_DEBUG || 'false' }}
           workflow_name: gemini-review
-          github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
+          github_pr_number: ${{ github.event.pull_request.number }}
           # NOTE: this settings block is written to .gemini/settings.json for the
           # run and REPLACES the committed one — keep context.fileName in sync
           # with the repo convention (AGENTS.md is canonical).
@@ -103,7 +98,7 @@ jobs:
             You are reviewing a GitHub pull request.
 
             Repository: ${{ github.repository }}
-            Pull request number: ${{ github.event.pull_request.number || github.event.issue.number }}
+            Pull request number: ${{ github.event.pull_request.number }}
 
             Your review criteria are this repository's conventions, already loaded
             into your context from AGENTS.md: apply its code conventions, testing
