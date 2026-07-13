@@ -138,9 +138,9 @@ mise run publish:local
  └── Probabilistic King Capture analysis (calculating EV over 3d6 combinations)
 
 [🚀 Phase 4: Hackathon Goals & Advanced AI]
- ├── Fast, deep Stochastic Search Engine (Expectimax with Alpha-Beta pruning)
- ├── Mass Bot-vs-Bot Self-Play simulations (JVM) for auto-tuning heuristic weights
- └── High-throughput evaluation benchmarks & low-level memory optimizations
+ ├── 2-ply Expectimax over a chance node (56 weighted dice outcomes), top-K material pre-ranking, time-budgeted
+ ├── Learned evaluation: an externally-trained LightGBM value model (ONNX) as the leaf evaluator for 1-ply & 2-ply bots
+ └── Seeded bot-vs-bot arena for win-rate gating + JMH throughput benchmarks & low-level memory optimizations
 ```
 
 ---
