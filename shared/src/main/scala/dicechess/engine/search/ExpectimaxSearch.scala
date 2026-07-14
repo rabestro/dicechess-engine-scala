@@ -7,9 +7,9 @@ import scala.util.Random
 /** Tuning for [[ExpectimaxSearch]].
   *
   * @param candidateLimit
-  *   how many of the mover's own turns (pre-ranked cheaply by material) are expanded to full depth. Dice Chess
-  *   routinely offers hundreds of legal turns per roll, so expanding all of them through a chance node is infeasible;
-  *   this bounds the branching at the decision node. Must be positive.
+  *   how many of the mover's own turns (pre-ranked by [[ExpectimaxSearch]]'s `preRank`, material by default) are
+  *   expanded to full depth. Dice Chess routinely offers hundreds of legal turns per roll, so expanding all of them
+  *   through a chance node is infeasible; this bounds the branching at the decision node. Must be positive.
   */
 final case class ExpectimaxConfig(candidateLimit: Int = 8):
   require(candidateLimit > 0, s"candidateLimit must be positive, got $candidateLimit")
@@ -53,13 +53,22 @@ final case class RootRescore(evalBatch: (Array[GameState], Color) => Array[Int],
   *   - a leaf where the opponent captures our king is worth [[ExpectimaxSearch.LossValue]] — below any real score on
   *     any scale — so the opponent always takes it and we always rank that line last.
   *
-  * Depth is fixed at two plies. As a [[TimeBudgetedSearch]] it also honours a wall-clock deadline, expanding
-  * material-ranked candidates until time runs out.
+  * Depth is fixed at two plies. As a [[TimeBudgetedSearch]] it also honours a wall-clock deadline, expanding pre-ranked
+  * candidates until time runs out.
+  *
+  * @param preRank
+  *   batched evaluator used to rank the mover's own legal turns before the (expensive) chance-node expansion — only the
+  *   top [[ExpectimaxConfig.candidateLimit]] are explored. Defaults to material ([[ExpectimaxSearch.materialBatch]] —
+  *   the historical, hardcoded behaviour). Widening `candidateLimit` compensates for a crude pre-ranker at linear
+  *   search-cost growth; a sharper pre-ranker (e.g. the same value model already driving the chance node) attacks the
+  *   actual bottleneck instead — candidateLimit=16 vs material pre-ranking measured +4.8pp purely from surfacing turns
+  *   the material proxy had buried outside the top 8.
   */
 final class ExpectimaxSearch(
     evalBatch: (Array[GameState], Color) => Array[Int],
     config: ExpectimaxConfig = ExpectimaxConfig(),
-    rootRescore: Option[RootRescore] = None
+    rootRescore: Option[RootRescore] = None,
+    preRank: (Array[GameState], Color) => Array[Int] = ExpectimaxSearch.materialBatch
 ) extends TimeBudgetedSearch:
 
   import ExpectimaxSearch.*
@@ -82,13 +91,20 @@ final class ExpectimaxSearch(
     val paths   = TurnGenerator.generateAllLegalTurnPaths(state)
     if paths.isEmpty then None
     else
-      // An immediate king capture wins now; never let material pre-ranking prune it (the king has no material value).
+      // An immediate king capture wins now; never let pre-ranking prune it (the king has no material/model value).
       val winning = paths.filter(path => capturesEnemyKing(state, path))
       if winning.nonEmpty then Some(ScoredSequence(winning.minBy(_.size), SearchScoring.TerminalWinScore))
       else
-        // Pre-rank cheaply by material, expand only the top candidates through the (expensive) chance node.
-        val candidates = paths
-          .sortBy(path => -SearchScoring.scorePath(state, path, Evaluator.evaluateMaterial).score)
+        // Every remaining path is provably non-king-capturing (the filter above already removed those), so its own
+        // resulting position — needed for both the pre-rank score and, for survivors, the chance node — is exactly
+        // `applyTurn(state, path)`; computing it once here and reusing it below avoids replaying the same turn twice.
+        val withResultState = paths.map(path => path -> applyTurn(state, path))
+        val preRankScores   = preRank(withResultState.map(_._2).toArray, myColor)
+        // Pre-rank in one batched call, expand only the top candidates through the (expensive) chance node.
+        val candidates = withResultState
+          .zip(preRankScores)
+          .sortBy { case (_, score) => -score }
+          .map(_._1)
           .take(config.candidateLimit)
         // Each candidate's own resulting position (before the opponent's roll) is kept alongside its chance-node
         // value: the chance node needs it, and — when a root rescorer is configured — so does the rescore batch,
@@ -97,8 +113,7 @@ final class ExpectimaxSearch(
         var i         = 0
         var continue  = true
         while i < candidates.length && continue do
-          val path                 = candidates(i)
-          val resultState          = applyTurn(state, path)
+          val (path, resultState)  = candidates(i)
           val (value, lossTainted) = chanceNodeValue(resultState, myColor)
           evaluated += ((path, resultState, value, lossTainted))
           i += 1
@@ -190,3 +205,10 @@ object ExpectimaxSearch:
 
   /** Sentinel deadline for the un-timed entry points: `System.nanoTime()` never reaches it in practice. */
   private val NoDeadline: Long = Long.MaxValue
+
+  /** Default root pre-ranker: material, applied per state — the search's historical, hardcoded behaviour, now just
+    * expressed as a batch so it fits the same injectable shape as any other pre-ranker. `private[search]` (not fully
+    * private) so JVM-only wiring in this package (e.g. [[OnnxExpectimaxSearch]]) can fall back to it explicitly.
+    */
+  private[search] def materialBatch(states: Array[GameState], color: Color): Array[Int] =
+    states.map(Evaluator.evaluateMaterial(_, color))

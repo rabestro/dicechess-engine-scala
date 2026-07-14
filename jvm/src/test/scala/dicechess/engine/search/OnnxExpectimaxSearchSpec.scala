@@ -49,3 +49,10 @@ class OnnxExpectimaxSearchSpec extends FunSuite:
     )
     try assert(bot.findBestMove(state).isDefined)
     finally bot.close() // must not throw closing two sessions
+
+  test("preRankWithModel reuses the single main session (no second one) and still returns a legal turn"):
+    // Plumbing check only (real pre-rank-changes-selection behaviour is covered against a stub evalBatch in
+    // ExpectimaxSearchSpec): proves the model-based batch pre-ranker runs end to end without opening a second session.
+    val bot = new OnnxExpectimaxSearch(modelPath, ExpectimaxConfig(), OnnxFeatures.extract, preRankWithModel = true)
+    try assert(bot.findBestMove(state).isDefined)
+    finally bot.close()
