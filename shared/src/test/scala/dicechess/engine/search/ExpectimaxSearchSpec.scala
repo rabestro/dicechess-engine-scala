@@ -119,3 +119,18 @@ class ExpectimaxSearchSpec extends FunSuite:
     val outcomes =
       (0 to 30).map(seed => search().findBestMove(rootRescorePosition, Random(seed)).map(s => uci(s.moves)))
     assert(outcomes.toSet.size > 1, s"expected more than one winner across seeds without a rescorer, got $outcomes")
+
+  test("an injected preRank fully determines which single candidate reaches the chance node"):
+    // candidateLimit=1 means exactly one path is expanded — whichever the pre-ranker scores highest — independent of
+    // its chance-node value. Two different targets prove the injection is generic, not a coincidence of generation order.
+    val toF1 = ExpectimaxSearch(materialBatch, ExpectimaxConfig(candidateLimit = 1), preRank = prefers('f', 1))
+    val toE2 = ExpectimaxSearch(materialBatch, ExpectimaxConfig(candidateLimit = 1), preRank = prefers('e', 2))
+    assertEquals(toF1.findBestMove(rootRescorePosition, Random(0)).map(s => uci(s.moves)), Some("e1f1"))
+    assertEquals(toE2.findBestMove(rootRescorePosition, Random(0)).map(s => uci(s.moves)), Some("e1e2"))
+
+  test("default preRank is exactly ExpectimaxSearch.materialBatch — no behaviour change when omitted"):
+    val implicitDefault = search().findBestMove(rootRescorePosition, Random(3))
+    val explicitDefault =
+      ExpectimaxSearch(materialBatch, preRank = ExpectimaxSearch.materialBatch)
+        .findBestMove(rootRescorePosition, Random(3))
+    assertEquals(implicitDefault.map(_.moves), explicitDefault.map(_.moves))
