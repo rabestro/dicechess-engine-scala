@@ -98,9 +98,12 @@ final class ExpectimaxSearch(
         // Every remaining path is provably non-king-capturing (the filter above already removed those), so its own
         // resulting position — needed for both the pre-rank score and, for survivors, the chance node — is exactly
         // `applyTurn(state, path)`; computing it once here and reusing it below avoids replaying the same turn twice.
-        val withResultState = paths.map(path => path -> applyTurn(state, path))
-        val preRankScores   = preRank(withResultState.map(_._2).toArray, myColor)
-        // Pre-rank in one batched call, expand only the top candidates through the (expensive) chance node.
+        // Array throughout (not List): the top-K expansion loop below indexes `candidates(i)`, which must stay O(1),
+        // and the batched pipeline avoids intermediate linked-list-node allocations in this per-move hot path.
+        val withResultState = paths.map(path => path -> applyTurn(state, path)).toArray
+        val preRankScores   = preRank(withResultState.map(_._2), myColor)
+        // Pre-rank in one batched call, expand only the top candidates through the (expensive) chance node. sortBy is
+        // stable (like List's), so equal-scored candidates keep generation order — the material default stays identical.
         val candidates = withResultState
           .zip(preRankScores)
           .sortBy { case (_, score) => -score }
