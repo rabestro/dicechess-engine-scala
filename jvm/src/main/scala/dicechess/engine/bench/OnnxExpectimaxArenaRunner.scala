@@ -8,9 +8,14 @@ import dicechess.engine.search.{
   KcpFeatures,
   OnnxExpectimaxSearch,
   OnnxFeatures,
+  OpeningBookBot,
+  OpeningBookParser,
   RichFeatures,
-  RootRescoreModel
+  RootRescoreModel,
+  SearchAlgorithm
 }
+
+import scala.io.Source
 
 /** Acceptance-gate arena for the 2-ply ONNX expectimax bot against a built-in baseline (`aggressive` by default) — the
   * ">= 55% win rate" check for the Dice Chess AI hackathon project.
@@ -22,10 +27,10 @@ import dicechess.engine.search.{
   * The model file is read from a runtime path and never committed to this public repository.
   *
   * Usage: `runMain dicechess.engine.bench.OnnxExpectimaxArenaRunner <modelPath> [opponentBotId] [gamesPerColor]
-  * [candidateLimit] [features] [rescoreModelPath] [rescoreWeight] [preRankWithModel]`, where `features` selects the
-  * leaf extractor (must match `modelPath`'s trained model): `material` (default, 7-feature [[OnnxFeatures]]) or `rich`
-  * (9-feature [[RichFeatures]]). `kcp` exists but is one-ply only at the leaves (see [[OnnxArenaRunner]]) — its
-  * capture-probability columns are far too heavy under a chance node's hundreds of leaves.
+  * [candidateLimit] [features] [rescoreModelPath] [rescoreWeight] [preRankWithModel] [bookPath]`, where `features`
+  * selects the leaf extractor (must match `modelPath`'s trained model): `material` (default, 7-feature
+  * [[OnnxFeatures]]) or `rich` (9-feature [[RichFeatures]]). `kcp` exists but is one-ply only at the leaves (see
+  * [[OnnxArenaRunner]]) — its capture-probability columns are far too heavy under a chance node's hundreds of leaves.
   *
   * `rescoreModelPath`, when given (non-empty), wires a *second* model — always [[KcpFeatures]] (13-feature), the one
   * root rescoring is for — as the root-level rescorer blended in at `rescoreWeight` (default `0.5`); see
@@ -35,6 +40,11 @@ import dicechess.engine.search.{
   * `preRankWithModel` (any of `true`/`1`/`model`, case-insensitive; default off), when set, pre-ranks root candidates
   * with `modelPath`'s own batched inference instead of material — no extra model, testing whether a sharper pre-ranker
   * reaches candidateLimit=16's strength (or better) at a smaller, cheaper K.
+  *
+  * `bookPath`, when given (non-empty), loads an opening book (the flat JSON of [[OpeningBookParser]], produced by the
+  * analytics exporter) and wraps the bot with [[dicechess.engine.search.OpeningBookBot]] — booked positions play the
+  * booked turn instantly, everything else falls through to the expectimax search. This is the seeded gate for the
+  * combination the live fleet would actually run; like the book file itself, the path stays outside this public repo.
   */
 object OnnxExpectimaxArenaRunner:
 
@@ -61,6 +71,7 @@ object OnnxExpectimaxArenaRunner:
     val rescoreWeight    = args.lift(6).flatMap(_.toDoubleOption).getOrElse(0.5)
     val rootRescore      = rescoreModelPath.map(path => RootRescoreModel(path, KcpFeatures.extract, rescoreWeight))
     val preRankWithModel = args.lift(7).exists(flag => Set("true", "1", "model").contains(flag.trim.toLowerCase))
+    val bookPath         = args.lift(8).map(_.trim).filter(_.nonEmpty)
 
     val opponentInfo = BotRegistry.availableBots
       .find(_.id.equalsIgnoreCase(opponentId))
@@ -75,6 +86,18 @@ object OnnxExpectimaxArenaRunner:
       preRankWithModel
     )
     try
+      // With a book, the *decorated* algorithm is registered while `bot` is kept for closing the
+      // ONNX session — the decorator owns no resources of its own.
+      val book = bookPath.map { path =>
+        val json =
+          val source = Source.fromFile(path)
+          try source.mkString
+          finally source.close()
+        OpeningBookParser
+          .parse(json)
+          .fold(error => sys.error(s"Failed to parse opening book '$path': ${error.getMessage}"), identity)
+      }
+      val algorithm = book.fold(bot: SearchAlgorithm)(entries => OpeningBookBot.decorate(bot, entries))
       BotRegistry.registerCustomBot(
         BotInfo(
           id = botId,
@@ -83,13 +106,14 @@ object OnnxExpectimaxArenaRunner:
           difficulty = opponentInfo.difficulty,
           isExperimental = true
         ),
-        bot
+        algorithm
       )
 
       val rescoreNote = rootRescore.fold("")(r => s", rootRescore=${r.modelPath} (weight=${r.weight})")
       val preRankNote = if preRankWithModel then ", preRank=model" else ""
+      val bookNote    = book.fold("")(entries => s", book=${bookPath.getOrElse("")} (${entries.size} entries)")
       println(
-        s"Loaded ONNX model from $modelPath (candidateLimit=$candidateLimit, features=$featureSet$rescoreNote$preRankNote)"
+        s"Loaded ONNX model from $modelPath (candidateLimit=$candidateLimit, features=$featureSet$rescoreNote$preRankNote$bookNote)"
       )
       // Opponent as baseline, expectimax bot as the measured side: the table row is the model bot's stats.
       BotMatchRunner.runArena(opponentInfo.id, Some(botId), games, StartFen)
