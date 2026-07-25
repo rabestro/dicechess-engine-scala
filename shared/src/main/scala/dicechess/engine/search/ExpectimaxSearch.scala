@@ -35,6 +35,31 @@ final case class ExpectimaxConfig(candidateLimit: Int = 8):
 final case class RootRescore(evalBatch: (Array[GameState], Color) => Array[Int], weight: Double):
   require(weight > 0.0 && weight <= 1.0, s"weight must be in (0, 1], got $weight")
 
+/** One move's root telemetry from [[ExpectimaxSearch]]: how wide the decision node really was.
+  *
+  * `candidatesCompleted < candidatesSelected` means the wall-clock deadline truncated the anytime loop — the move was
+  * chosen among fewer candidates than [[ExpectimaxConfig.candidateLimit]] allowed. Persistently tiny completion counts
+  * on production hardware mean the effective search degenerates toward "play the pre-ranker's first pick", which no
+  * amount of candidate-limit tuning can fix — that evidence is exactly what this type exists to surface.
+  *
+  * An immediate king-capture win reports `0/0` selected/completed: no candidate was pre-ranked or expanded, so counting
+  * it as a completed candidate would overstate the searched width. A forced pass (no legal turn for the roll) reports
+  * all-zero — `legalTurns == 0` is what tells the two apart, keeping the sink's contract at exactly one record per
+  * `findBestMove` call.
+  *
+  * @param legalTurns
+  *   size of the full legal-turn list before pre-ranking
+  * @param candidatesSelected
+  *   how many turns survived pre-ranking (at most the candidate limit)
+  * @param candidatesCompleted
+  *   how many selected candidates were fully expanded through the chance node. The top candidate is always expanded
+  *   whatever the clock says (the anytime guarantee: a legal answer must exist even on a blown deadline), so an
+  *   already-elapsed deadline still reports `1`; the deadline is only consulted between candidates thereafter.
+  */
+final case class RootSearchStats(legalTurns: Int, candidatesSelected: Int, candidatesCompleted: Int):
+  /** Whether the deadline cut the loop short of the selected candidate set. */
+  def deadlineTruncated: Boolean = candidatesCompleted < candidatesSelected
+
 /** Two-ply expectimax search for Dice Chess: my turn, then the opponent's dice roll, then the opponent's best reply.
   *
   * Unlike a one-ply evaluator ([[GreedySearch]], [[OnnxEvalSearch]]), this looks one full turn ahead and so sees
@@ -63,12 +88,17 @@ final case class RootRescore(evalBatch: (Array[GameState], Color) => Array[Int],
   *   search-cost growth; a sharper pre-ranker (e.g. the same value model already driving the chance node) attacks the
   *   actual bottleneck instead — candidateLimit=16 vs material pre-ranking measured +4.8pp purely from surfacing turns
   *   the material proxy had buried outside the top 8.
+  * @param statsSink
+  *   receives one [[RootSearchStats]] per `findBestMove` call. Defaults to a no-op so the hot path pays nothing beyond
+  *   a single call; a real sink lets a host (arena runner, production bot) observe how many candidates the deadline
+  *   actually allowed — see [[RootSearchStats]] for why that matters.
   */
 final class ExpectimaxSearch(
     evalBatch: (Array[GameState], Color) => Array[Int],
     config: ExpectimaxConfig = ExpectimaxConfig(),
     rootRescore: Option[RootRescore] = None,
-    preRank: (Array[GameState], Color) => Array[Int] = ExpectimaxSearch.materialBatch
+    preRank: (Array[GameState], Color) => Array[Int] = ExpectimaxSearch.materialBatch,
+    statsSink: RootSearchStats => Unit = ExpectimaxSearch.NoStats
 ) extends TimeBudgetedSearch:
 
   import ExpectimaxSearch.*
@@ -89,11 +119,16 @@ final class ExpectimaxSearch(
   override def findBestMove(state: GameState, deadlineNanos: Long, random: Random): Option[ScoredSequence] =
     val myColor = state.activeColor
     val paths   = TurnGenerator.generateAllLegalTurnPaths(state)
-    if paths.isEmpty then None
+    if paths.isEmpty then
+      // Forced pass: still one record per call — all-zero, distinguished from a win shortcut by legalTurns == 0.
+      statsSink(RootSearchStats(0, 0, 0))
+      None
     else
       // An immediate king capture wins now; never let pre-ranking prune it (the king has no material/model value).
       val winning = paths.filter(path => capturesEnemyKing(state, path))
-      if winning.nonEmpty then Some(ScoredSequence(winning.minBy(_.size), SearchScoring.TerminalWinScore))
+      if winning.nonEmpty then
+        statsSink(RootSearchStats(paths.size, 0, 0))
+        Some(ScoredSequence(winning.minBy(_.size), SearchScoring.TerminalWinScore))
       else
         // Every remaining path is provably non-king-capturing (the filter above already removed those), so its own
         // resulting position — needed for both the pre-rank score and, for survivors, the chance node — is exactly
@@ -122,6 +157,7 @@ final class ExpectimaxSearch(
           i += 1
           // Always finish the top candidate, then stop as soon as the deadline has passed.
           if i < candidates.length && System.nanoTime() >= deadlineNanos then continue = false
+        statsSink(RootSearchStats(paths.size, candidates.length, i))
         val results = evaluated.result()
         val scores  = rootRescore match
           case None                                   => results.map { case (path, _, value, _) => path -> value }
@@ -208,6 +244,11 @@ object ExpectimaxSearch:
 
   /** Sentinel deadline for the un-timed entry points: `System.nanoTime()` never reaches it in practice. */
   private val NoDeadline: Long = Long.MaxValue
+
+  /** Default stats sink: discard. `private[search]` so JVM-only wiring (e.g. [[OnnxExpectimaxSearch]]) can name the
+    * same default instead of re-inventing its own no-op.
+    */
+  private[search] val NoStats: RootSearchStats => Unit = _ => ()
 
   /** Default root pre-ranker: material, applied per state — the search's historical, hardcoded behaviour, now just
     * expressed as a batch so it fits the same injectable shape as any other pre-ranker. `private[search]` (not fully

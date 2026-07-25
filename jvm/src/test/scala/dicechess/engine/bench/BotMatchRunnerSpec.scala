@@ -1,6 +1,6 @@
 package dicechess.engine.bench
 
-import dicechess.engine.domain.Color
+import dicechess.engine.domain.*
 import dicechess.engine.search.*
 import munit.FunSuite
 import scala.util.Random
@@ -21,6 +21,9 @@ class BotMatchRunnerSpec extends FunSuite:
     val a = BotMatchRunner.runMatch(GreedySearch, AggressiveSearch, 4)
     val b = BotMatchRunner.runMatch(GreedySearch, AggressiveSearch, 4)
     assertEquals(counts(a), counts(b))
+    // The hang telemetry is derived from the same seeded games, so it must be exactly as reproducible.
+    assertEquals(a.opponentHangs, b.opponentHangs)
+    assertEquals(a.baseHangs, b.baseHangs)
   }
 
   test("runMatch executes the correct number of games and enforces alternating colors") {
@@ -45,6 +48,64 @@ class BotMatchRunnerSpec extends FunSuite:
       totalWinsForGreedy >= totalWinsForRandom,
       s"Expected Greedy to beat Random, but got Greedy: $totalWinsForGreedy, Random: $totalWinsForRandom"
     )
+  }
+
+  // ---- Hang telemetry (#494) ----
+
+  test("hang telemetry: per-algorithm stats satisfy their structural invariants") {
+    val r = BotMatchRunner.runMatch(GreedySearch, AggressiveSearch, 3)
+    for s <- List(r.opponentHangs, r.baseHangs) do
+      assert(s.turns > 0, "every played game contributes completed turns")
+      assert(s.hangTurns >= 0 && s.hangTurns <= s.turns)
+      assert(s.queenHangTurns <= s.hangTurns, "a queen hang is a hang turn")
+      assert(s.hangingMaterial >= s.hangTurns * 100L, "every hang turn contributes at least one pawn of material")
+      assert(s.punishedMaterial >= s.punishedCaptures * 100L)
+  }
+
+  /** Plays a fixed script of turns, then passes forever — [[BotMatchRunner.playTurn]] applies moves without consulting
+    * the dice, so a scripted game can pin the telemetry's cause-and-effect exactly.
+    */
+  final private class ScriptedBot(script: List[List[Move]]) extends SearchAlgorithm:
+    private var remaining                                               = script
+    override def findBestMove(state: GameState): Option[ScoredSequence] =
+      remaining match
+        case head :: tail =>
+          remaining = tail
+          Some(ScoredSequence(head, 0))
+        case Nil => None
+
+  test("hang telemetry: a hung queen and its punishment are attributed to the side that hung it") {
+    // White walks its queen from d4 into the c6-pawn's attack (undefended), Black takes it next turn. Both sides then
+    // shuffle their kings until the 50-move rule ends the game (passes would freeze the half-move clock forever) —
+    // bare-king shuffling neither hangs anything nor captures anything, so the telemetry stays pinned to the script.
+    def shuffle(file1: Char, file2: Char, rank: Int) = List.tabulate(60) { i =>
+      if i % 2 == 0 then List(Move(Square(file1, rank), Square(file2, rank)))
+      else List(Move(Square(file2, rank), Square(file1, rank)))
+    }
+    val start = FenParser.parse("4k3/8/2p5/8/3Q4/8/8/4K3 w - - 0 1").toOption.get
+    val white = new ScriptedBot(List(Move(Square('d', 4), Square('d', 5))) :: shuffle('e', 'd', 1))
+    val black = new ScriptedBot(List(Move(Square('c', 6), Square('d', 5))) :: shuffle('e', 'd', 8))
+
+    val whiteTally = new HangTally
+    val blackTally = new HangTally
+    val outcome    =
+      BotMatchRunner.simulateGame(white, black, new Random(42), new Random(1000), start, whiteTally, blackTally)
+    assertEquals(outcome, GameOutcome.Draw) // both bots pass after the script, so the 50-move rule fires
+
+    val w = whiteTally.snapshot
+    assertEquals(w.hangTurns, 1)
+    assertEquals(w.queenHangTurns, 1)
+    assertEquals(w.hangingMaterial, 900L)
+    assertEquals(w.punishedCaptures, 1)
+    assertEquals(w.punishedMaterial, 900L)
+
+    // Black never left anything en prise and was never punished; the c6→d5 pawn is not attacked by the bare king.
+    val b = blackTally.snapshot
+    assertEquals(b.hangTurns, 0)
+    assertEquals(b.queenHangTurns, 0)
+    assertEquals(b.hangingMaterial, 0L)
+    assertEquals(b.punishedCaptures, 0)
+    assertEquals(b.punishedMaterial, 0L)
   }
 
   // ---- Time-controlled arena: pure helpers (deterministic, no wall-clock) ----
