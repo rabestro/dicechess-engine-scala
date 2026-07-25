@@ -83,12 +83,16 @@ object BotMatchRunner:
     var lossesAsBlack = 0
     var drawsAsWhite  = 0
     var drawsAsBlack  = 0
+    // One tally per algorithm, not per color: the same bot plays both colors across the two halves, and the question
+    // the telemetry answers — "how often does *this bot* leave pieces en prise?" — is color-agnostic.
+    val opponentTally = new HangTally
+    val baseTally     = new HangTally
 
     val startTime = System.currentTimeMillis()
 
     // 1. Play games with Opponent as White and Base Bot as Black
     for _ <- 1 to gamesPerColor do
-      simulateGame(opponentAlgo, baseAlgo, diceRand, botRand, startFen) match
+      simulateGame(opponentAlgo, baseAlgo, diceRand, botRand, startFen, opponentTally, baseTally) match
         case GameOutcome.Win(color) =>
           if color.isWhite then winsAsWhite += 1 else lossesAsWhite += 1
         case GameOutcome.Draw =>
@@ -96,7 +100,7 @@ object BotMatchRunner:
 
     // 2. Play games with Base Bot as White and Opponent as Black
     for _ <- 1 to gamesPerColor do
-      simulateGame(baseAlgo, opponentAlgo, diceRand, botRand, startFen) match
+      simulateGame(baseAlgo, opponentAlgo, diceRand, botRand, startFen, baseTally, opponentTally) match
         case GameOutcome.Win(color) =>
           if color.isBlack then winsAsBlack += 1 else lossesAsBlack += 1
         case GameOutcome.Draw =>
@@ -111,7 +115,9 @@ object BotMatchRunner:
       lossesAsBlack = lossesAsBlack,
       drawsAsWhite = drawsAsWhite,
       drawsAsBlack = drawsAsBlack,
-      durationMs = durationMs
+      durationMs = durationMs,
+      opponentHangs = opponentTally.snapshot,
+      baseHangs = baseTally.snapshot
     )
 
   /** Package-private visibility (`private[bench]`) allows [[BotMatchRunnerSpec]] to verify individual turn executions,
@@ -122,11 +128,17 @@ object BotMatchRunner:
       blackBot: SearchAlgorithm,
       diceRand: Random,
       botRand: Random,
-      startState: GameState = FenParser.parse(StartFen).toOption.get
+      startState: GameState = FenParser.parse(StartFen).toOption.get,
+      whiteTally: HangTally = new HangTally,
+      blackTally: HangTally = new HangTally
   ): GameOutcome =
     var state                = startState
     var isGameOver           = false
     var outcome: GameOutcome = GameOutcome.Draw
+    // Each side's hanging squares as of the end of its own last turn — the punished-hang check reads the victim's set
+    // exactly one turn later, which is the only window in which "you left it en prise and I took it" is attributable.
+    var whiteHanging = Bitboard.empty
+    var blackHanging = Bitboard.empty
 
     while !isGameOver do
       if state.halfMoveClock >= 100 then
@@ -136,13 +148,34 @@ object BotMatchRunner:
         // Roll 3 random dice
         val dice           = List.fill(3)(diceRand.nextInt(6) + 1)
         val stateWithDice  = state.withDicePool(dice)
-        val activeBot      = if state.activeColor.isWhite then whiteBot else blackBot
+        val mover          = state.activeColor
+        val activeBot      = if mover.isWhite then whiteBot else blackBot
         val (next, winner) = playTurn(state, activeBot.findBestMove(stateWithDice, botRand))
         winner match
           case Some(color) =>
             outcome = GameOutcome.Win(color)
             isGameOver = true
           case None =>
+            // Telemetry runs on completed (non-terminal) turns only: a king-capture turn ends the game above, so the
+            // few pieces grabbed on the way to the king are not worth the extra bookkeeping.
+            val moverTally    = if mover.isWhite then whiteTally else blackTally
+            val victimTally   = if mover.isWhite then blackTally else whiteTally
+            val victimHanging = if mover.isWhite then blackHanging else whiteHanging
+            val victimBefore  = if mover.isWhite then state.blackPieces else state.whitePieces
+            val victimAfter   = if mover.isWhite then next.blackPieces else next.whitePieces
+            // The victim's pieces never move during the mover's turn, so anything of theirs that vanished was
+            // captured — including en passant, whose victim square is exactly the vanished one.
+            val punished = victimBefore & ~victimAfter & victimHanging
+            if !punished.isEmpty then
+              victimTally.punishedCaptures += punished.count
+              victimTally.punishedMaterial += PieceSafety.materialOn(state, punished)
+            val moverHanging = PieceSafety.hangingSquares(next, mover)
+            moverTally.turns += 1
+            if !moverHanging.isEmpty then
+              moverTally.hangTurns += 1
+              moverTally.hangingMaterial += PieceSafety.materialOn(next, moverHanging)
+              if !(moverHanging & next.queens).isEmpty then moverTally.queenHangTurns += 1
+            if mover.isWhite then whiteHanging = moverHanging else blackHanging = moverHanging
             state = next
 
     outcome
@@ -469,7 +502,29 @@ object BotMatchRunner:
       println(
         f"${botInfo.name}%-20s | ${r.totalGames}%-5d | $winsStr%-12s | $lossesStr%-12s | $drawsStr%-12s | $winRate%6.1f%% | $timeStr"
       )
+    println("================================================================================")
+    printHangTelemetry(results)
     println("================================================================================\n")
+
+  /** Per-game hang rates for both sides of every match — the blunder-shaped counterpart of the W/L/D overview. Material
+    * is printed in pawns (centipawns / 100) because "1.8 pawns of material hung per game" is the unit a human reasons
+    * in.
+    */
+  private def printHangTelemetry(results: List[(BotInfo, MatchResult)]): Unit =
+    println("\n🛡️  HANG TELEMETRY (per game; hanging = own non-king piece attacked & undefended after own turn):")
+    println(
+      f"${"Bot"}%-20s | ${"Turns"}%-7s | ${"HangT"}%-7s | ${"QHang"}%-7s | ${"HungMat(p)"}%-10s | ${"Punished"}%-8s | ${"PunMat(p)"}%-9s"
+    )
+    println("-" * 92)
+    for (botInfo, r) <- results do
+      printHangRow(botInfo.name, r.opponentHangs, r.totalGames)
+      printHangRow("  └ baseline", r.baseHangs, r.totalGames)
+
+  private def printHangRow(label: String, s: HangStats, games: Int): Unit =
+    val g = games.toDouble
+    println(
+      f"$label%-20s | ${s.turns / g}%7.1f | ${s.hangTurns / g}%7.2f | ${s.queenHangTurns / g}%7.2f | ${s.hangingMaterial / 100.0 / g}%10.2f | ${s.punishedCaptures / g}%8.2f | ${s.punishedMaterial / 100.0 / g}%9.2f"
+    )
 
 case class MatchResult(
     totalGames: Int,
@@ -479,8 +534,57 @@ case class MatchResult(
     lossesAsBlack: Int,
     drawsAsWhite: Int,
     drawsAsBlack: Int,
-    durationMs: Long
+    durationMs: Long,
+    opponentHangs: HangStats = HangStats.empty,
+    baseHangs: HangStats = HangStats.empty
 )
+
+/** Aggregated hang telemetry for one algorithm over a match — [[PieceSafety.hangingSquares]] applied after each of the
+  * algorithm's completed turns, whichever color it happened to play.
+  *
+  * This exists because W/L/D alone cannot answer *why* a bot loses: a search or model change meant to stop the bot
+  * hanging its queen needs a blunder-shaped number to move, not just a win rate (see #494).
+  *
+  * @param turns
+  *   completed (non-terminal) turns the algorithm played
+  * @param hangTurns
+  *   turns after which at least one of its pieces stood en prise
+  * @param queenHangTurns
+  *   turns after which its queen stood en prise
+  * @param hangingMaterial
+  *   centipawn sum of en-prise pieces over all turns (an 800-turn match can exceed `Int` comfortably only in theory,
+  *   but `Long` makes overflow a non-question)
+  * @param punishedCaptures
+  *   pieces the algorithm left hanging that the opponent actually captured on the very next turn
+  * @param punishedMaterial
+  *   centipawn sum of those punished pieces
+  */
+final case class HangStats(
+    turns: Int,
+    hangTurns: Int,
+    queenHangTurns: Int,
+    hangingMaterial: Long,
+    punishedCaptures: Int,
+    punishedMaterial: Long
+)
+
+object HangStats:
+  val empty: HangStats = HangStats(0, 0, 0, 0L, 0, 0L)
+
+/** Mutable accumulator behind [[HangStats]]: one instance per algorithm per match, handed to
+  * [[BotMatchRunner.simulateGame]] as the white or black tally depending on which color the algorithm plays in that
+  * half. Plain vars, single-threaded by construction (the arena is sequential).
+  */
+final private[bench] class HangTally:
+  var turns            = 0
+  var hangTurns        = 0
+  var queenHangTurns   = 0
+  var hangingMaterial  = 0L
+  var punishedCaptures = 0
+  var punishedMaterial = 0L
+
+  def snapshot: HangStats =
+    HangStats(turns, hangTurns, queenHangTurns, hangingMaterial, punishedCaptures, punishedMaterial)
 
 enum GameOutcome derives CanEqual:
   case Win(color: Color)

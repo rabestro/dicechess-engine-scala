@@ -134,3 +134,36 @@ class ExpectimaxSearchSpec extends FunSuite:
       ExpectimaxSearch(materialBatch, preRank = ExpectimaxSearch.materialBatch)
         .findBestMove(rootRescorePosition, Random(3))
     assertEquals(implicitDefault.map(_.moves), explicitDefault.map(_.moves))
+
+  // ---- Root telemetry (statsSink, #494) ----
+
+  test("statsSink reports full width when no deadline applies"):
+    // rootRescorePosition offers exactly the four king steps d1/d2/e2/f1 (see the fixture comment), all within the
+    // default candidate limit — so selected == completed == 4 and nothing was truncated.
+    var stats = Option.empty[RootSearchStats]
+    val bot   = ExpectimaxSearch(materialBatch, statsSink = s => stats = Some(s))
+    assert(bot.findBestMove(rootRescorePosition, Random(0)).isDefined)
+    assertEquals(stats, Some(RootSearchStats(legalTurns = 4, candidatesSelected = 4, candidatesCompleted = 4)))
+    assert(!stats.get.deadlineTruncated)
+
+  test("statsSink reports truncation on an already-elapsed deadline — only the top candidate completes"):
+    var stats = Option.empty[RootSearchStats]
+    val bot   = ExpectimaxSearch(materialBatch, statsSink = s => stats = Some(s))
+    assert(bot.findBestMove(rootRescorePosition, System.nanoTime(), Random(0)).isDefined)
+    assertEquals(stats, Some(RootSearchStats(legalTurns = 4, candidatesSelected = 4, candidatesCompleted = 1)))
+    assert(stats.get.deadlineTruncated)
+
+  test("statsSink reports 0/0 on an immediate king capture — no candidate was ever expanded"):
+    val state = parse("k7/8/8/8/8/8/8/R3K3 w - - 0 1").withDicePool(List(1, 1, 4))
+    var stats = Option.empty[RootSearchStats]
+    val bot   = ExpectimaxSearch(materialBatch, statsSink = s => stats = Some(s))
+    assert(bot.findBestMove(state, Random(0)).isDefined)
+    assert(stats.exists(s => s.legalTurns > 0 && s.candidatesSelected == 0 && s.candidatesCompleted == 0))
+
+  test("statsSink fires exactly once, all-zero, on a forced pass — one record per findBestMove call"):
+    // Bare kings and three pawn dice: no legal micro-move exists, the bot must pass (findBestMove == None).
+    val state = parse("4k3/8/8/8/8/8/8/4K3 w - - 0 1").withDicePool(List(1, 1, 1))
+    var seen  = List.empty[RootSearchStats]
+    val bot   = ExpectimaxSearch(materialBatch, statsSink = s => seen = s :: seen)
+    assertEquals(bot.findBestMove(state, Random(0)), None)
+    assertEquals(seen, List(RootSearchStats(0, 0, 0)))

@@ -36,6 +36,10 @@ final case class RootRescoreModel(
   * "opinion" candidate selection should defer to. See [[ExpectimaxSearch]]'s `preRank` parameter for why: widening
   * `candidateLimit` only compensates for a crude (material) pre-ranker; a sharper one attacks the actual bottleneck.
   *
+  * `statsSink` is forwarded to the underlying [[ExpectimaxSearch]] — one [[RootSearchStats]] per move, so a production
+  * host can log how many candidates its deadline really allowed (the difference between the configured limit and the
+  * width actually searched on slow hardware).
+  *
   * Owns the ONNX session(s) — the main model's, and the rescorer's when configured; call [[close]] when done. Not safe
   * for concurrent calls, matching every other bot here.
   */
@@ -44,7 +48,8 @@ final class OnnxExpectimaxSearch(
     config: ExpectimaxConfig = ExpectimaxConfig(),
     extractFeatures: (GameState, Color) => Array[Float] = OnnxFeatures.extract,
     rootRescore: Option[RootRescoreModel] = None,
-    preRankWithModel: Boolean = false
+    preRankWithModel: Boolean = false,
+    statsSink: RootSearchStats => Unit = ExpectimaxSearch.NoStats
 ) extends TimeBudgetedSearch
     with AutoCloseable:
 
@@ -57,7 +62,8 @@ final class OnnxExpectimaxSearch(
       session <- rescoreOnnx
       r       <- rootRescore
     yield RootRescore((states, color) => session.onnxEvalBatch(states, color), r.weight),
-    if preRankWithModel then (states, color) => onnx.onnxEvalBatch(states, color) else ExpectimaxSearch.materialBatch
+    if preRankWithModel then (states, color) => onnx.onnxEvalBatch(states, color) else ExpectimaxSearch.materialBatch,
+    statsSink
   )
 
   override def findBestMove(state: GameState): Option[ScoredSequence] =
