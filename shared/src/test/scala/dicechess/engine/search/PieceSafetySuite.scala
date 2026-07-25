@@ -45,6 +45,24 @@ class PieceSafetySuite extends FunSuite:
     assert(PieceSafety.hangingSquares(state, Color.White).isEmpty)
     assert(PieceSafety.hangingSquares(state, Color.Black).isEmpty)
 
+  test("an attack by a pinned piece still counts — Dice Chess has no pins"):
+    // The e2 bishop is "pinned" against its king by the e8 rook in classical-chess terms — but the game is won by
+    // capturing the king, so moving a pinned piece is perfectly legal here and its attack on d3 is a real threat.
+    // Geometry-based isSquareAttacked is therefore the *correct* semantics, not a simplification: the undefended
+    // d3 pawn hangs to the pinned bishop. The bishop itself is attacked (rook) but king-defended, so White has nothing
+    // hanging.
+    val state = parse("4r1k1/8/8/8/8/3p4/4B3/4K3 w - - 0 1")
+    assertEquals(notations(PieceSafety.hangingSquares(state, Color.Black)), Set("d3"))
+    assertEquals(PieceSafety.hangingMaterial(state, Color.Black), 100)
+    assert(PieceSafety.hangingSquares(state, Color.White).isEmpty)
+
+  test("bare kings: nothing hangs and no material is at risk on an otherwise-empty board"):
+    val state = parse("4k3/8/8/8/8/8/8/4K3 w - - 0 1")
+    assert(PieceSafety.hangingSquares(state, Color.White).isEmpty)
+    assert(PieceSafety.hangingSquares(state, Color.Black).isEmpty)
+    assertEquals(PieceSafety.hangingMaterial(state, Color.White), 0)
+    assertEquals(PieceSafety.hangingMaterial(state, Color.Black), 0)
+
   test("materialOn prices exactly the given squares on the Evaluator's centipawn scale"):
     val state = parse("4k3/8/2p5/3Q4/8/8/8/4K3 w - - 0 1")
     val both  = PieceSafety.hangingSquares(state, Color.White) | PieceSafety.hangingSquares(state, Color.Black)

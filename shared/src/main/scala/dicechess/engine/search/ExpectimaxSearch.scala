@@ -52,7 +52,9 @@ final case class RootRescore(evalBatch: (Array[GameState], Color) => Array[Int],
   * @param candidatesSelected
   *   how many turns survived pre-ranking (at most the candidate limit)
   * @param candidatesCompleted
-  *   how many selected candidates were fully expanded through the chance node before the deadline
+  *   how many selected candidates were fully expanded through the chance node. The top candidate is always expanded
+  *   whatever the clock says (the anytime guarantee: a legal answer must exist even on a blown deadline), so an
+  *   already-elapsed deadline still reports `1`; the deadline is only consulted between candidates thereafter.
   */
 final case class RootSearchStats(legalTurns: Int, candidatesSelected: Int, candidatesCompleted: Int):
   /** Whether the deadline cut the loop short of the selected candidate set. */

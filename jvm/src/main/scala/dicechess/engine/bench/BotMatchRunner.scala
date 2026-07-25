@@ -523,7 +523,9 @@ object BotMatchRunner:
   private def printHangRow(label: String, s: HangStats, games: Int): Unit =
     val g = games.toDouble
     println(
-      f"$label%-20s | ${s.turns / g}%7.1f | ${s.hangTurns / g}%7.2f | ${s.queenHangTurns / g}%7.2f | ${s.hangingMaterial / 100.0 / g}%10.2f | ${s.punishedCaptures / g}%8.2f | ${s.punishedMaterial / 100.0 / g}%9.2f"
+      f"$label%-20s | ${s.turns / g}%7.1f | ${s.hangTurns / g}%7.2f | ${s.queenHangTurns / g}%7.2f | " +
+        f"${s.hangingMaterial / 100.0 / g}%10.2f | ${s.punishedCaptures / g}%8.2f | " +
+        f"${s.punishedMaterial / 100.0 / g}%9.2f"
     )
 
 case class MatchResult(
