@@ -95,12 +95,17 @@ rather than a one-ply heuristic). Per-move cost scales with the number of legal 
 budget, so a multi-game win-rate match is validated offline in the JVM Battle Arena — not in CI.
 
 **Time control.** Because per-move cost grows with the branching factor, an unbounded heavy bot loses
-on the clock in complex positions. `MonteCarloSearch` therefore takes a
-**wall-clock deadline**: it takes any immediate king capture for free, otherwise ranks turns by a
-cheap material score, keeps the top *K*, and Monte-Carlo-evaluates them within an equal slice of the
-remaining time, always falling back to the best material turn so a legal move is returned even if the
-deadline elapses first. The caller allocates the game clock into per-move deadlines. The budget paths
-(rollouts / target-error) stay deterministic for tests; only the wall-clock path is non-deterministic.
+on the clock in complex positions. Clock handling is *not* specific to this bot: it is an
+engine-wide, two-layer subsystem — `TimeManager` (a shared, pure policy turning a game clock into a
+per-turn budget) and `TimeBudgetedSearch` (the capability mix-in each algorithm implements to honour
+a deadline). See [Time Management](/architecture/search/05-time-management/) for the budget formula,
+the constants, and which algorithms are budgeted.
+
+`MonteCarloSearch` was the first implementor: it takes any immediate king capture for free, otherwise
+ranks turns by a cheap material score, keeps the top *K*, and Monte-Carlo-evaluates them within an
+equal slice of the remaining time, always falling back to the best material turn so a legal move is
+returned even if the deadline elapses first. Its own budget paths (rollouts / target-error) stay
+deterministic for tests; only the wall-clock path is non-deterministic.
 The acceptance gate is whether time-limited Monte-Carlo beats `AggressiveSearch` (L5) within a
 one-minute game budget — otherwise the heavy search is not worth it over the empirical-statistics path.
 
