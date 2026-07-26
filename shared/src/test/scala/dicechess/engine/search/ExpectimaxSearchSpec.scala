@@ -184,6 +184,37 @@ class ExpectimaxSearchSpec extends FunSuite:
     assert(!stats.get.deadlineTruncated)
     assert(!stats.get.fellBackToPreRank)
 
+  test("a candidate abandoned mid-list still ranks the ones that finished (#496)"):
+    // The production-typical case, and the one the two tests above miss between them: some candidates complete,
+    // then the clock stops the next — so `results` is non-empty and the normal ranking path runs, unlike the
+    // pre-rank fallback.
+    //
+    // Made deterministic by an evaluator that is FREE for the first candidate's 56 rolls and expensive after: the
+    // first candidate therefore completes no matter how slow the machine is, and the second cannot survive three
+    // rolls. Time is burned by spinning rather than sleeping because this suite also runs on the Scala.js and Wasm
+    // runners, where `Thread.sleep` does not exist.
+    val budgetMs      = 500L
+    val burnPerCallMs = 200L
+    val freeCalls     = DiceRolls.weighted.length // exactly one candidate's worth of leaf evaluations
+    var calls         = 0
+    val slowAfterFirst: (Array[GameState], Color) => Array[Int] = (states, color) =>
+      calls += 1
+      if calls > freeCalls then
+        val until = System.nanoTime() + burnPerCallMs * 1_000_000L
+        while System.nanoTime() < until do ()
+      materialBatch(states, color)
+
+    var stats = Option.empty[RootSearchStats]
+    val bot   = ExpectimaxSearch(slowAfterFirst, statsSink = s => stats = Some(s))
+    val move  = bot.findBestMove(rootRescorePosition, System.nanoTime() + budgetMs * 1_000_000L, Random(0))
+
+    assert(move.isDefined, "the anytime contract still owes a legal turn")
+    val s = stats.getOrElse(fail("expected a stats record"))
+    assertEquals(s.candidatesCompleted, 1, s"expected exactly the free candidate to finish, got $s")
+    assertEquals(s.candidatesAbandoned, 1, s"expected the next candidate to be cut mid-chance-node, got $s")
+    assert(s.deadlineTruncated, "the selected set was not exhausted")
+    assert(!s.fellBackToPreRank, "a completed candidate exists, so the pre-rank fallback must NOT be used")
+
   test("the untimed path is unaffected by the deadline plumbing — same turn as before, every candidate scored"):
     // The seeded arena's reproducibility rests on this: NoDeadline must never consult the clock or drop a candidate.
     for seed <- 0 to 5 do
