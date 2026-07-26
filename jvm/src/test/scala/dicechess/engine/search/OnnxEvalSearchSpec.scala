@@ -82,3 +82,45 @@ class OnnxEvalSearchSpec extends FunSuite:
     try intercept[Exception](bot.onnxEvalBatch(states, Color.White))
     finally bot.close()
   }
+
+  // Fixture with 268 legal turn paths (roll 1,1,4 from the starting position) — comfortably more than one
+  // OnnxEvalSearch.BatchSize (32) chunk, so a deadline landing mid-search has more than one chunk to cut off.
+  private def wideBranchingState: GameState =
+    val start = FenParser.parse(FenParser.InitialPosition).toOption.get
+    start.copy(flags = start.flags.withDicePool(List(1, 1, 4)))
+
+  test("findBestMove(deadline) still returns a legal turn when the deadline has already elapsed on entry (#497)") {
+    val bot = new OnnxEvalSearch(modelPath)
+    try
+      val alreadyPast = System.nanoTime() - 1_000_000_000L
+      val result      = bot.findBestMove(wideBranchingState, alreadyPast, scala.util.Random(0))
+      assert(result.isDefined, "the anytime contract must still return a legal turn")
+      assert(result.get.moves.nonEmpty)
+    finally bot.close()
+  }
+
+  test(
+    "findBestMove(deadline) returns the best candidate scored before the deadline cuts the remaining chunks (#497)"
+  ) {
+    // Burns wall-clock time on every chunk after the first, so a deadline sized to survive exactly one chunk proves
+    // the loop's interruption unit is a chunk, not the whole candidate set (mirrors ExpectimaxSearchSpec's
+    // "abandoned mid-list" test, here via subclassing since onnxEvalBatch isn't an injectable constructor parameter).
+    val burnPerChunkMs = 200L
+    var chunkCalls     = 0
+    val bot            = new OnnxEvalSearch(modelPath) {
+      override def onnxEvalBatch(states: Array[GameState], color: Color): Array[Int] =
+        chunkCalls += 1
+        if chunkCalls > 1 then
+          val until = System.nanoTime() + burnPerChunkMs * 1_000_000L
+          while System.nanoTime() < until do ()
+        super.onnxEvalBatch(states, color)
+    }
+    try
+      val deadline = System.nanoTime() + 100_000_000L // 100ms: enough for chunk 1, not chunk 2's 200ms burn
+      val result   = bot.findBestMove(wideBranchingState, deadline, scala.util.Random(0))
+      assert(result.isDefined)
+      assert(result.get.moves.nonEmpty)
+      // Chunk 2's 200ms burn alone exceeds the 100ms deadline, so chunk 3 can never start: exactly 2 calls in every run.
+      assertEquals(chunkCalls, 2)
+    finally bot.close()
+  }
