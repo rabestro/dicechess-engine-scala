@@ -2,17 +2,22 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import mermaid from 'astro-mermaid';
-import { starlightKatex } from 'starlight-katex';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 
 // https://astro.build/config
 export default defineConfig({
+	markdown: {
+		remarkPlugins: [remarkMath],
+		rehypePlugins: [rehypeKatex],
+	},
 	site: 'https://jc.id.lv',
 	base: '/dicechess-engine-scala',
 	integrations: [
 		mermaid(),
 		starlight({
 			title: 'Dice Chess Engine',
-			plugins: [starlightKatex()],
+			customCss: ['katex/dist/katex.min.css'],
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/rabestro/dicechess-engine-scala' }],
 			sidebar: [
 				{
