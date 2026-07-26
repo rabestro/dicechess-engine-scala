@@ -71,8 +71,8 @@ class ExpectimaxSearchSpec extends FunSuite:
     assert(ExpectimaxSearch(checkingBatch).findBestMove(state, Random(0)).isDefined)
 
   test("honours an already-elapsed deadline and still returns a legal turn"):
-    // Anytime contract: even past the deadline the top material-ranked candidate is evaluated, so a legal turn
-    // always comes back (the exact turn under a deadline is non-deterministic and not asserted).
+    // Anytime contract: past the deadline no candidate can be expanded at all, so the turn comes from the pre-ranker
+    // — but a legal turn always comes back (the exact turn under a deadline is non-deterministic and not asserted).
     val state = parse("1r4k1/p4ppp/8/8/8/8/5PPP/R5K1 w - - 0 1").withDicePool(List(2, 2, 4))
     assert(search().findBestMove(state, System.nanoTime(), Random(0)).isDefined)
 
@@ -146,12 +146,85 @@ class ExpectimaxSearchSpec extends FunSuite:
     assertEquals(stats, Some(RootSearchStats(legalTurns = 4, candidatesSelected = 4, candidatesCompleted = 4)))
     assert(!stats.get.deadlineTruncated)
 
-  test("statsSink reports truncation on an already-elapsed deadline — only the top candidate completes"):
+  test("an already-elapsed deadline completes nothing and falls back to the pre-ranker (#496)"):
+    // Before #496 the top candidate was expanded whatever the clock said, so this reported 1 completed — and a
+    // candidate can cost multiples of the whole budget. Now the chance node yields between dice rolls, so the very
+    // first candidate is abandoned instead, and the turn comes from the pre-ranker alone.
     var stats = Option.empty[RootSearchStats]
     val bot   = ExpectimaxSearch(materialBatch, statsSink = s => stats = Some(s))
     assert(bot.findBestMove(rootRescorePosition, System.nanoTime(), Random(0)).isDefined)
-    assertEquals(stats, Some(RootSearchStats(legalTurns = 4, candidatesSelected = 4, candidatesCompleted = 1)))
+    assertEquals(
+      stats,
+      Some(RootSearchStats(legalTurns = 4, candidatesSelected = 4, candidatesCompleted = 0, candidatesAbandoned = 1))
+    )
     assert(stats.get.deadlineTruncated)
+    assert(stats.get.fellBackToPreRank)
+
+  test("the pre-rank fallback returns the pre-ranker's own top pick, not an arbitrary turn (#496)"):
+    // With candidateLimit = 1 the pre-ranker's choice is unambiguous, so the fallback is verifiable: whatever
+    // `prefers` ranks first must be the turn played once the deadline leaves no room to search.
+    for target <- List(('f', 1), ('e', 2), ('d', 1)) do
+      val bot = ExpectimaxSearch(
+        materialBatch,
+        ExpectimaxConfig(candidateLimit = 1),
+        preRank = prefers(target)
+      )
+      val move = bot.findBestMove(rootRescorePosition, System.nanoTime(), Random(0)).map(s => uci(s.moves))
+      assertEquals(move, Some(s"e1${target._1}${target._2}"))
+
+  test("a generous deadline still completes every candidate — the yield point costs nothing when there is time"):
+    var stats = Option.empty[RootSearchStats]
+    val bot   = ExpectimaxSearch(materialBatch, statsSink = s => stats = Some(s))
+    val far   = System.nanoTime() + 60_000L * 1_000_000L
+    assert(bot.findBestMove(rootRescorePosition, far, Random(0)).isDefined)
+    assertEquals(
+      stats,
+      Some(RootSearchStats(legalTurns = 4, candidatesSelected = 4, candidatesCompleted = 4, candidatesAbandoned = 0))
+    )
+    assert(!stats.get.deadlineTruncated)
+    assert(!stats.get.fellBackToPreRank)
+
+  test("a candidate abandoned mid-list still ranks the ones that finished (#496)"):
+    // The production-typical case, and the one the two tests above miss between them: some candidates complete,
+    // then the clock stops the next — so `results` is non-empty and the normal ranking path runs, unlike the
+    // pre-rank fallback.
+    //
+    // Made deterministic by an evaluator that is FREE for the first candidate's 56 rolls and expensive after: the
+    // first candidate therefore completes no matter how slow the machine is, and the second cannot survive three
+    // rolls. Time is burned by spinning rather than sleeping because this suite also runs on the Scala.js and Wasm
+    // runners, where `Thread.sleep` does not exist.
+    val budgetMs      = 500L
+    val burnPerCallMs = 200L
+    val freeCalls     = DiceRolls.weighted.length // exactly one candidate's worth of leaf evaluations
+    var calls         = 0
+    val slowAfterFirst: (Array[GameState], Color) => Array[Int] = (states, color) =>
+      calls += 1
+      if calls > freeCalls then
+        val until = System.nanoTime() + burnPerCallMs * 1_000_000L
+        while System.nanoTime() < until do ()
+      materialBatch(states, color)
+
+    var stats = Option.empty[RootSearchStats]
+    val bot   = ExpectimaxSearch(slowAfterFirst, statsSink = s => stats = Some(s))
+    val move  = bot.findBestMove(rootRescorePosition, System.nanoTime() + budgetMs * 1_000_000L, Random(0))
+
+    assert(move.isDefined, "the anytime contract still owes a legal turn")
+    val s = stats.getOrElse(fail("expected a stats record"))
+    assertEquals(s.candidatesCompleted, 1, s"expected exactly the free candidate to finish, got $s")
+    assertEquals(s.candidatesAbandoned, 1, s"expected the next candidate to be cut mid-chance-node, got $s")
+    assert(s.deadlineTruncated, "the selected set was not exhausted")
+    assert(!s.fellBackToPreRank, "a completed candidate exists, so the pre-rank fallback must NOT be used")
+
+  test("the untimed path is unaffected by the deadline plumbing — same turn as before, every candidate scored"):
+    // The seeded arena's reproducibility rests on this: NoDeadline must never consult the clock or drop a candidate.
+    for seed <- 0 to 5 do
+      var stats     = Option.empty[RootSearchStats]
+      val timedBot  = ExpectimaxSearch(materialBatch, statsSink = s => stats = Some(s))
+      val untimed   = timedBot.findBestMove(rootRescorePosition, Random(seed)).map(s => uci(s.moves))
+      val reference = search().findBestMove(rootRescorePosition, Random(seed)).map(s => uci(s.moves))
+      assertEquals(untimed, reference, s"seed $seed")
+      assertEquals(stats.map(_.candidatesCompleted), Some(4), s"seed $seed")
+      assertEquals(stats.map(_.candidatesAbandoned), Some(0), s"seed $seed")
 
   test("statsSink reports 0/0 on an immediate king capture — no candidate was ever expanded"):
     val state = parse("k7/8/8/8/8/8/8/R3K3 w - - 0 1").withDicePool(List(1, 1, 4))

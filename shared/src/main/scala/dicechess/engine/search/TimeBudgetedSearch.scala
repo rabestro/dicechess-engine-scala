@@ -12,6 +12,15 @@ import scala.util.Random
   *
   * The deadline path is non-deterministic by design (it depends on machine speed), so it is meant for play rather than
   * reproducible tests.
+  *
+  * ## Granularity is part of the contract
+  *
+  * A search can only stop where it yields, so "stops at the deadline" is really "stops at the first yield point after
+  * it". An implementation must therefore keep its unit of uninterruptible work **well below a realistic per-move
+  * budget**, or the contract holds only on paper. [[ExpectimaxSearch]] learned this the expensive way: it once checked
+  * the clock between root candidates only, and a single candidate at `candidateLimit=24` on one core measured a 6.5 s
+  * median against a 1.9 s allocation — a 3.4x overshoot the caller had no way to prevent (#496). Prefer a yield point
+  * whose cost is a small fraction of the whole search, and guard the clock read so the untimed path pays nothing.
   */
 trait TimeBudgetedSearch extends SearchAlgorithm:
 

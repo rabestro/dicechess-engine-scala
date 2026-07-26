@@ -52,13 +52,26 @@ final case class RootRescore(evalBatch: (Array[GameState], Color) => Array[Int],
   * @param candidatesSelected
   *   how many turns survived pre-ranking (at most the candidate limit)
   * @param candidatesCompleted
-  *   how many selected candidates were fully expanded through the chance node. The top candidate is always expanded
-  *   whatever the clock says (the anytime guarantee: a legal answer must exist even on a blown deadline), so an
-  *   already-elapsed deadline still reports `1`; the deadline is only consulted between candidates thereafter.
+  *   how many selected candidates were fully expanded through the chance node — the only ones whose values are
+  *   comparable, and therefore the only ones ranked
+  * @param candidatesAbandoned
+  *   candidates whose chance node was cut mid-expansion by the deadline (at most one: the search stops afterwards).
+  *   Their partial expectation is discarded rather than ranked, so this counts work paid for and thrown away — a
+  *   persistent non-zero value means the per-move budget is too small for even one candidate at this width.
   */
-final case class RootSearchStats(legalTurns: Int, candidatesSelected: Int, candidatesCompleted: Int):
+final case class RootSearchStats(
+    legalTurns: Int,
+    candidatesSelected: Int,
+    candidatesCompleted: Int,
+    candidatesAbandoned: Int = 0
+):
   /** Whether the deadline cut the loop short of the selected candidate set. */
   def deadlineTruncated: Boolean = candidatesCompleted < candidatesSelected
+
+  /** The deadline elapsed before a single candidate could be scored, so the turn came from the pre-ranker alone — the
+    * search contributed nothing beyond candidate selection.
+    */
+  def fellBackToPreRank: Boolean = candidatesCompleted == 0 && candidatesAbandoned > 0
 
 /** Two-ply expectimax search for Dice Chess: my turn, then the opponent's dice roll, then the opponent's best reply.
   *
@@ -112,9 +125,18 @@ final class ExpectimaxSearch(
 
   /** Finds the best turn under a wall-clock deadline.
     *
-    * Candidates are expanded in material-ranked order; the top one is always evaluated, and the deadline is honoured
-    * between candidates thereafter, so the result is the best turn found so far when time runs out (anytime search).
-    * This matters because a single roll can generate thousands of opponent replies (the Dice Chess branching tail).
+    * Candidates are expanded in material-ranked order, and the deadline is honoured **between dice rolls inside** a
+    * candidate's chance node — not merely between candidates. Even the top candidate can therefore be abandoned before
+    * it yields a comparable value, which is the point: one candidate routinely costs more than the whole per-turn
+    * budget, so a coarser check made the deadline advisory rather than binding (#496).
+    *
+    * The result is the best *completed* candidate, or — when the deadline left no candidate time to finish — the
+    * pre-ranker's own top pick, so the anytime contract still delivers a legal turn. A partially expanded candidate is
+    * never ranked: its expectation covers only the rolls the clock allowed, so comparing it against complete ones would
+    * let the instant the deadline landed choose the move. [[RootSearchStats]] reports both cases.
+    *
+    * All of this matters because a single roll can generate thousands of opponent replies (the Dice Chess branching
+    * tail).
     */
   override def findBestMove(state: GameState, deadlineNanos: Long, random: Random): Option[ScoredSequence] =
     val myColor = state.activeColor
@@ -139,68 +161,97 @@ final class ExpectimaxSearch(
         val preRankScores   = preRank(withResultState.map(_._2), myColor)
         // Pre-rank in one batched call, expand only the top candidates through the (expensive) chance node. sortBy is
         // stable (like List's), so equal-scored candidates keep generation order — the material default stays identical.
-        val candidates = withResultState
+        val ranked = withResultState
           .zip(preRankScores)
           .sortBy { case (_, score) => -score }
-          .map(_._1)
           .take(config.candidateLimit)
+        val candidates = ranked.map(_._1)
+        // Kept for the anytime fallback below: if the deadline elapses before any candidate finishes, this is both
+        // the turn we play and the only score we can honestly attach to it.
+        val topPreRankScore = ranked(0)._2
         // Each candidate's own resulting position (before the opponent's roll) is kept alongside its chance-node
         // value: the chance node needs it, and — when a root rescorer is configured — so does the rescore batch,
         // scored once over exactly these states rather than recomputed.
         val evaluated = List.newBuilder[(List[Move], GameState, Double, Boolean)]
         var i         = 0
+        var completed = 0
+        var abandoned = 0
         var continue  = true
         while i < candidates.length && continue do
-          val (path, resultState)  = candidates(i)
-          val (value, lossTainted) = chanceNodeValue(resultState, myColor)
-          evaluated += ((path, resultState, value, lossTainted))
+          val (path, resultState)            = candidates(i)
+          val (value, lossTainted, complete) = chanceNodeValue(resultState, myColor, deadlineNanos)
+          // Only a fully expanded candidate is ranked. A truncated one carries the expectation of the rolls it
+          // happened to reach, which is not comparable with a complete one — ranking it would let the arbitrary
+          // point where the clock landed decide the move.
+          if complete then
+            evaluated += ((path, resultState, value, lossTainted))
+            completed += 1
+          else
+            abandoned += 1
+            continue = false // the deadline is already past; starting another candidate cannot finish either
           i += 1
-          // Always finish the top candidate, then stop as soon as the deadline has passed.
-          if i < candidates.length && System.nanoTime() >= deadlineNanos then continue = false
-        statsSink(RootSearchStats(paths.size, candidates.length, i))
+          if continue && timed(deadlineNanos) && System.nanoTime() >= deadlineNanos then continue = false
+        statsSink(RootSearchStats(paths.size, candidates.length, completed, abandoned))
         val results = evaluated.result()
-        val scores  = rootRescore match
-          case None                                   => results.map { case (path, _, value, _) => path -> value }
-          case Some(RootRescore(rescoreEval, weight)) =>
-            val states   = results.map(_._2).toArray
-            val rescored = rescoreEval(states, myColor)
-            results.zip(rescored).map { case ((path, _, value, lossTainted), rescoreValue) =>
-              // A line where every roll loses our king outright must never be masked by a favorable rescore —
-              // LossValue sits below any real evaluator scale precisely so it always ranks last (see RootRescore).
-              val blended = if lossTainted then value else (1 - weight) * value + weight * rescoreValue
-              path -> blended
-            }
-        val bestQ = scores.map(_._2).max
-        val best  = scores.collect { case (path, q) if q == bestQ => path }
-        Some(ScoredSequence(best(random.nextInt(best.length)), bestQ.toInt))
+        // The deadline elapsed inside the very first candidate, so nothing has a comparable value yet. The anytime
+        // contract still owes a legal turn: play the pre-ranker's own top pick, scored as the pre-ranker scored it.
+        if results.isEmpty then Some(ScoredSequence(candidates(0)._1, topPreRankScore))
+        else
+          val scores = rootRescore match
+            case None                                   => results.map { case (path, _, value, _) => path -> value }
+            case Some(RootRescore(rescoreEval, weight)) =>
+              val states   = results.map(_._2).toArray
+              val rescored = rescoreEval(states, myColor)
+              results.zip(rescored).map { case ((path, _, value, lossTainted), rescoreValue) =>
+                // A line where every roll loses our king outright must never be masked by a favorable rescore —
+                // LossValue sits below any real evaluator scale precisely so it always ranks last (see RootRescore).
+                val blended = if lossTainted then value else (1 - weight) * value + weight * rescoreValue
+                path -> blended
+              }
+          val bestQ = scores.map(_._2).max
+          val best  = scores.collect { case (path, q) if q == bestQ => path }
+          Some(ScoredSequence(best(random.nextInt(best.length)), bestQ.toInt))
 
   /** The expectation, over the 56 weighted dice outcomes, of the opponent's best reply value (from `myColor`'s view),
     * alongside whether any single roll forced [[LossValue]] (the opponent capturing our king outright) — tracked
     * precisely per roll (an exact match against the sentinel, not a threshold on the weighted average) so
     * [[RootRescore]] can never rescue a line that is lost on even one roll, however small its weight.
     *
+    * The third element says whether every weighted roll was processed before `deadlineNanos`. `false` means the
+    * expansion was cut short, so the accumulated value is a partial expectation over an arbitrary prefix of the roll
+    * order — the caller must discard it rather than rank it against complete ones (#496).
+    *
     * @param oppToMove
     *   position after our turn: the opponent is to move and the dice pool is empty.
+    * @param deadlineNanos
+    *   [[ExpectimaxSearch.NoDeadline]] for the untimed path, which skips the clock entirely
     */
-  private def chanceNodeValue(oppToMove: GameState, myColor: Color): (Double, Boolean) =
+  private def chanceNodeValue(oppToMove: GameState, myColor: Color, deadlineNanos: Long): (Double, Boolean, Boolean) =
+    val checkClock  = timed(deadlineNanos)
     var acc         = 0.0
     var lossTainted = false
     var i           = 0
-    while i < DiceRolls.weighted.length do
-      val (roll, weight) = DiceRolls.weighted(i)
-      val rolled         = oppToMove.withDicePool(roll)
-      val replies        = TurnGenerator.generateAllLegalTurnPaths(rolled)
-      val rollValue      =
-        // A forced pass still ends the opponent's (empty) turn and hands the move back to us, so the leaf is
-        // `oppToMove.endTurn()` — our turn — consistent with every other leaf, not `oppToMove` (still their turn).
-        // Material is blind to the difference, but an evaluator that reads side-to-move, en passant, or move counters
-        // would otherwise score the wrong position.
-        if replies.isEmpty then evalOne(oppToMove.endTurn(), myColor)
-        else opponentMinValue(rolled, replies, myColor)
-      if rollValue == LossValue then lossTainted = true
-      acc += (weight.toDouble / DiceRolls.totalOrderedRolls) * rollValue
-      i += 1
-    (acc, lossTainted)
+    var cut         = false
+    while i < DiceRolls.weighted.length && !cut do
+      // Between rolls is the finest yield point this search has: one roll is ~1/56 of a candidate, where the
+      // candidate itself routinely outlasts a whole per-move budget (measured 6.5s median against a 1.9s
+      // allocation at K=24 on one core, #496). Checking here is what makes the deadline contract true in practice.
+      if checkClock && System.nanoTime() >= deadlineNanos then cut = true
+      else
+        val (roll, weight) = DiceRolls.weighted(i)
+        val rolled         = oppToMove.withDicePool(roll)
+        val replies        = TurnGenerator.generateAllLegalTurnPaths(rolled)
+        val rollValue      =
+          // A forced pass still ends the opponent's (empty) turn and hands the move back to us, so the leaf is
+          // `oppToMove.endTurn()` — our turn — consistent with every other leaf, not `oppToMove` (still their turn).
+          // Material is blind to the difference, but an evaluator that reads side-to-move, en passant, or move
+          // counters would otherwise score the wrong position.
+          if replies.isEmpty then evalOne(oppToMove.endTurn(), myColor)
+          else opponentMinValue(rolled, replies, myColor)
+        if rollValue == LossValue then lossTainted = true
+        acc += (weight.toDouble / DiceRolls.totalOrderedRolls) * rollValue
+        i += 1
+    (acc, lossTainted, !cut)
 
   /** The opponent picks the reply that is worst for us. A reply capturing our king is worst of all ([[LossValue]]);
     * otherwise the resulting leaves are scored in one batch and the minimum is taken.
@@ -244,6 +295,12 @@ object ExpectimaxSearch:
 
   /** Sentinel deadline for the un-timed entry points: `System.nanoTime()` never reaches it in practice. */
   private val NoDeadline: Long = Long.MaxValue
+
+  /** Whether a real deadline was supplied. Guarding every clock read with this keeps the untimed path free of
+    * `System.nanoTime()` syscalls entirely — the per-roll check added for #496 must not tax the arena, whose
+    * reproducibility and benchmarks both live on that path.
+    */
+  private inline def timed(deadlineNanos: Long): Boolean = deadlineNanos != NoDeadline
 
   /** Default stats sink: discard. `private[search]` so JVM-only wiring (e.g. [[OnnxExpectimaxSearch]]) can name the
     * same default instead of re-inventing its own no-op.
