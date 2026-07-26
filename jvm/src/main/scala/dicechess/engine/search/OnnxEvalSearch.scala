@@ -101,31 +101,45 @@ class OnnxEvalSearch(
       val captures  = preScored.filter(_.score == SearchScoring.TerminalWinScore)
       if captures.nonEmpty then Some(captures.minBy(_.moves.size))
       else
-        val myColor     = state.activeColor
-        val pathsArr    = paths.toArray
-        val finalStates = pathsArr.map(path => path.foldLeft(state)((s, move) => s.makeMove(move)).endTurn())
-        var bestScore   = Int.MinValue
-        var bestPaths   = List.empty[List[Move]]
-        var i           = 0
-        var cut         = false
-        while i < finalStates.length && !cut do
-          if System.nanoTime() >= deadlineNanos then cut = true
-          else
-            val end    = math.min(i + OnnxEvalSearch.BatchSize, finalStates.length)
-            val scores = onnxEvalBatch(finalStates.slice(i, end), myColor)
-            var j      = 0
-            while j < scores.length do
-              val score = scores(j)
-              if score > bestScore then
-                bestScore = score
-                bestPaths = List(pathsArr(i + j))
-              else if score == bestScore then bestPaths = pathsArr(i + j) :: bestPaths
-              j += 1
-            i = end
+        val myColor                = state.activeColor
+        val pathsArr               = paths.toArray
+        val finalStates            = pathsArr.map(path => path.foldLeft(state)((s, move) => s.makeMove(move)).endTurn())
+        val (bestScore, bestPaths) = scoreChunksUnderDeadline(finalStates, pathsArr, myColor, deadlineNanos)
         // The deadline elapsed before even the first chunk: fall back to the cheap material pick, exactly as
         // MonteCarloSearch's deadline path does, so a legal turn is still returned.
         if bestPaths.isEmpty then Some(preScored.maxBy(_.score))
         else Some(ScoredSequence(bestPaths(random.nextInt(bestPaths.length)), bestScore))
+
+  /** Scores `finalStates` (one non-capturing candidate's resulting position each, same index as `pathsArr`) through the
+    * model [[OnnxEvalSearch.BatchSize]] rows at a time, stopping before starting a chunk that would begin at or after
+    * `deadlineNanos` — the chunk, not the whole array, is this loop's unit of uninterruptible work.
+    *
+    * @return
+    *   the best score found and every path achieving it (so the caller can break ties via `random`, matching the
+    *   untimed path), or `(Int.MinValue, Nil)` when the deadline elapsed before a single chunk could run.
+    */
+  private def scoreChunksUnderDeadline(
+      finalStates: Array[GameState],
+      pathsArr: Array[List[Move]],
+      myColor: Color,
+      deadlineNanos: Long
+  ): (Int, List[List[Move]]) =
+    var bestScore = Int.MinValue
+    var bestPaths = List.empty[List[Move]]
+    var i         = 0
+    while i < finalStates.length && System.nanoTime() < deadlineNanos do
+      val end    = math.min(i + OnnxEvalSearch.BatchSize, finalStates.length)
+      val scores = onnxEvalBatch(finalStates.slice(i, end), myColor)
+      var j      = 0
+      while j < scores.length do
+        val score = scores(j)
+        if score > bestScore then
+          bestScore = score
+          bestPaths = List(pathsArr(i + j))
+        else if score == bestScore then bestPaths = pathsArr(i + j) :: bestPaths
+        j += 1
+      i = end
+    (bestScore, bestPaths)
 
   override def close(): Unit = session.close()
 
