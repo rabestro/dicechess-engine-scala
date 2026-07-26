@@ -125,9 +125,18 @@ final class ExpectimaxSearch(
 
   /** Finds the best turn under a wall-clock deadline.
     *
-    * Candidates are expanded in material-ranked order; the top one is always evaluated, and the deadline is honoured
-    * between candidates thereafter, so the result is the best turn found so far when time runs out (anytime search).
-    * This matters because a single roll can generate thousands of opponent replies (the Dice Chess branching tail).
+    * Candidates are expanded in material-ranked order, and the deadline is honoured **between dice rolls inside** a
+    * candidate's chance node — not merely between candidates. Even the top candidate can therefore be abandoned before
+    * it yields a comparable value, which is the point: one candidate routinely costs more than the whole per-turn
+    * budget, so a coarser check made the deadline advisory rather than binding (#496).
+    *
+    * The result is the best *completed* candidate, or — when the deadline left no candidate time to finish — the
+    * pre-ranker's own top pick, so the anytime contract still delivers a legal turn. A partially expanded candidate is
+    * never ranked: its expectation covers only the rolls the clock allowed, so comparing it against complete ones would
+    * let the instant the deadline landed choose the move. [[RootSearchStats]] reports both cases.
+    *
+    * All of this matters because a single roll can generate thousands of opponent replies (the Dice Chess branching
+    * tail).
     */
   override def findBestMove(state: GameState, deadlineNanos: Long, random: Random): Option[ScoredSequence] =
     val myColor = state.activeColor
@@ -208,8 +217,14 @@ final class ExpectimaxSearch(
     * precisely per roll (an exact match against the sentinel, not a threshold on the weighted average) so
     * [[RootRescore]] can never rescue a line that is lost on even one roll, however small its weight.
     *
+    * The third element says whether every weighted roll was processed before `deadlineNanos`. `false` means the
+    * expansion was cut short, so the accumulated value is a partial expectation over an arbitrary prefix of the roll
+    * order — the caller must discard it rather than rank it against complete ones (#496).
+    *
     * @param oppToMove
     *   position after our turn: the opponent is to move and the dice pool is empty.
+    * @param deadlineNanos
+    *   [[ExpectimaxSearch.NoDeadline]] for the untimed path, which skips the clock entirely
     */
   private def chanceNodeValue(oppToMove: GameState, myColor: Color, deadlineNanos: Long): (Double, Boolean, Boolean) =
     val checkClock  = timed(deadlineNanos)

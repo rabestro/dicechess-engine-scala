@@ -71,8 +71,8 @@ class ExpectimaxSearchSpec extends FunSuite:
     assert(ExpectimaxSearch(checkingBatch).findBestMove(state, Random(0)).isDefined)
 
   test("honours an already-elapsed deadline and still returns a legal turn"):
-    // Anytime contract: even past the deadline the top material-ranked candidate is evaluated, so a legal turn
-    // always comes back (the exact turn under a deadline is non-deterministic and not asserted).
+    // Anytime contract: past the deadline no candidate can be expanded at all, so the turn comes from the pre-ranker
+    // — but a legal turn always comes back (the exact turn under a deadline is non-deterministic and not asserted).
     val state = parse("1r4k1/p4ppp/8/8/8/8/5PPP/R5K1 w - - 0 1").withDicePool(List(2, 2, 4))
     assert(search().findBestMove(state, System.nanoTime(), Random(0)).isDefined)
 
