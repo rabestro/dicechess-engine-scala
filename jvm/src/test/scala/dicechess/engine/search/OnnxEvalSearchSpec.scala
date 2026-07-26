@@ -102,25 +102,32 @@ class OnnxEvalSearchSpec extends FunSuite:
   test(
     "findBestMove(deadline) returns the best candidate scored before the deadline cuts the remaining chunks (#497)"
   ) {
-    // Burns wall-clock time on every chunk after the first, so a deadline sized to survive exactly one chunk proves
-    // the loop's interruption unit is a chunk, not the whole candidate set (mirrors ExpectimaxSearchSpec's
-    // "abandoned mid-list" test, here via subclassing since onnxEvalBatch isn't an injectable constructor parameter).
-    val burnPerChunkMs = 200L
+    // Burns a fixed, controlled amount of wall-clock time on EVERY chunk (not just the ones after the first) so the
+    // total cost of k chunks has a hard floor of k * burnPerChunkMs regardless of the machine's real ONNX latency —
+    // an exact chunk count would otherwise be flaky (a cold JVM's first, unburned ONNX call can itself take longer
+    // than a short deadline on a loaded CI runner, which is exactly what happened here once). Mirrors
+    // ExpectimaxSearchSpec's "abandoned mid-list" test, here via subclassing since onnxEvalBatch isn't an injectable
+    // constructor parameter.
+    val burnPerChunkMs = 60L
     var chunkCalls     = 0
     val bot            = new OnnxEvalSearch(modelPath) {
       override def onnxEvalBatch(states: Array[GameState], color: Color): Array[Int] =
         chunkCalls += 1
-        if chunkCalls > 1 then
-          val until = System.nanoTime() + burnPerChunkMs * 1_000_000L
-          while System.nanoTime() < until do ()
+        val until = System.nanoTime() + burnPerChunkMs * 1_000_000L
+        while System.nanoTime() < until do ()
         super.onnxEvalBatch(states, color)
     }
+    val totalChunks = math.ceil(268.0 / OnnxEvalSearch.BatchSize).toInt
     try
-      val deadline = System.nanoTime() + 100_000_000L // 100ms: enough for chunk 1, not chunk 2's 200ms burn
+      // 150ms: comfortably more than one 60ms-burn chunk, comfortably less than totalChunks * 60ms (540ms).
+      val deadline = System.nanoTime() + 150_000_000L
       val result   = bot.findBestMove(wideBranchingState, deadline, scala.util.Random(0))
       assert(result.isDefined)
       assert(result.get.moves.nonEmpty)
-      // Chunk 2's 200ms burn alone exceeds the 100ms deadline, so chunk 3 can never start: exactly 2 calls in every run.
-      assertEquals(chunkCalls, 2)
+      assert(chunkCalls >= 1, "expected at least one chunk to complete before the deadline")
+      assert(
+        chunkCalls < totalChunks,
+        s"expected the deadline to cut off before all $totalChunks chunks ran, got $chunkCalls"
+      )
     finally bot.close()
   }
