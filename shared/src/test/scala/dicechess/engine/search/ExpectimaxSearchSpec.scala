@@ -240,3 +240,33 @@ class ExpectimaxSearchSpec extends FunSuite:
     val bot   = ExpectimaxSearch(materialBatch, statsSink = s => seen = s :: seen)
     assertEquals(bot.findBestMove(state, Random(0)), None)
     assertEquals(seen, List(RootSearchStats(0, 0, 0)))
+
+  test("chance-node leaves reach the evaluator deduplicated, and the value is unchanged (#505)"):
+    // Dice Chess turns are 1-3 micro-moves, so independent micro-moves played in either order reach the same board.
+    // Those duplicates used to be scored once per path; now the evaluator sees each distinct position once.
+    val state = parse("1r4k1/p4ppp/8/8/8/8/5PPP/R5K1 w - - 0 1").withDicePool(List(2, 2, 4))
+
+    var batches                                                 = List.empty[Seq[String]]
+    val recordingBatch: (Array[GameState], Color) => Array[Int] = (states, color) =>
+      batches = states.toSeq.map(FenParser.serialize) :: batches
+      materialBatch(states, color)
+
+    val deduped  = ExpectimaxSearch(recordingBatch).findBestMove(state, Random(11)).map(s => uci(s.moves))
+    val expected = search().findBestMove(state, Random(11)).map(s => uci(s.moves))
+
+    // The minimum over a multiset equals the minimum over its distinct elements, so dedup cannot move the value.
+    assertEquals(deduped, expected, "deduplication must not change the chosen turn")
+
+    assert(batches.nonEmpty, "the evaluator was never called — the fixture does not exercise a chance node")
+    batches.foreach: leaves =>
+      assertEquals(
+        leaves.distinct.size,
+        leaves.size,
+        s"a batch reached the evaluator with duplicate positions: $leaves"
+      )
+    // Guards against a vacuous pass: this fixture must actually contain reorderings, or the assertion above proves
+    // nothing about deduplication.
+    assert(
+      batches.exists(_.size > 1),
+      "no multi-leaf batch was produced, so distinctness within a batch is trivially true"
+    )
