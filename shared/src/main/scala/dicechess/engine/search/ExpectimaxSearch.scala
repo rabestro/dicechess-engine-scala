@@ -255,11 +255,18 @@ final class ExpectimaxSearch(
 
   /** The opponent picks the reply that is worst for us. A reply capturing our king is worst of all ([[LossValue]]);
     * otherwise the resulting leaves are scored in one batch and the minimum is taken.
+    *
+    * Leaves are **deduplicated by position** before scoring. Dice Chess turns are 1–3 micro-moves, and reordering
+    * independent micro-moves reaches the same board — measured at ~78% duplicate leaves per chance node, i.e. only
+    * about a fifth of the generated replies are distinct positions. Since the value taken here is a minimum, and the
+    * minimum over a multiset equals the minimum over its distinct elements, dropping duplicates is exact: the returned
+    * value is unchanged, only the evaluator does less work. This matters because the evaluator is the search's dominant
+    * cost (a trained model behind a JNI call), while the deduplication is a hash per leaf.
     */
   private def opponentMinValue(rolled: GameState, replies: List[List[Move]], myColor: Color): Double =
     if replies.exists(reply => capturesEnemyKing(rolled, reply)) then LossValue
     else
-      val leaves = replies.iterator.map(reply => applyTurn(rolled, reply)).toArray
+      val leaves = distinctLeaves(replies.iterator.map(reply => applyTurn(rolled, reply)).toArray)
       val scores = evalBatch(leaves, myColor)
       var min    = Int.MaxValue
       var i      = 0
@@ -267,6 +274,90 @@ final class ExpectimaxSearch(
         if scores(i) < min then min = scores(i)
         i += 1
       min.toDouble
+
+  /** The distinct positions among `leaves`, in first-seen order.
+    *
+    * **Mutates `leaves`**, compacting the distinct entries into its front. That is safe only because the caller builds
+    * the array immediately before the call and never looks at it again, and it is worth the sharper contract on a path
+    * that runs once per dice roll per candidate: the obvious version — write into a second full-length array, then
+    * slice — allocates an extra array the size of the whole reply list every time, and with ~78% duplicates that array
+    * is discarded almost immediately. Compaction is safe in place because the write index never overtakes the read
+    * index (`count <= i` throughout), so no unread element is ever overwritten.
+    *
+    * Returns `leaves` itself when nothing was duplicated, so the no-op case allocates nothing at all.
+    */
+  private def distinctLeaves(leaves: Array[GameState]): Array[GameState] =
+    val seen  = new scala.collection.mutable.HashSet[LeafKey](leaves.length * 2, 0.75)
+    var count = 0
+    var i     = 0
+    while i < leaves.length do
+      val leaf = leaves(i)
+      if seen.add(leafKey(leaf)) then
+        leaves(count) = leaf
+        count += 1
+      i += 1
+    if count == leaves.length then leaves else leaves.slice(0, count)
+
+  /** A leaf's exact identity for deduplication.
+    *
+    * Exactness is the whole point: a key that merged two genuinely different positions could discard the one holding
+    * the minimum and silently change the search's value, so this carries every field that distinguishes a position for
+    * an arbitrary evaluator. [[GameState]] itself cannot serve as the key — its `mailbox` is an `IArray`, which
+    * compares by reference, so equal positions built by different move orders would never match.
+    *
+    * `mailbox` is omitted because it is a redundant index over the same eight bitboards, not independent state. `flags`
+    * is included as a whole: it packs castling rights and the half-move clock, both of which genuinely differ between
+    * replies (a capture resets the clock, a quiet move does not). `fullMoveNumber` is constant across one chance node's
+    * leaves today — all of them come from the same base position — but is kept in the key so this stays a complete
+    * position identity rather than one that depends on the caller's invariants.
+    */
+  final private case class LeafKey(
+      white: Long,
+      black: Long,
+      pawns: Long,
+      knights: Long,
+      bishops: Long,
+      rooks: Long,
+      queens: Long,
+      kings: Long,
+      enPassant: Long,
+      flags: Int,
+      fullMoveNumber: Int
+  ):
+    /** Hand-written because the generated one is unaffordable here: a derived case-class `hashCode` hashes through
+      * `productElement`, which returns `Any` and therefore **boxes all eleven primitive fields on every call** — an
+      * allocation storm on a path that runs once per leaf, tens of thousands of times per chance node. Mixing the
+      * fields directly in `Long` arithmetic keeps the whole computation in registers. The generated `equals` is left
+      * alone: it compares fields in their primitive types and does not box.
+      */
+    override def hashCode: Int =
+      var h = white
+      h = h * 31 + black
+      h = h * 31 + pawns
+      h = h * 31 + knights
+      h = h * 31 + bishops
+      h = h * 31 + rooks
+      h = h * 31 + queens
+      h = h * 31 + kings
+      h = h * 31 + enPassant
+      h = h * 31 + flags
+      h = h * 31 + fullMoveNumber
+      (h ^ (h >>> 32)).toInt
+
+  private def leafKey(state: GameState): LeafKey =
+    LeafKey(
+      state.whitePieces.value,
+      state.blackPieces.value,
+      state.pawns.value,
+      state.knights.value,
+      state.bishops.value,
+      state.rooks.value,
+      state.queens.value,
+      state.kings.value,
+      state.enPassant.value,
+      state.flags.value,
+      state.fullMoveNumber
+    )
 
   /** Plays every micro-move of `path` (the active color is preserved within a turn) and ends the turn, yielding the
     * position with the other side to move and an empty dice pool.
