@@ -275,21 +275,28 @@ final class ExpectimaxSearch(
         i += 1
       min.toDouble
 
-  /** The distinct positions among `leaves`, in first-seen order; returns `leaves` itself when nothing is duplicated, so
-    * the common no-op case allocates no second array.
+  /** The distinct positions among `leaves`, in first-seen order.
+    *
+    * **Mutates `leaves`**, compacting the distinct entries into its front. That is safe only because the caller builds
+    * the array immediately before the call and never looks at it again, and it is worth the sharper contract on a path
+    * that runs once per dice roll per candidate: the obvious version — write into a second full-length array, then
+    * slice — allocates an extra array the size of the whole reply list every time, and with ~78% duplicates that array
+    * is discarded almost immediately. Compaction is safe in place because the write index never overtakes the read
+    * index (`count <= i` throughout), so no unread element is ever overwritten.
+    *
+    * Returns `leaves` itself when nothing was duplicated, so the no-op case allocates nothing at all.
     */
   private def distinctLeaves(leaves: Array[GameState]): Array[GameState] =
-    val seen   = new scala.collection.mutable.HashSet[LeafKey](leaves.length * 2, 0.75)
-    val unique = new Array[GameState](leaves.length)
-    var count  = 0
-    var i      = 0
+    val seen  = new scala.collection.mutable.HashSet[LeafKey](leaves.length * 2, 0.75)
+    var count = 0
+    var i     = 0
     while i < leaves.length do
       val leaf = leaves(i)
       if seen.add(leafKey(leaf)) then
-        unique(count) = leaf
+        leaves(count) = leaf
         count += 1
       i += 1
-    if count == leaves.length then leaves else unique.slice(0, count)
+    if count == leaves.length then leaves else leaves.slice(0, count)
 
   /** A leaf's exact identity for deduplication.
     *
