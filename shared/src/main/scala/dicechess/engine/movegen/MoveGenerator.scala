@@ -332,6 +332,11 @@ object MoveGenerator {
     *
     * Used for castling path safety and king-in-check detection.
     *
+    * '''The early exit is a contract, not an optimization detail''': the result is the attackers of the first matching
+    * type only, so `.count` on it is NOT the number of pieces attacking `sq`. Use [[allAttackers]] when the complete
+    * set matters (counting defenders, counting distinct attacker types); use this one when the question is merely
+    * whether the square is attacked at all, and stopping early is the point.
+    *
     * @param state
     *   current game state
     * @param sq
@@ -370,5 +375,44 @@ object MoveGenerator {
     if !kingAttacks.isEmpty then break(kingAttacks)
 
     Bitboard.empty
+  }
+
+  /** Returns '''every''' `attackerColor` piece that attacks `sq` — the complete counterpart to [[isSquareAttacked]],
+    * which stops at the first matching piece type.
+    *
+    * The result is a set of ''occupied squares'', so every attacking piece contributes exactly one bit: `.count` is the
+    * honest number of attacking pieces, and intersecting the result with the per-type bitboards (`state.pawns`,
+    * `state.knights`, …) yields how many ''distinct types'' attack the square. The five per-type sets are combined with
+    * a bitboard union rather than by summing counts, which is what makes that guarantee hold for queens — they belong
+    * to both the diagonal and the orthogonal attacker mask, so only a union keeps them from being counted twice.
+    *
+    * Attack geometry only: whose turn it is does not matter, and neither does whether a capture would be a good idea.
+    * Pins are deliberately not modelled — in Dice Chess the game ends by capturing the king, so a "pinned" piece may
+    * legally move and its attacks are real (the same reasoning `PieceSafety` documents for its en-prise definition).
+    *
+    * Costs strictly more than [[isSquareAttacked]] on an attacked square, since no branch can be skipped; prefer that
+    * one whenever a boolean answer is enough.
+    *
+    * @param state
+    *   current game state
+    * @param sq
+    *   the square to test
+    * @param attackerColor
+    *   the color whose pieces may be attacking `sq`
+    * @return
+    *   bitboard of every attacking piece, or [[Bitboard.empty]] if the square is not attacked
+    */
+  def allAttackers(state: GameState, sq: Square, attackerColor: Color): Bitboard = {
+    val allPieces = state.whitePieces | state.blackPieces
+    val attackers = if attackerColor.isWhite then state.whitePieces else state.blackPieces
+    val target    = Bitboard.fromSquare(sq)
+
+    val pawns   = PawnGeneration.anyAttacks(target, attackerColor.opponent) & attackers & state.pawns
+    val knights = LeaperAttacks.knightAttacksFor(sq) & attackers & state.knights
+    val bishops = MagicBitboards.bishopAttacks(sq, allPieces) & attackers & (state.bishops | state.queens)
+    val rooks   = MagicBitboards.rookAttacks(sq, allPieces) & attackers & (state.rooks | state.queens)
+    val kings   = LeaperAttacks.kingAttacksFor(sq) & attackers & state.kings
+
+    pawns | knights | bishops | rooks | kings
   }
 }
