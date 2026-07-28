@@ -1,7 +1,7 @@
 import org.scalajs.linker.interface.ESVersion
 
 ThisBuild / organization := "lv.id.jc"
-ThisBuild / version      := "1.10.7-SNAPSHOT"
+ThisBuild / version      := "1.11.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.8.4"
 
 ThisBuild / description := "High-performance Dice Chess engine and probability calculator in Scala 3."
