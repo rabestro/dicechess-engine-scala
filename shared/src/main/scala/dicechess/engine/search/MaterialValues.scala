@@ -25,11 +25,20 @@ package dicechess.engine.search
   */
 object MaterialValues:
 
-  val Pawn: Int   = 100
-  val Knight: Int = 300
-  val Bishop: Int = 300
-  val Rook: Int   = 500
-  val Queen: Int  = 900
+  // `inline val`, not `val`: these are read inside `Evaluator.scoreBitboard` and `PieceSafety.materialOn`, both on the
+  // evaluation hot path, and a plain `val` in an object is a getter call that only the JIT can fold away. Inlining
+  // makes them compile-time constants, so the emitted bytecode is identical to the literals they replaced — the
+  // zero-cost-abstraction rule this repo applies to `movegen/` and `search/`.
+  //
+  // The trade-off is deliberate: an inline constant is baked into DOWNSTREAM bytecode, so a consumer of the published
+  // artifact keeps the old number until it recompiles. Acceptable for a scale that is not expected to move, and
+  // downstream recompiles on every version bump anyway.
+  // (No `: Int` annotations — an inline value must have a literal constant type, so the singleton types are the point.)
+  inline val Pawn   = 100
+  inline val Knight = 300
+  inline val Bishop = 300
+  inline val Rook   = 500
+  inline val Queen  = 900
 
   /** Above the summed value of an entire starting army, so no capture sequence can price a king loss as acceptable. */
-  val King: Int = 10000
+  inline val King = 10000
