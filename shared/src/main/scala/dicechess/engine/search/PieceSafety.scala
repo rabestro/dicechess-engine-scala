@@ -44,16 +44,17 @@ object PieceSafety:
       remaining &= remaining - 1
     hanging
 
-  /** Total centipawn value of the pieces standing on `squares` — same scale as [[Evaluator.evaluateMaterial]] (pawn 100
-    * … queen 900; a king contributes nothing here because [[hangingSquares]] never yields one, and material scores
-    * never price the king).
+  /** Total centipawn value of the pieces standing on `squares`, priced from [[MaterialValues]] — the same scale
+    * [[Evaluator.evaluateMaterial]] works in, which is what makes this number comparable against an evaluation. Kings
+    * are absent from the sum on purpose: [[hangingSquares]] never yields one, so [[MaterialValues.King]] would only be
+    * reachable by a caller passing arbitrary squares, and pricing a king as hanging material is meaningless anyway.
     */
   def materialOn(state: GameState, squares: Bitboard): Int =
-    (squares & state.pawns).count * 100 +
-      (squares & state.knights).count * 300 +
-      (squares & state.bishops).count * 300 +
-      (squares & state.rooks).count * 500 +
-      (squares & state.queens).count * 900
+    (squares & state.pawns).count * MaterialValues.Pawn +
+      (squares & state.knights).count * MaterialValues.Knight +
+      (squares & state.bishops).count * MaterialValues.Bishop +
+      (squares & state.rooks).count * MaterialValues.Rook +
+      (squares & state.queens).count * MaterialValues.Queen
 
   /** Convenience composition: the centipawn value `side` currently has en prise. */
   def hangingMaterial(state: GameState, side: Color): Int =
