@@ -4,19 +4,9 @@ import dicechess.engine.domain.{Color, GameState, Bitboard}
 
 /** Evaluator for Dice Chess positions combining material balance and king safety.
   *
-  * Assigns piece values (in centipawns) and applies a significant penalty if the side's king is exposed to immediate
-  * capture. This helps greedy strategies avoid "material-greedy" blunders that lead to instant loss.
-  *
-  * ## Piece values
-  *
-  * | Piece  | Value |
-  * |:-------|------:|
-  * | Pawn   |   100 |
-  * | Knight |   300 |
-  * | Bishop |   300 |
-  * | Rook   |   500 |
-  * | Queen  |   900 |
-  * | King   | 10000 |
+  * Prices pieces from [[MaterialValues]] — the centipawn scale this shares with [[PieceSafety]]'s en-prise telemetry —
+  * and applies a significant penalty if the side's king is exposed to immediate capture. This helps greedy strategies
+  * avoid "material-greedy" blunders that lead to instant loss.
   */
 object Evaluator:
 
@@ -97,12 +87,12 @@ object Evaluator:
     */
   private def scoreBitboard(state: GameState, bb: Bitboard): Int =
     var s = 0
-    s += (bb & state.pawns).count * 100
-    s += (bb & state.knights).count * 300
-    s += (bb & state.bishops).count * 300
-    s += (bb & state.rooks).count * 500
-    s += (bb & state.queens).count * 900
-    s += (bb & state.kings).count * 10000
+    s += (bb & state.pawns).count * MaterialValues.Pawn
+    s += (bb & state.knights).count * MaterialValues.Knight
+    s += (bb & state.bishops).count * MaterialValues.Bishop
+    s += (bb & state.rooks).count * MaterialValues.Rook
+    s += (bb & state.queens).count * MaterialValues.Queen
+    s += (bb & state.kings).count * MaterialValues.King
     s
 
   /** Evaluates the position with aggressive (king hunt) heuristics for the given `color`.
