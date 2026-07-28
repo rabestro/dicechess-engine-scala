@@ -11,8 +11,8 @@ import scala.compiletime.uninitialized
   *
   * Two questions this measures. First, what the complete set costs relative to the early-exit variant on the same
   * square — the answer bounds how freely a per-square safety or defender term can be evaluated. Second, how that gap
-  * behaves on an ''unattacked'' square, where neither function can exit early and both must run all five branches:
-  * there the two should converge, which is the honest baseline for the comparison.
+  * behaves on an *unattacked* square, where neither function can exit early and both must run all five branches: there
+  * the two should converge, which is the honest baseline for the comparison.
   *
   * `d5` is the probed square in every position: contested in the middlegame fixtures, quiet in the sparse ones.
   */

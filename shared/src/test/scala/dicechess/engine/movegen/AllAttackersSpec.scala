@@ -54,6 +54,24 @@ class AllAttackersSpec extends FunSuite:
     val fen = "4k3/8/8/8/8/8/8/3QK3 w - - 0 1"
     assertEquals(MoveGenerator.allAttackers(parse(fen), Square.fromNotation("d4").get, Color.White).count, 1)
 
+  test("a full board: d2's four defenders in the initial position, across four piece types"):
+    // The densest position there is, where every slider mask is blocked almost immediately. White's d2 pawn is
+    // defended by the b1 knight, the c1 bishop, the d1 queen and the e1 king — four attackers of four different
+    // types. The c2/e2 pawns are NOT among them: pawns defend diagonally forward, so they cover d3, not d2.
+    val fen   = FenParser.InitialPosition
+    val state = parse(fen)
+    val d2    = Square.fromNotation("d2").get
+
+    assertEquals(attackersOf(fen, "d2", Color.White), Set("b1", "c1", "d1", "e1"))
+    assertEquals(MoveGenerator.allAttackers(state, d2, Color.White).count, 4)
+
+    // The same contrast as the sparse case, on a realistic board: knights are probed before sliders and the king, so
+    // the early-exit variant reports the knight alone.
+    assertEquals(notations(MoveGenerator.isSquareAttacked(state, d2, Color.White)), Set("b1"))
+
+    // Nothing black reaches across the untouched pawn walls.
+    assert(MoveGenerator.allAttackers(state, d2, Color.Black).isEmpty)
+
   test("a slider blocked by an occupying piece does not attack through it"):
     // The d1 rook's path to d5 is blocked by the white d3 pawn — and that pawn attacks c4/e4, never d5, so nothing
     // white attacks d5 at all.

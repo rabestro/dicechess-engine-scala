@@ -332,7 +332,7 @@ object MoveGenerator {
     *
     * Used for castling path safety and king-in-check detection.
     *
-    * '''The early exit is a contract, not an optimization detail''': the result is the attackers of the first matching
+    * **The early exit is a contract, not an optimization detail**: the result is the attackers of the first matching
     * type only, so `.count` on it is NOT the number of pieces attacking `sq`. Use [[allAttackers]] when the complete
     * set matters (counting defenders, counting distinct attacker types); use this one when the question is merely
     * whether the square is attacked at all, and stopping early is the point.
@@ -377,14 +377,14 @@ object MoveGenerator {
     Bitboard.empty
   }
 
-  /** Returns '''every''' `attackerColor` piece that attacks `sq` — the complete counterpart to [[isSquareAttacked]],
+  /** Returns **every** `attackerColor` piece that attacks `sq` — the complete counterpart to [[isSquareAttacked]],
     * which stops at the first matching piece type.
     *
-    * The result is a set of ''occupied squares'', so every attacking piece contributes exactly one bit: `.count` is the
+    * The result is a set of *occupied squares*, so every attacking piece contributes exactly one bit: `.count` is the
     * honest number of attacking pieces, and intersecting the result with the per-type bitboards (`state.pawns`,
-    * `state.knights`, …) yields how many ''distinct types'' attack the square. The five per-type sets are combined with
-    * a bitboard union rather than by summing counts, which is what makes that guarantee hold for queens — they belong
-    * to both the diagonal and the orthogonal attacker mask, so only a union keeps them from being counted twice.
+    * `state.knights`, …) yields how many *distinct types* attack the square. The five per-type sets are combined with a
+    * bitboard union rather than by summing counts, which is what makes that guarantee hold for queens — they belong to
+    * both the diagonal and the orthogonal attacker mask, so only a union keeps them from being counted twice.
     *
     * Attack geometry only: whose turn it is does not matter, and neither does whether a capture would be a good idea.
     * Pins are deliberately not modelled — in Dice Chess the game ends by capturing the king, so a "pinned" piece may
