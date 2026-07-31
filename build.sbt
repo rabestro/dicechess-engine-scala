@@ -68,7 +68,7 @@ lazy val root = crossProject(JSPlatform, JVMPlatform)
   .jvmSettings(
     // JVM-specific settings
     libraryDependencies += "org.jline"                 % "jline"       % "4.3.1",
-    libraryDependencies += "com.microsoft.onnxruntime" % "onnxruntime" % "1.27.0",
+    libraryDependencies += "com.microsoft.onnxruntime" % "onnxruntime" % "1.28.0",
     Compile / doc / scalacOptions ++= Seq(
       "-project",
       name.value,
