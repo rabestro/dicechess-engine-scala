@@ -16,16 +16,20 @@ package dicechess.engine.bench
   *      apart (e.g. `0, 1000, 2000, ...`) on separate cores or machines, and sum the tallies for K times the games in
   *      the same wall-clock time.
   *
+  * An optional `--json <path>` flag (anywhere in the arguments) additionally writes the machine-readable report from
+  * [[BotMatchRunner.timedReportJson]] to `path` — the human-readable table is always printed regardless.
+  *
   * Example: `sbt 'rootJVM/runMain dicechess.engine.bench.TimedArenaRunner monte-carlo aggressive 10 1+0,3+2,10+10'`
   */
 object TimedArenaRunner:
 
   def main(args: Array[String]): Unit =
-    val botId    = args.lift(0).getOrElse("monte-carlo")
-    val baseline = args.lift(1).getOrElse("aggressive")
-    val games    = args.lift(2).flatMap(_.toIntOption).getOrElse(10)
-    val presets  = args.lift(3).getOrElse("1+0,3+2,10+10")
-    val seed     = args.lift(4) match
+    val (positional, jsonPath) = BotMatchRunner.extractJsonPath(args)
+    val botId                  = positional.lift(0).getOrElse("monte-carlo")
+    val baseline               = positional.lift(1).getOrElse("aggressive")
+    val games                  = positional.lift(2).flatMap(_.toIntOption).getOrElse(10)
+    val presets                = positional.lift(3).getOrElse("1+0,3+2,10+10")
+    val seed                   = positional.lift(4) match
       case None       => 42L
       case Some(spec) => spec.toLongOption.getOrElse(sys.error(s"Invalid seed '$spec': not a valid Long"))
 
@@ -35,6 +39,9 @@ object TimedArenaRunner:
       val controls = parsePresets(presets)
       val results  = controls.map(tc => BotMatchRunner.runTimedMatch(botId, baseline, games, tc, seed = seed))
       BotMatchRunner.printTimedSummary(botId, baseline, results)
+      jsonPath.foreach { path =>
+        BotMatchRunner.writeJsonReport(path, BotMatchRunner.timedReportJson(botId, baseline, games, seed, results))
+      }
     catch
       case e: Exception =>
         System.err.println(e.getMessage)

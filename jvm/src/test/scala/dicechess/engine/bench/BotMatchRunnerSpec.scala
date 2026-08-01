@@ -211,3 +211,110 @@ class BotMatchRunnerSpec extends FunSuite:
     intercept[RuntimeException](BotMatchRunner.main(Array("greedy", "1", "not-a-long")))
     intercept[RuntimeException](TimedArenaRunner.main(Array("greedy", "random", "1", "6+0", "not-a-long")))
   }
+
+  // ---- Machine-readable report (#521) ----
+
+  test("extractJsonPath: absent flag, present flag, and a missing value") {
+    val (unchanged, absent) = BotMatchRunner.extractJsonPath(Array("greedy", "5"))
+    assertEquals(unchanged.toList, List("greedy", "5"))
+    assertEquals(absent, None)
+
+    val (positional, path) = BotMatchRunner.extractJsonPath(Array("greedy", "--json", "out.json", "5"))
+    assertEquals(positional.toList, List("greedy", "5"))
+    assertEquals(path, Some("out.json"))
+
+    intercept[RuntimeException](BotMatchRunner.extractJsonPath(Array("greedy", "--json")))
+  }
+
+  test("arenaReportJson: schema round-trips through render/parse") {
+    val baseInfo     = BotRegistry.availableBots.find(_.id == "greedy").getOrElse(fail("greedy not registered"))
+    val result       = BotMatchRunner.runMatch(AggressiveSearch, GreedySearch, 3)
+    val opponentInfo = BotRegistry.availableBots.find(_.id == "aggressive").getOrElse(fail("aggressive not registered"))
+    val json         =
+      BotMatchRunner.arenaReportJson(
+        "greedy",
+        baseInfo,
+        3,
+        7L,
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        List(opponentInfo -> result)
+      )
+
+    val parsed = Json.parse(Json.render(json)).getOrElse(fail("report did not render as valid JSON"))
+    assertEquals(parsed.field("kind").flatMap(_.asStr), Some("untimed_arena"))
+    assertEquals(parsed.field("baseBotId").flatMap(_.asStr), Some("greedy"))
+    assertEquals(parsed.field("gamesPerColor").flatMap(_.asNum), Some(3.0))
+    assertEquals(parsed.field("seed").flatMap(_.asNum), Some(7.0))
+
+    val matches = parsed.field("matches").flatMap(_.asArr).getOrElse(fail("matches missing"))
+    assertEquals(matches.size, 1)
+    val m = matches.head
+    assertEquals(m.field("opponentId").flatMap(_.asStr), Some("aggressive"))
+    assertEquals(m.field("totalGames").flatMap(_.asNum), Some(result.totalGames.toDouble))
+    val winsTotal = m.field("wins").flatMap(_.field("total")).flatMap(_.asNum)
+    assertEquals(winsTotal, Some((result.winsAsWhite + result.winsAsBlack).toDouble))
+    assert(m.field("hangTelemetry").flatMap(_.field("opponent")).flatMap(_.field("turns")).isDefined)
+    assert(m.field("hangTelemetry").flatMap(_.field("baseline")).flatMap(_.field("turns")).isDefined)
+  }
+
+  test("timedReportJson: schema round-trips through render/parse") {
+    val result = BotMatchRunner.runTimedMatch("greedy", "random", 2, TimeControl.ofSeconds(6, 0))
+    val json   = BotMatchRunner.timedReportJson("greedy", "random", 2, 42L, List(result))
+
+    val parsed = Json.parse(Json.render(json)).getOrElse(fail("report did not render as valid JSON"))
+    assertEquals(parsed.field("kind").flatMap(_.asStr), Some("timed_arena"))
+    assertEquals(parsed.field("botUnderTestId").flatMap(_.asStr), Some("greedy"))
+    assertEquals(parsed.field("baselineId").flatMap(_.asStr), Some("random"))
+
+    val results = parsed.field("results").flatMap(_.asArr).getOrElse(fail("results missing"))
+    assertEquals(results.size, 1)
+    val r = results.head
+    assertEquals(r.field("totalGames").flatMap(_.asNum), Some(result.totalGames.toDouble))
+    assertEquals(r.field("timeControl").flatMap(_.field("label")).flatMap(_.asStr), Some(result.timeControl.label))
+    assertEquals(r.field("flagCounts").flatMap(_.field("bot")).flatMap(_.asNum), Some(result.botTimeouts.toDouble))
+    assertEquals(r.field("latencyMs").flatMap(_.field("p50")).flatMap(_.asNum), Some(result.latency.p50Ms.toDouble))
+  }
+
+  test("--json: writes a parseable report and leaves the default table output unaffected") {
+    val untimedOut = java.nio.file.Files.createTempFile("arena-untimed", ".json")
+    val timedOut   = java.nio.file.Files.createTempFile("arena-timed", ".json")
+    try
+      // runArena directly with an explicit opponent — main() always sweeps every registered bot (including the
+      // rollout-heavy Monte-Carlo one) since it has no CLI arg to restrict the opponent, which would make this test
+      // needlessly slow without exercising any more of the --json wiring (main() only parses args and delegates).
+      BotMatchRunner.runArena(
+        "greedy",
+        Some("random"),
+        2,
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        seed = 7L,
+        jsonPath = Some(untimedOut.toString)
+      )
+      val untimed = Json.parse(java.nio.file.Files.readString(untimedOut)).getOrElse(fail("invalid untimed JSON"))
+      assertEquals(untimed.field("kind").flatMap(_.asStr), Some("untimed_arena"))
+
+      TimedArenaRunner.main(Array("greedy", "random", "1", "6+0", "--json", timedOut.toString))
+      val timed = Json.parse(java.nio.file.Files.readString(timedOut)).getOrElse(fail("invalid timed JSON"))
+      assertEquals(timed.field("kind").flatMap(_.asStr), Some("timed_arena"))
+
+      // Omitting --json (already exercised by the other main-invoking tests above) never touches the filesystem —
+      // the only file-writing path is gated behind the flag being present.
+    finally
+      java.nio.file.Files.deleteIfExists(untimedOut)
+      java.nio.file.Files.deleteIfExists(timedOut)
+  }
+
+  test("printSummaryTable/printTimedSummary: pin Locale.ROOT, so %f fields never render a comma decimal") {
+    val originalLocale = java.util.Locale.getDefault
+    val out            = new java.io.ByteArrayOutputStream()
+    try
+      java.util.Locale.setDefault(java.util.Locale.GERMANY)
+      Console.withOut(out) {
+        BotMatchRunner.runArena("greedy", Some("random"), 2, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+        val timed = BotMatchRunner.runTimedMatch("greedy", "random", 1, TimeControl.ofSeconds(6, 0))
+        BotMatchRunner.printTimedSummary("greedy", "random", List(timed))
+      }
+    finally java.util.Locale.setDefault(originalLocale)
+    val text = out.toString("UTF-8")
+    assert(!text.contains(","), s"expected no comma-decimal formatting under Locale.GERMANY, got:\n$text")
+  }
