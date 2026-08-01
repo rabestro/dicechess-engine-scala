@@ -16,6 +16,11 @@ package dicechess.engine.bench
   *      apart (e.g. `0, 1000, 2000, ...`) on separate cores or machines, and sum the tallies for K times the games in
   *      the same wall-clock time.
   *
+  * Either bot position also accepts an `http(s)://` URL: the opponent then lives behind the platform's webhook protocol
+  * and is driven by [[WebhookBot]] (#526) — deliveries are HMAC-signed with the secret from the
+  * `DICECHESS_WEBHOOK_SECRET` env var (required for webhook opponents; never passed on the command line), an ownership
+  * handshake runs before the first game, and the endpoint gets its full remaining clock per turn.
+  *
   * An optional `--json <path>` flag (anywhere in the arguments) additionally writes the machine-readable report from
   * [[BotMatchRunner.timedReportJson]] to `path` — the human-readable table is always printed regardless.
   *
