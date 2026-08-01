@@ -13,17 +13,32 @@ object BotMatchRunner:
 
   private val StartFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
+  /** @param args
+    *   `baseBotId` (default `greedy`), `gamesPerColor` (default `50`), and a trailing optional `seed` (default `42`).
+    *   Distinct seeds draw independent samples of the same matchup — run K shards with distinct seeds spaced at least
+    *   `gamesPerColor` apart (e.g. `0, 1000, 2000, ...`) on separate cores or machines, and sum the tallies for K times
+    *   the games in the same wall-clock time.
+    */
   def main(args: Array[String]): Unit =
     val baseBotId     = args.headOption.getOrElse("greedy")
     val gamesPerColor = args.lift(1).flatMap(_.toIntOption).getOrElse(50)
+    val seed          = args.lift(2) match
+      case None       => 42L
+      case Some(spec) => spec.toLongOption.getOrElse(sys.error(s"Invalid seed '$spec': not a valid Long"))
 
-    try runArena(baseBotId, None, gamesPerColor, StartFen)
+    try runArena(baseBotId, None, gamesPerColor, StartFen, seed)
     catch
       case e: Exception =>
         System.err.println(e.getMessage)
         sys.exit(1)
 
-  def runArena(baseBotId: String, opponentBotId: Option[String], gamesPerColor: Int, startFen: String): Unit =
+  def runArena(
+      baseBotId: String,
+      opponentBotId: Option[String],
+      gamesPerColor: Int,
+      startFen: String,
+      seed: Long = 42L
+  ): Unit =
     if gamesPerColor <= 0 then sys.error(s"Invalid gamesPerColor '$gamesPerColor'. Must be greater than 0.")
 
     val parsedFen =
@@ -59,24 +74,28 @@ object BotMatchRunner:
 
     val results = for opponentInfo <- opponents yield
       val opponentAlgo = BotRegistry.getAlgorithm(opponentInfo.id).get
-      val matchResult  = runMatch(opponentAlgo, baseAlgorithm, gamesPerColor, parsedFen)
+      val matchResult  = runMatch(opponentAlgo, baseAlgorithm, gamesPerColor, parsedFen, seed)
       (opponentInfo, matchResult)
 
     printSummaryTable(results)
 
   /** Package-private visibility (`private[bench]`) is utilized to expose match orchestration to [[BotMatchRunnerSpec]]
     * for verification of win rates and results aggregation, while keeping execution internal to the bench module.
+    *
+    * Seeded per game, mirroring [[runTimedMatch]]: dice for game `i` come from `Random(seed + i)` in both color phases
+    * (so a mirrored colour pair shares its dice), and each phase's bot tie-breaking gets its own stream (`Random(1000 +
+    * i)` / `Random(2000 + i)`). A whole run drawing from one shared stream would couple game `i`'s dice to when game
+    * `i − 1` ended, making two shards of the same matchup byte-identical; distinct seeds now draw independent samples
+    * for sharding a run across cores or machines — space shard seeds at least `gamesPerColor` apart (e.g.
+    * `0, 1000, 2000, ...`) so their `seed + i` dice ranges never overlap.
     */
   private[bench] def runMatch(
       opponentAlgo: SearchAlgorithm,
       baseAlgo: SearchAlgorithm,
       gamesPerColor: Int,
-      startFen: GameState = FenParser.parse(StartFen).toOption.get
+      startFen: GameState = FenParser.parse(StartFen).toOption.get,
+      seed: Long = 42L
   ): MatchResult =
-    // Two fixed seeds — one for the dice, one for the bots' tie-breaking — so a whole run is reproducible. Without
-    // seeding the bot source, each move drew a fresh unseeded Random and results swung several points run to run.
-    val diceRand      = new Random(42)
-    val botRand       = new Random(1000)
     var winsAsWhite   = 0
     var winsAsBlack   = 0
     var lossesAsWhite = 0
@@ -91,7 +110,9 @@ object BotMatchRunner:
     val startTime = System.currentTimeMillis()
 
     // 1. Play games with Opponent as White and Base Bot as Black
-    for _ <- 1 to gamesPerColor do
+    for i <- 0 until gamesPerColor do
+      val diceRand = new Random(seed + i)
+      val botRand  = new Random(1000 + i)
       simulateGame(opponentAlgo, baseAlgo, diceRand, botRand, startFen, opponentTally, baseTally) match
         case GameOutcome.Win(color) =>
           if color.isWhite then winsAsWhite += 1 else lossesAsWhite += 1
@@ -99,7 +120,9 @@ object BotMatchRunner:
           drawsAsWhite += 1
 
     // 2. Play games with Base Bot as White and Opponent as Black
-    for _ <- 1 to gamesPerColor do
+    for i <- 0 until gamesPerColor do
+      val diceRand = new Random(seed + i)
+      val botRand  = new Random(2000 + i)
       simulateGame(baseAlgo, opponentAlgo, diceRand, botRand, startFen, baseTally, opponentTally) match
         case GameOutcome.Win(color) =>
           if color.isBlack then winsAsBlack += 1 else lossesAsBlack += 1
@@ -296,13 +319,19 @@ object BotMatchRunner:
     *
     * The latency distribution keeps only the bot-under-test's [[TimeBudgetedSearch]] moves (filtered by side), so it
     * stays meaningful even in a configurable timed-vs-timed run.
+    *
+    * Dice for game `i` come from `Random(seed + i)` in both color phases; the bot's tie-breaking offsets (`1000 + i` /
+    * `2000 + i`) are unaffected by `seed`, so `seed == 42` (the default) reproduces this runner's pre-existing
+    * behaviour exactly. Distinct seeds draw independent samples of the same matchup — run K shards with distinct seeds
+    * spaced at least `gamesPerColor` apart (e.g. `0, 1000, 2000, ...`) and sum the tallies.
     */
   private[bench] def runTimedMatch(
       botUnderTestId: String,
       baselineId: String,
       gamesPerColor: Int,
       tc: TimeControl,
-      startState: GameState = FenParser.parse(StartFen).toOption.get
+      startState: GameState = FenParser.parse(StartFen).toOption.get,
+      seed: Long = 42L
   ): TimedMatchResult =
     val botAlgo  = BotRegistry.getAlgorithm(botUnderTestId).getOrElse(sys.error(s"Bot '$botUnderTestId' not found"))
     val baseAlgo = BotRegistry.getAlgorithm(baselineId).getOrElse(sys.error(s"Bot '$baselineId' not found"))
@@ -327,12 +356,12 @@ object BotMatchRunner:
 
     for i <- 0 until gamesPerColor do
       record(
-        simulateTimedGame(botAlgo, baseAlgo, new Random(42 + i), new Random(1000 + i), tc, startState),
+        simulateTimedGame(botAlgo, baseAlgo, new Random(seed + i), new Random(1000 + i), tc, startState),
         Color.White
       )
     for i <- 0 until gamesPerColor do
       record(
-        simulateTimedGame(baseAlgo, botAlgo, new Random(42 + i), new Random(2000 + i), tc, startState),
+        simulateTimedGame(baseAlgo, botAlgo, new Random(seed + i), new Random(2000 + i), tc, startState),
         Color.Black
       )
 

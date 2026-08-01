@@ -11,6 +11,10 @@ package dicechess.engine.bench
   *   1. `gamesPerColor` — games on each side, so total is `2 ×` this (default `10`)
   *   1. `presets` — comma-separated chess-clock controls in `minutes[+incrementSeconds]` notation, e.g. `1+0,3+2,10+10`
   *      (1-minute bullet; 3 min + 2 s; 10 min + 10 s) (default `1+0,3+2,10+10`)
+  *   1. `seed` — dice seed (default `42`, which reproduces this runner's original behaviour). Distinct seeds draw
+  *      independent samples of the same matchup — run K shards with distinct seeds spaced at least `gamesPerColor`
+  *      apart (e.g. `0, 1000, 2000, ...`) on separate cores or machines, and sum the tallies for K times the games in
+  *      the same wall-clock time.
   *
   * Example: `sbt 'rootJVM/runMain dicechess.engine.bench.TimedArenaRunner monte-carlo aggressive 10 1+0,3+2,10+10'`
   */
@@ -21,12 +25,15 @@ object TimedArenaRunner:
     val baseline = args.lift(1).getOrElse("aggressive")
     val games    = args.lift(2).flatMap(_.toIntOption).getOrElse(10)
     val presets  = args.lift(3).getOrElse("1+0,3+2,10+10")
+    val seed     = args.lift(4) match
+      case None       => 42L
+      case Some(spec) => spec.toLongOption.getOrElse(sys.error(s"Invalid seed '$spec': not a valid Long"))
 
     if games <= 0 then sys.error(s"gamesPerColor must be > 0, got $games")
 
     try
       val controls = parsePresets(presets)
-      val results  = controls.map(tc => BotMatchRunner.runTimedMatch(botId, baseline, games, tc))
+      val results  = controls.map(tc => BotMatchRunner.runTimedMatch(botId, baseline, games, tc, seed = seed))
       BotMatchRunner.printTimedSummary(botId, baseline, results)
     catch
       case e: Exception =>
