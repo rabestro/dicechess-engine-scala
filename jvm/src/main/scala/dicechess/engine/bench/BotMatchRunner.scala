@@ -342,6 +342,14 @@ object BotMatchRunner:
     * `2000 + i`) are unaffected by `seed`, so `seed == 42` (the default) reproduces this runner's pre-existing
     * behaviour exactly. Distinct seeds draw independent samples of the same matchup — run K shards with distinct seeds
     * spaced at least `gamesPerColor` apart (e.g. `0, 1000, 2000, ...`) and sum the tallies.
+    *
+    * When `sprtConfig` is supplied (#522), `gamesPerColor` becomes a CAP rather than a fixed count: the two games of
+    * mirrored-seed pair `i` (bot as White, bot as Black, same dice draw) are played together as one
+    * [[Sprt.Pentanomial]] observation, the LLR is updated, and the match stops as soon as [[Sprt.test]] returns a
+    * verdict other than [[Sprt.Verdict.Continue]] — or after `gamesPerColor` pairs if it never does. Without
+    * `sprtConfig`, every pair plays regardless of outcome, exactly as before; interleaving each pair's two games
+    * (rather than all bot-White games followed by all bot-Black games) does not change the resulting tallies or latency
+    * percentiles, since both are order-independent — see [[BotMatchRunnerSpec]] for the byte-identical check.
     */
   private[bench] def runTimedMatch(
       botUnderTestId: String,
@@ -349,7 +357,8 @@ object BotMatchRunner:
       gamesPerColor: Int,
       tc: TimeControl,
       startState: GameState = FenParser.parse(StartFen).toOption.get,
-      seed: Long = 42L
+      seed: Long = 42L,
+      sprtConfig: Option[SprtConfig] = None
   ): TimedMatchResult =
     val botAlgo  = BotRegistry.getAlgorithm(botUnderTestId).getOrElse(sys.error(s"Bot '$botUnderTestId' not found"))
     val baseAlgo = BotRegistry.getAlgorithm(baselineId).getOrElse(sys.error(s"Bot '$baselineId' not found"))
@@ -359,6 +368,9 @@ object BotMatchRunner:
     var draws            = 0
     var botTimeouts      = 0 // games the bot under test lost on time
     var baselineTimeouts = 0
+    var pairsPlayed      = 0
+    var pentanomial      = Sprt.Pentanomial.Empty
+    var sprtResult       = Option.empty[Sprt.Result]
     val latencies        = scala.collection.mutable.ListBuffer.empty[Long]
     val startTime        = System.currentTimeMillis()
 
@@ -372,27 +384,46 @@ object BotMatchRunner:
         if flagged == botColor then botTimeouts += 1 else baselineTimeouts += 1
       }
 
-    for i <- 0 until gamesPerColor do
-      record(
-        simulateTimedGame(botAlgo, baseAlgo, new Random(seed + i), new Random(1000 + i), tc, startState),
-        Color.White
-      )
-    for i <- 0 until gamesPerColor do
-      record(
-        simulateTimedGame(baseAlgo, botAlgo, new Random(seed + i), new Random(2000 + i), tc, startState),
-        Color.Black
-      )
+    def botScore(res: TimedGameResult, botColor: Color): Double = res.outcome match
+      case GameOutcome.Draw                    => 0.5
+      case GameOutcome.Win(c) if c == botColor => 1.0
+      case GameOutcome.Win(_)                  => 0.0
+
+    var i        = 0
+    var continue = true
+    while i < gamesPerColor && continue do
+      val whiteRes = simulateTimedGame(botAlgo, baseAlgo, new Random(seed + i), new Random(1000 + i), tc, startState)
+      val blackRes = simulateTimedGame(baseAlgo, botAlgo, new Random(seed + i), new Random(2000 + i), tc, startState)
+      record(whiteRes, Color.White)
+      record(blackRes, Color.Black)
+      pairsPlayed += 1
+
+      sprtConfig.foreach { cfg =>
+        // The pair's two 0/½/1 scores sum and double to an exact integer 0..4 — one of Pentanomial's five bins.
+        val bin = math.round((botScore(whiteRes, Color.White) + botScore(blackRes, Color.Black)) * 2).toInt
+        pentanomial = bin match
+          case 0 => pentanomial.copy(n0 = pentanomial.n0 + 1)
+          case 1 => pentanomial.copy(n1 = pentanomial.n1 + 1)
+          case 2 => pentanomial.copy(n2 = pentanomial.n2 + 1)
+          case 3 => pentanomial.copy(n3 = pentanomial.n3 + 1)
+          case _ => pentanomial.copy(n4 = pentanomial.n4 + 1)
+        val result = Sprt.test(pentanomial, Sprt.Trinomial.Empty, cfg.elo0, cfg.elo1, cfg.alpha, cfg.beta)
+        sprtResult = Some(result)
+        if result.verdict != Sprt.Verdict.Continue then continue = false
+      }
+      i += 1
 
     TimedMatchResult(
       timeControl = tc,
-      totalGames = gamesPerColor * 2,
+      totalGames = pairsPlayed * 2,
       wins = wins,
       losses = losses,
       draws = draws,
       botTimeouts = botTimeouts,
       baselineTimeouts = baselineTimeouts,
       latency = LatencyStats.from(latencies.toList),
-      durationMs = System.currentTimeMillis() - startTime
+      durationMs = System.currentTimeMillis() - startTime,
+      sprt = sprtResult
     )
 
   private[bench] def printTimedSummary(botId: String, baselineId: String, results: List[TimedMatchResult]): Unit =
@@ -420,6 +451,18 @@ object BotMatchRunner:
           wall
         )
       )
+      r.sprt.foreach { s =>
+        println(
+          fmtRoot(
+            "  └ SPRT: llr=%.3f bounds=[%.3f, %.3f] verdict=%s observations=%d",
+            s.llr,
+            s.lower,
+            s.upper,
+            s.verdict,
+            s.observations
+          )
+        )
+      }
     println("================================================================================\n")
 
   /** Formats with [[java.util.Locale.ROOT]] instead of the JVM's default locale, so `%f` fields always use a `.`
@@ -719,11 +762,16 @@ object BotMatchRunner:
     *       "winRatePercent": 45.0,
     *       "flagCounts": {"bot": 1, "baseline": 0},
     *       "latencyMs": {"count": 10, "p50": 120, "p95": 340, "p99": 400, "max": 420},
-    *       "durationMs": 5321
+    *       "durationMs": 5321,
+    *       "sprt": {
+    *         "llr": 3.1, "lower": -2.944, "upper": 2.944, "verdict": "AcceptH1", "observations": 42
+    *       }
     *     }
     *   ]
     * }
     * ```
+    * `sprt` is `null` unless the run was given a [[SprtConfig]] (#522); `verdict` is one of `AcceptH1` / `AcceptH0` /
+    * `Continue` (the latter only when the run was cut off at the `gamesPerColor` cap without a decisive LLR).
     */
   private[bench] def timedReportJson(
       botUnderTestId: String,
@@ -761,7 +809,17 @@ object BotMatchRunner:
         "p99"   -> Json.int(r.latency.p99Ms),
         "max"   -> Json.int(r.latency.maxMs)
       ),
-      "durationMs" -> Json.int(r.durationMs)
+      "durationMs" -> Json.int(r.durationMs),
+      "sprt"       -> r.sprt.map(sprtResultJson).getOrElse(Json.JNull)
+    )
+
+  private def sprtResultJson(r: Sprt.Result): Json =
+    Json.obj(
+      "llr"          -> Json.num(r.llr),
+      "lower"        -> Json.num(r.lower),
+      "upper"        -> Json.num(r.upper),
+      "verdict"      -> Json.str(r.verdict.toString),
+      "observations" -> Json.int(r.observations)
     )
 
   /** Writes rendered JSON to `path`, overwriting any existing file. */
@@ -869,7 +927,15 @@ object LatencyStats:
         sorted(math.min(sorted.size, math.max(1, rank)) - 1)
       LatencyStats(sorted.size, percentile(50), percentile(95), percentile(99), sorted.last)
 
-/** Aggregated result of a time-controlled match, from the bot-under-test's perspective. */
+/** Configuration for optional SPRT stopping in [[BotMatchRunner.runTimedMatch]] (#522): hypothesis bounds `elo0` ("not
+  * stronger by more than this") and `elo1` ("stronger by at least this"), and the type-I/II error rates `alpha`/`beta`.
+  * See [[Sprt.test]] for what each parameter feeds.
+  */
+final case class SprtConfig(elo0: Double, elo1: Double, alpha: Double, beta: Double)
+
+/** Aggregated result of a time-controlled match, from the bot-under-test's perspective. `sprt` is populated only when
+  * [[BotMatchRunner.runTimedMatch]] was given a [[SprtConfig]].
+  */
 final case class TimedMatchResult(
     timeControl: TimeControl,
     totalGames: Int,
@@ -879,7 +945,8 @@ final case class TimedMatchResult(
     botTimeouts: Int,
     baselineTimeouts: Int,
     latency: LatencyStats,
-    durationMs: Long
+    durationMs: Long,
+    sprt: Option[Sprt.Result] = None
 ):
   /** Win-rate of the bot under test, counting draws as half a point. */
   def scorePercent: Double = (wins + 0.5 * draws) / totalGames * 100.0

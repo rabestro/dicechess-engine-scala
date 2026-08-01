@@ -203,6 +203,95 @@ class BotMatchRunnerSpec extends FunSuite:
     assertNotEquals((a.wins, a.losses, a.draws), (c.wins, c.losses, c.draws))
   }
 
+  // ---- SPRT stopping for the timed runner (#522) ----
+
+  test("runTimedMatch: without sprtConfig, gamesPerColor is a fixed count and sprt is None") {
+    val r = BotMatchRunner.runTimedMatch("greedy", "aggressive", 4, TimeControl.ofSeconds(6, 0))
+    assertEquals(r.totalGames, 8)
+    assertEquals(r.sprt, None)
+  }
+
+  test("runTimedMatch: with sprtConfig, a decisive matchup stops before the gamesPerColor cap") {
+    // Greedy dominates Random (see the untimed "Random vs Greedy" test); a generous cap and loose error rates should
+    // let the LLR cross a bound well before all 60 pairs play out.
+    val cfg = SprtConfig(elo0 = 0, elo1 = 100, alpha = 0.05, beta = 0.05)
+    val r   = BotMatchRunner.runTimedMatch("greedy", "random", 60, TimeControl.ofSeconds(6, 0), sprtConfig = Some(cfg))
+    val sprtResult = r.sprt.getOrElse(fail("sprtConfig was supplied, so sprt must be populated"))
+    assert(r.totalGames < 120, s"expected the match to stop before the 60-pair cap, got ${r.totalGames} games")
+    assertEquals(sprtResult.verdict, Sprt.Verdict.AcceptH1)
+    assert(sprtResult.llr >= sprtResult.upper)
+    assertEquals(sprtResult.observations, (r.totalGames / 2).toLong) // one observation per mirrored pair
+  }
+
+  test("runTimedMatch: with sprtConfig, an even matchup runs to the gamesPerColor cap (Continue)") {
+    // Same bot on both sides: perfectly even, so the LLR should never leave the (lower, upper) band.
+    val cfg = SprtConfig(elo0 = 0, elo1 = 20, alpha = 0.05, beta = 0.05)
+    val r   = BotMatchRunner.runTimedMatch("greedy", "greedy", 5, TimeControl.ofSeconds(6, 0), sprtConfig = Some(cfg))
+    assertEquals(r.totalGames, 10)
+    val sprtResult = r.sprt.getOrElse(fail("sprtConfig was supplied, so sprt must be populated"))
+    assertEquals(sprtResult.verdict, Sprt.Verdict.Continue)
+  }
+
+  test("printTimedSummary: prints the SPRT line only when sprt is populated") {
+    val withSprt = BotMatchRunner.runTimedMatch(
+      "greedy",
+      "random",
+      60,
+      TimeControl.ofSeconds(6, 0),
+      sprtConfig = Some(SprtConfig(0, 100, 0.05, 0.05))
+    )
+    val withoutSprt = BotMatchRunner.runTimedMatch("greedy", "random", 1, TimeControl.ofSeconds(6, 0))
+
+    val out = new java.io.ByteArrayOutputStream()
+    Console.withOut(out) {
+      BotMatchRunner.printTimedSummary("greedy", "random", List(withSprt, withoutSprt))
+    }
+    val lines = out.toString("UTF-8").linesIterator.count(_.contains("SPRT:"))
+    assertEquals(lines, 1)
+  }
+
+  test("timedReportJson: includes a populated sprt object when active, and JSON null otherwise") {
+    val withSprt = BotMatchRunner.runTimedMatch(
+      "greedy",
+      "random",
+      60,
+      TimeControl.ofSeconds(6, 0),
+      sprtConfig = Some(SprtConfig(0, 100, 0.05, 0.05))
+    )
+    val withoutSprt = BotMatchRunner.runTimedMatch("greedy", "random", 1, TimeControl.ofSeconds(6, 0))
+    val json        = BotMatchRunner.timedReportJson("greedy", "random", 60, 42L, List(withSprt, withoutSprt))
+    val parsed      = Json.parse(Json.render(json)).getOrElse(fail("report did not render as valid JSON"))
+    val results     = parsed.field("results").flatMap(_.asArr).getOrElse(fail("results missing"))
+
+    val activeSprt = results.head.field("sprt").getOrElse(fail("sprt field missing"))
+    assertEquals(activeSprt.field("verdict").flatMap(_.asStr), Some("AcceptH1"))
+    assert(activeSprt.field("observations").flatMap(_.asNum).isDefined)
+
+    assertEquals(results(1).field("sprt"), Some(Json.JNull))
+  }
+
+  test("TimedArenaRunner.extractSprtConfig: absent flag, present flag, and malformed specs") {
+    val (unchanged, absent) = TimedArenaRunner.extractSprtConfig(Array("greedy", "random"))
+    assertEquals(unchanged.toList, List("greedy", "random"))
+    assertEquals(absent, None)
+
+    val (positional, cfg) = TimedArenaRunner.extractSprtConfig(Array("greedy", "--sprt", "0,20,0.05,0.05", "random"))
+    assertEquals(positional.toList, List("greedy", "random"))
+    assertEquals(cfg, Some(SprtConfig(0, 20, 0.05, 0.05)))
+
+    intercept[RuntimeException](TimedArenaRunner.extractSprtConfig(Array("--sprt")))
+    intercept[RuntimeException](TimedArenaRunner.extractSprtConfig(Array("--sprt", "0,20,0.05")))      // only 3 values
+    intercept[RuntimeException](TimedArenaRunner.extractSprtConfig(Array("--sprt", "x,20,0.05,0.05"))) // not a number
+  }
+
+  test("TimedArenaRunner.main: --sprt runs without error and stops a decisive matchup early") {
+    val out = new java.io.ByteArrayOutputStream()
+    Console.withOut(out) {
+      TimedArenaRunner.main(Array("greedy", "random", "60", "6+0", "--sprt", "0,100,0.05,0.05"))
+    }
+    assert(out.toString("UTF-8").contains("SPRT:"))
+  }
+
   test("TimedArenaRunner.main: runs a small matrix without error") {
     TimedArenaRunner.main(Array("greedy", "random", "1", "6+0"))
   }
