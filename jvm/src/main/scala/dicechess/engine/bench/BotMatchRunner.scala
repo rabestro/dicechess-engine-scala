@@ -55,6 +55,8 @@ object BotMatchRunner:
       jsonPath: Option[String] = None
   ): Unit =
     if gamesPerColor <= 0 then sys.error(s"Invalid gamesPerColor '$gamesPerColor'. Must be greater than 0.")
+    if WebhookBot.isWebhookId(baseBotId) || opponentBotId.exists(WebhookBot.isWebhookId) then
+      sys.error("webhook opponents are supported by the timed arena only (TimedArenaRunner)")
 
     val parsedFen =
       FenParser.parse(startFen).getOrElse(sys.error(s"Invalid start FEN: $startFen"))
@@ -269,15 +271,19 @@ object BotMatchRunner:
   /** Plays a single game under a wall-clock [[TimeControl]].
     *
     * Each side starts with `tc.initialMs`. A [[TimeBudgetedSearch]] bot is given a per-turn deadline derived from
-    * [[TimeManager]] and the side's remaining clock; O(1) bots simply move (their elapsed time is still charged, but is
+    * [[TimeManager]] and the side's remaining clock; a [[WebhookBot]] receives its full remaining clock and manages its
+    * own thinking (see [[WebhookBot]] for why); O(1) bots simply move (their elapsed time is still charged, but is
     * negligible). After each turn the elapsed wall-clock is deducted and the increment credited; a side whose clock
-    * goes negative loses on time. Non-deterministic by nature (depends on machine speed) — for measurement, not
-    * reproducible assertions.
+    * goes negative loses on time — as does a webhook side whose delivery fails, since the platform's single-attempt,
+    * no-retry semantics mean a failed delivery inevitably ends in a flag. Non-deterministic by nature (depends on
+    * machine speed) — for measurement, not reproducible assertions.
     *
     * @param diceRandom
     *   source for the dice rolls
     * @param botRandom
     *   source handed to the time-budgeted search, kept separate so a varying rollout count never perturbs the dice
+    * @param gameId
+    *   identifier carried in webhook delivery envelopes; irrelevant to in-process bots
     */
   private[bench] def simulateTimedGame(
       whiteBot: SearchAlgorithm,
@@ -285,7 +291,8 @@ object BotMatchRunner:
       diceRandom: Random,
       botRandom: Random,
       tc: TimeControl,
-      startState: GameState = FenParser.parse(StartFen).toOption.get
+      startState: GameState = FenParser.parse(StartFen).toOption.get,
+      gameId: String = "arena"
   ): TimedGameResult =
     var state                           = startState
     var whiteRemaining                  = tc.initialMs
@@ -303,40 +310,61 @@ object BotMatchRunner:
         val activeBot     = if isWhite then whiteBot else blackBot
         val remaining     = if isWhite then whiteRemaining else blackRemaining
 
-        val timed = activeBot match
-          case tb: TimeBudgetedSearch => Some(tb)
-          case _                      => None
+        // Webhook moves are latency samples too: the wire is part of the deployed artifact being measured.
+        val isTimedBot = activeBot match
+          case _: WebhookBot | _: TimeBudgetedSearch => true
+          case _                                     => false
 
-        val startNanos = System.nanoTime()
-        val scored     = timed match
-          case Some(tb) =>
+        val startNanos                                   = System.nanoTime()
+        val turn: Either[String, Option[ScoredSequence]] = activeBot match
+          case wb: WebhookBot =>
+            val oppRemaining = if isWhite then blackRemaining else whiteRemaining
+            wb.chooseTurn(stateWithDice, gameId, mover, remaining, oppRemaining, tc)
+          case tb: TimeBudgetedSearch =>
             val budgetMs =
               TimeManager.budgetMs(ClockState(remaining, tc.incrementMs, state.fullMoveNumber), ArenaOverheadBufferMs)
-            tb.findBestMove(stateWithDice, startNanos + budgetMs * 1_000_000L, botRandom)
-          case None => activeBot.findBestMove(stateWithDice, botRandom)
+            Right(tb.findBestMove(stateWithDice, startNanos + budgetMs * 1_000_000L, botRandom))
+          case other => Right(other.findBestMove(stateWithDice, botRandom))
         val elapsedMs = (System.nanoTime() - startNanos) / 1_000_000L
 
-        if timed.isDefined then latencies += ((mover, elapsedMs))
+        if isTimedBot then latencies += ((mover, elapsedMs))
 
-        val (newRemaining, flagged) = tickClock(remaining, elapsedMs, tc.incrementMs)
-        if isWhite then whiteRemaining = newRemaining else blackRemaining = newRemaining
+        turn match
+          case Left(reason) =>
+            val side = if isWhite then "White" else "Black"
+            System.err.println(s"[arena] $gameId: $side webhook delivery failed — forfeits on time ($reason)")
+            result = Some(TimedGameResult(GameOutcome.Win(mover.opponent), Some(mover), latencies.toList))
+          case Right(scored) =>
+            val (newRemaining, flagged) = tickClock(remaining, elapsedMs, tc.incrementMs)
+            if isWhite then whiteRemaining = newRemaining else blackRemaining = newRemaining
 
-        if flagged then result = Some(TimedGameResult(GameOutcome.Win(mover.opponent), Some(mover), latencies.toList))
-        else
-          val (next, winner) = playTurn(state, scored)
-          winner match
-            case Some(color) => result = Some(TimedGameResult(GameOutcome.Win(color), None, latencies.toList))
-            case None        => state = next
+            if flagged then
+              result = Some(TimedGameResult(GameOutcome.Win(mover.opponent), Some(mover), latencies.toList))
+            else
+              val (next, winner) = playTurn(state, scored)
+              winner match
+                case Some(color) => result = Some(TimedGameResult(GameOutcome.Win(color), None, latencies.toList))
+                case None        => state = next
 
     result.get
+
+  /** Resolves an arena bot id: an `http(s)://` id becomes a [[WebhookBot]] (secret from [[WebhookBot.SecretEnvVar]],
+    * ownership handshake run immediately so a dead or misconfigured endpoint aborts the run before any game is played);
+    * anything else is a [[BotRegistry]] lookup.
+    */
+  private def resolveOpponent(id: String): SearchAlgorithm =
+    if WebhookBot.isWebhookId(id) then
+      val bot = WebhookBot.fromEnv(id)
+      bot.handshake().fold(reason => sys.error(s"webhook handshake with $id failed: $reason"), _ => bot)
+    else BotRegistry.getAlgorithm(id).getOrElse(sys.error(s"Bot '$id' not found"))
 
   /** Runs a time-controlled match: `botUnderTestId` vs `baselineId`, `gamesPerColor` games on each side, under `tc`.
     *
     * Results are reported from the bot-under-test's perspective (its wins/losses/draws, the games it lost on time, and
     * the latency distribution of its own moves), which is what the #372 gate asks for.
     *
-    * The latency distribution keeps only the bot-under-test's [[TimeBudgetedSearch]] moves (filtered by side), so it
-    * stays meaningful even in a configurable timed-vs-timed run.
+    * The latency distribution keeps only the bot-under-test's timed moves — [[TimeBudgetedSearch]] and [[WebhookBot]]
+    * alike, filtered by side — so it stays meaningful even in a configurable timed-vs-timed run.
     *
     * Dice for game `i` come from `Random(seed + i)` in both color phases; the bot's tie-breaking offsets (`1000 + i` /
     * `2000 + i`) are unaffected by `seed`, so `seed == 42` (the default) reproduces this runner's pre-existing
@@ -360,9 +388,30 @@ object BotMatchRunner:
       seed: Long = 42L,
       sprtConfig: Option[SprtConfig] = None
   ): TimedMatchResult =
-    val botAlgo  = BotRegistry.getAlgorithm(botUnderTestId).getOrElse(sys.error(s"Bot '$botUnderTestId' not found"))
-    val baseAlgo = BotRegistry.getAlgorithm(baselineId).getOrElse(sys.error(s"Bot '$baselineId' not found"))
+    runTimedMatch(
+      resolveOpponent(botUnderTestId),
+      resolveOpponent(baselineId),
+      gamesPerColor,
+      tc,
+      startState,
+      seed,
+      sprtConfig
+    )
 
+  /** Algorithm-level overload of [[runTimedMatch]] — lets a test field an opponent (e.g. a [[WebhookBot]] pointed at a
+    * mock endpoint) without registering it in the process-wide [[BotRegistry]] singleton, whose contents other suites
+    * assert exactly. No default arguments: the id-based overload above already carries them, and Scala allows defaults
+    * on only one alternative.
+    */
+  private[bench] def runTimedMatch(
+      botAlgo: SearchAlgorithm,
+      baseAlgo: SearchAlgorithm,
+      gamesPerColor: Int,
+      tc: TimeControl,
+      startState: GameState,
+      seed: Long,
+      sprtConfig: Option[SprtConfig]
+  ): TimedMatchResult =
     var wins             = 0
     var losses           = 0
     var draws            = 0
@@ -392,8 +441,10 @@ object BotMatchRunner:
     var i        = 0
     var continue = true
     while i < gamesPerColor && continue do
-      val whiteRes = simulateTimedGame(botAlgo, baseAlgo, new Random(seed + i), new Random(1000 + i), tc, startState)
-      val blackRes = simulateTimedGame(baseAlgo, botAlgo, new Random(seed + i), new Random(2000 + i), tc, startState)
+      val whiteRes =
+        simulateTimedGame(botAlgo, baseAlgo, new Random(seed + i), new Random(1000 + i), tc, startState, s"arena-w-$i")
+      val blackRes =
+        simulateTimedGame(baseAlgo, botAlgo, new Random(seed + i), new Random(2000 + i), tc, startState, s"arena-b-$i")
       record(whiteRes, Color.White)
       record(blackRes, Color.Black)
       pairsPlayed += 1
