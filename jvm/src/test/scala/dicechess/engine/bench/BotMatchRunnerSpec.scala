@@ -26,6 +26,20 @@ class BotMatchRunnerSpec extends FunSuite:
     assertEquals(a.baseHangs, b.baseHangs)
   }
 
+  test("runMatch: same seed reproduces results, a different seed changes them") {
+    def counts(r: MatchResult) =
+      (r.winsAsWhite, r.winsAsBlack, r.lossesAsWhite, r.lossesAsBlack, r.drawsAsWhite, r.drawsAsBlack)
+    val defaultFen = FenParser.parse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").toOption.get
+    val a          = BotMatchRunner.runMatch(GreedySearch, AggressiveSearch, 6, defaultFen, seed = 7)
+    val b          = BotMatchRunner.runMatch(GreedySearch, AggressiveSearch, 6, defaultFen, seed = 7)
+    val c          = BotMatchRunner.runMatch(GreedySearch, AggressiveSearch, 6, defaultFen, seed = 99)
+    assertEquals(counts(a), counts(b))
+    assertEquals(a.opponentHangs, b.opponentHangs)
+    // Different seeds draw an independent sample; requiring the tallies to differ risks flaking on a coincidental
+    // tie, so it is the hang telemetry — a finer-grained signal than W/L/D — that must diverge.
+    assertNotEquals(a.opponentHangs, c.opponentHangs)
+  }
+
   test("runMatch executes the correct number of games and enforces alternating colors") {
     val gamesPerColor = 5
     val matchResult   = BotMatchRunner.runMatch(GreedySearch, GreedySearch, gamesPerColor)
@@ -171,6 +185,22 @@ class BotMatchRunnerSpec extends FunSuite:
     assertEquals(r.botTimeouts, 0)
     assertEquals(r.baselineTimeouts, 0)
     assertEquals(r.latency, LatencyStats.empty) // neither bot is time-budgeted, so no latency samples
+  }
+
+  test(
+    "runTimedMatch: same seed reproduces results, a different seed changes them, default seed matches the old hardcoded stream"
+  ) {
+    val tc = TimeControl.ofSeconds(6, 0)
+    val a  = BotMatchRunner.runTimedMatch("greedy", "aggressive", 6, tc, seed = 7)
+    val b  = BotMatchRunner.runTimedMatch("greedy", "aggressive", 6, tc, seed = 7)
+    val c  = BotMatchRunner.runTimedMatch("greedy", "aggressive", 6, tc, seed = 99)
+    assertEquals((a.wins, a.losses, a.draws), (b.wins, b.losses, b.draws))
+    // Default seed (42) must reproduce the pre-existing hardcoded-stream behaviour exactly.
+    val default    = BotMatchRunner.runTimedMatch("greedy", "aggressive", 6, tc)
+    val explicit42 = BotMatchRunner.runTimedMatch("greedy", "aggressive", 6, tc, seed = 42)
+    assertEquals((default.wins, default.losses, default.draws), (explicit42.wins, explicit42.losses, explicit42.draws))
+    // A different seed draws an independent sample — different dice, different games.
+    assertNotEquals((a.wins, a.losses, a.draws), (c.wins, c.losses, c.draws))
   }
 
   test("TimedArenaRunner.main: runs a small matrix without error") {
