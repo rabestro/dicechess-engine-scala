@@ -206,3 +206,8 @@ class BotMatchRunnerSpec extends FunSuite:
   test("TimedArenaRunner.main: runs a small matrix without error") {
     TimedArenaRunner.main(Array("greedy", "random", "1", "6+0"))
   }
+
+  test("main: a malformed trailing seed argument fails clearly instead of silently defaulting to 42") {
+    intercept[RuntimeException](BotMatchRunner.main(Array("greedy", "1", "not-a-long")))
+    intercept[RuntimeException](TimedArenaRunner.main(Array("greedy", "random", "1", "6+0", "not-a-long")))
+  }

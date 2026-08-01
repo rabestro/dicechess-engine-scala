@@ -15,13 +15,16 @@ object BotMatchRunner:
 
   /** @param args
     *   `baseBotId` (default `greedy`), `gamesPerColor` (default `50`), and a trailing optional `seed` (default `42`).
-    *   Distinct seeds draw independent samples of the same matchup — run K shards with distinct seeds on separate cores
-    *   or machines and sum the tallies for K times the games in the same wall-clock time.
+    *   Distinct seeds draw independent samples of the same matchup — run K shards with distinct seeds spaced at least
+    *   `gamesPerColor` apart (e.g. `0, 1000, 2000, ...`) on separate cores or machines, and sum the tallies for K times
+    *   the games in the same wall-clock time.
     */
   def main(args: Array[String]): Unit =
     val baseBotId     = args.headOption.getOrElse("greedy")
     val gamesPerColor = args.lift(1).flatMap(_.toIntOption).getOrElse(50)
-    val seed          = args.lift(2).flatMap(_.toLongOption).getOrElse(42L)
+    val seed          = args.lift(2) match
+      case None       => 42L
+      case Some(spec) => spec.toLongOption.getOrElse(sys.error(s"Invalid seed '$spec': not a valid Long"))
 
     try runArena(baseBotId, None, gamesPerColor, StartFen, seed)
     catch
@@ -83,7 +86,8 @@ object BotMatchRunner:
     * (so a mirrored colour pair shares its dice), and each phase's bot tie-breaking gets its own stream (`Random(1000 +
     * i)` / `Random(2000 + i)`). A whole run drawing from one shared stream would couple game `i`'s dice to when game
     * `i − 1` ended, making two shards of the same matchup byte-identical; distinct seeds now draw independent samples
-    * for sharding a run across cores or machines.
+    * for sharding a run across cores or machines — space shard seeds at least `gamesPerColor` apart (e.g.
+    * `0, 1000, 2000, ...`) so their `seed + i` dice ranges never overlap.
     */
   private[bench] def runMatch(
       opponentAlgo: SearchAlgorithm,
@@ -319,7 +323,7 @@ object BotMatchRunner:
     * Dice for game `i` come from `Random(seed + i)` in both color phases; the bot's tie-breaking offsets (`1000 + i` /
     * `2000 + i`) are unaffected by `seed`, so `seed == 42` (the default) reproduces this runner's pre-existing
     * behaviour exactly. Distinct seeds draw independent samples of the same matchup — run K shards with distinct seeds
-    * and sum the tallies.
+    * spaced at least `gamesPerColor` apart (e.g. `0, 1000, 2000, ...`) and sum the tallies.
     */
   private[bench] def runTimedMatch(
       botUnderTestId: String,
