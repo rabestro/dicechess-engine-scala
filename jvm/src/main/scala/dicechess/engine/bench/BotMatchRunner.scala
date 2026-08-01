@@ -2,6 +2,7 @@ package dicechess.engine.bench
 
 import dicechess.engine.domain.*
 import dicechess.engine.search.*
+import java.nio.file.{Files, Path}
 import scala.util.Random
 
 /** Executable task that runs bot-vs-bot matches in memory.
@@ -14,30 +15,44 @@ object BotMatchRunner:
   private val StartFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
   /** @param args
-    *   `baseBotId` (default `greedy`), `gamesPerColor` (default `50`), and a trailing optional `seed` (default `42`).
-    *   Distinct seeds draw independent samples of the same matchup — run K shards with distinct seeds spaced at least
-    *   `gamesPerColor` apart (e.g. `0, 1000, 2000, ...`) on separate cores or machines, and sum the tallies for K times
-    *   the games in the same wall-clock time.
+    *   `baseBotId` (default `greedy`), `gamesPerColor` (default `50`), a trailing optional `seed` (default `42`), and
+    *   an optional `--json <path>` flag (anywhere in `args`) that additionally writes the machine-readable report from
+    *   [[arenaReportJson]] to `path` — the human-readable table is always printed regardless. Distinct seeds draw
+    *   independent samples of the same matchup — run K shards with distinct seeds spaced at least `gamesPerColor` apart
+    *   (e.g. `0, 1000, 2000, ...`) on separate cores or machines, and sum the tallies for K times the games in the same
+    *   wall-clock time.
     */
   def main(args: Array[String]): Unit =
-    val baseBotId     = args.headOption.getOrElse("greedy")
-    val gamesPerColor = args.lift(1).flatMap(_.toIntOption).getOrElse(50)
-    val seed          = args.lift(2) match
+    val (positional, jsonPath) = extractJsonPath(args)
+    val baseBotId              = positional.headOption.getOrElse("greedy")
+    val gamesPerColor          = positional.lift(1).flatMap(_.toIntOption).getOrElse(50)
+    val seed                   = positional.lift(2) match
       case None       => 42L
       case Some(spec) => spec.toLongOption.getOrElse(sys.error(s"Invalid seed '$spec': not a valid Long"))
 
-    try runArena(baseBotId, None, gamesPerColor, StartFen, seed)
+    try runArena(baseBotId, None, gamesPerColor, StartFen, seed, jsonPath)
     catch
       case e: Exception =>
         System.err.println(e.getMessage)
         sys.exit(1)
+
+  /** Extracts an optional `--json <path>` flag from `args`, returning the remaining positional arguments (with both
+    * tokens removed) and the path, if the flag was present. Shared by both runners' `main` so `--json` can sit anywhere
+    * in the argument list without disturbing the existing positional argument indices.
+    */
+  private[bench] def extractJsonPath(args: Array[String]): (Array[String], Option[String]) =
+    val idx = args.indexOf("--json")
+    if idx < 0 then (args, None)
+    else if idx + 1 >= args.length then sys.error("--json requires a path argument")
+    else (args.patch(idx, Nil, 2), Some(args(idx + 1)))
 
   def runArena(
       baseBotId: String,
       opponentBotId: Option[String],
       gamesPerColor: Int,
       startFen: String,
-      seed: Long = 42L
+      seed: Long = 42L,
+      jsonPath: Option[String] = None
   ): Unit =
     if gamesPerColor <= 0 then sys.error(s"Invalid gamesPerColor '$gamesPerColor'. Must be greater than 0.")
 
@@ -78,6 +93,9 @@ object BotMatchRunner:
       (opponentInfo, matchResult)
 
     printSummaryTable(results)
+    jsonPath.foreach { path =>
+      writeJsonReport(path, arenaReportJson(baseBotId, baseBotInfo, gamesPerColor, seed, startFen, results))
+    }
 
   /** Package-private visibility (`private[bench]`) is utilized to expose match orchestration to [[BotMatchRunnerSpec]]
     * for verification of win rates and results aggregation, while keeping execution internal to the bench module.
@@ -389,11 +407,26 @@ object BotMatchRunner:
       val wld  = s"${r.wins}/${r.losses}/${r.draws}"
       val to   = s"${r.botTimeouts}/${r.baselineTimeouts}"
       val lat  = s"${r.latency.p50Ms}/${r.latency.p95Ms}/${r.latency.p99Ms}/${r.latency.maxMs}"
-      val wall = s"${"%.1f".format(r.durationMs / 1000.0)}s"
+      val wall = fmtRoot("%.1fs", r.durationMs / 1000.0)
       println(
-        f"${r.timeControl.label}%-10s | ${r.totalGames}%-5d | ${r.scorePercent}%6.1f%% | $wld%-12s | $to%-12s | $lat%-24s | $wall"
+        fmtRoot(
+          "%-10s | %-5d | %6.1f%% | %-12s | %-12s | %-24s | %s",
+          r.timeControl.label,
+          r.totalGames,
+          r.scorePercent,
+          wld,
+          to,
+          lat,
+          wall
+        )
       )
     println("================================================================================\n")
+
+  /** Formats with [[java.util.Locale.ROOT]] instead of the JVM's default locale, so `%f` fields always use a `.`
+    * decimal separator — the default locale renders it as `,` on e.g. German/Russian JVMs, breaking naive parsing of
+    * the printed tables (#521).
+    */
+  private def fmtRoot(format: String, args: Any*): String = String.format(java.util.Locale.ROOT, format, args*)
 
   private val enableVerifySync =
     sys.props.get("dicechess.bench.verifySync").flatMap(_.toBooleanOption).getOrElse(false)
@@ -521,15 +554,24 @@ object BotMatchRunner:
       val totalWins   = r.winsAsWhite + r.winsAsBlack
       val totalLosses = r.lossesAsWhite + r.lossesAsBlack
       val totalDraws  = r.drawsAsWhite + r.drawsAsBlack
-      val winRate     = (totalWins.toDouble + 0.5 * totalDraws) / r.totalGames * 100.0
-      val timeStr     = s"${"%.2f".format(r.durationMs / 1000.0)}s"
+      val winRate     = winRatePercent(totalWins, totalDraws, r.totalGames)
+      val timeStr     = fmtRoot("%.2fs", r.durationMs / 1000.0)
 
       val winsStr   = s"$totalWins (${r.winsAsWhite}/${r.winsAsBlack})"
       val lossesStr = s"$totalLosses (${r.lossesAsWhite}/${r.lossesAsBlack})"
       val drawsStr  = s"$totalDraws (${r.drawsAsWhite}/${r.drawsAsBlack})"
 
       println(
-        f"${botInfo.name}%-20s | ${r.totalGames}%-5d | $winsStr%-12s | $lossesStr%-12s | $drawsStr%-12s | $winRate%6.1f%% | $timeStr"
+        fmtRoot(
+          "%-20s | %-5d | %-12s | %-12s | %-12s | %6.1f%% | %s",
+          botInfo.name,
+          r.totalGames,
+          winsStr,
+          lossesStr,
+          drawsStr,
+          winRate,
+          timeStr
+        )
       )
     println("================================================================================")
     printHangTelemetry(results)
@@ -552,10 +594,179 @@ object BotMatchRunner:
   private def printHangRow(label: String, s: HangStats, games: Int): Unit =
     val g = games.toDouble
     println(
-      f"$label%-20s | ${s.turns / g}%7.1f | ${s.hangTurns / g}%7.2f | ${s.queenHangTurns / g}%7.2f | " +
-        f"${s.hangingMaterial / 100.0 / g}%10.2f | ${s.punishedCaptures / g}%8.2f | " +
-        f"${s.punishedMaterial / 100.0 / g}%9.2f"
+      fmtRoot(
+        "%-20s | %7.1f | %7.2f | %7.2f | %10.2f | %8.2f | %9.2f",
+        label,
+        s.turns / g,
+        s.hangTurns / g,
+        s.queenHangTurns / g,
+        s.hangingMaterial / 100.0 / g,
+        s.punishedCaptures / g,
+        s.punishedMaterial / 100.0 / g
+      )
     )
+
+  /** Win-rate percentage counting draws as half a point — shared by the human table and [[arenaReportJson]]. */
+  private def winRatePercent(wins: Int, draws: Int, totalGames: Int): Double =
+    (wins.toDouble + 0.5 * draws) / totalGames * 100.0
+
+  /** Builds the opt-in machine-readable report for an untimed arena run (#521), one entry per opponent. The schema is
+    * additive-stable: existing fields keep their names and types across releases, new fields may be added.
+    * ```json
+    * {
+    *   "kind": "untimed_arena",
+    *   "baseBotId": "greedy",
+    *   "baseBotName": "Greedy",
+    *   "gamesPerColor": 50,
+    *   "seed": 42,
+    *   "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    *   "matches": [
+    *     {
+    *       "opponentId": "aggressive",
+    *       "opponentName": "Aggressive",
+    *       "totalGames": 100,
+    *       "wins": {"white": 30, "black": 28, "total": 58},
+    *       "losses": {"white": 15, "black": 20, "total": 35},
+    *       "draws": {"white": 5, "black": 2, "total": 7},
+    *       "winRatePercent": 62.0,
+    *       "durationMs": 12345,
+    *       "hangTelemetry": {
+    *         "opponent": {
+    *           "turns": 500, "hangTurns": 40, "queenHangTurns": 3,
+    *           "hangingMaterial": 3200, "punishedCaptures": 12, "punishedMaterial": 1100
+    *         },
+    *         "baseline": { "...": "same shape" }
+    *       }
+    *     }
+    *   ]
+    * }
+    * ```
+    */
+  private[bench] def arenaReportJson(
+      baseBotId: String,
+      baseBotInfo: BotInfo,
+      gamesPerColor: Int,
+      seed: Long,
+      startFen: String,
+      results: List[(BotInfo, MatchResult)]
+  ): Json =
+    Json.obj(
+      "kind"          -> Json.str("untimed_arena"),
+      "baseBotId"     -> Json.str(baseBotId),
+      "baseBotName"   -> Json.str(baseBotInfo.name),
+      "gamesPerColor" -> Json.int(gamesPerColor),
+      "seed"          -> Json.int(seed),
+      "startFen"      -> Json.str(startFen),
+      "matches"       -> Json.arr(results.map(matchResultJson)*)
+    )
+
+  private def matchResultJson(entry: (BotInfo, MatchResult)): Json =
+    val (opponentInfo, r) = entry
+    val totalWins         = r.winsAsWhite + r.winsAsBlack
+    val totalLosses       = r.lossesAsWhite + r.lossesAsBlack
+    val totalDraws        = r.drawsAsWhite + r.drawsAsBlack
+    Json.obj(
+      "opponentId"   -> Json.str(opponentInfo.id),
+      "opponentName" -> Json.str(opponentInfo.name),
+      "totalGames"   -> Json.int(r.totalGames),
+      "wins"         -> Json.obj(
+        "white" -> Json.int(r.winsAsWhite),
+        "black" -> Json.int(r.winsAsBlack),
+        "total" -> Json.int(totalWins)
+      ),
+      "losses" -> Json.obj(
+        "white" -> Json.int(r.lossesAsWhite),
+        "black" -> Json.int(r.lossesAsBlack),
+        "total" -> Json.int(totalLosses)
+      ),
+      "draws" -> Json.obj(
+        "white" -> Json.int(r.drawsAsWhite),
+        "black" -> Json.int(r.drawsAsBlack),
+        "total" -> Json.int(totalDraws)
+      ),
+      "winRatePercent" -> Json.num(winRatePercent(totalWins, totalDraws, r.totalGames)),
+      "durationMs"     -> Json.int(r.durationMs),
+      "hangTelemetry"  -> Json.obj(
+        "opponent" -> hangStatsJson(r.opponentHangs),
+        "baseline" -> hangStatsJson(r.baseHangs)
+      )
+    )
+
+  private def hangStatsJson(s: HangStats): Json =
+    Json.obj(
+      "turns"            -> Json.int(s.turns),
+      "hangTurns"        -> Json.int(s.hangTurns),
+      "queenHangTurns"   -> Json.int(s.queenHangTurns),
+      "hangingMaterial"  -> Json.int(s.hangingMaterial),
+      "punishedCaptures" -> Json.int(s.punishedCaptures),
+      "punishedMaterial" -> Json.int(s.punishedMaterial)
+    )
+
+  /** Builds the opt-in machine-readable report for a time-controlled arena run (#521), one entry per time control.
+    * Schema (additive-stable, see [[arenaReportJson]]):
+    * ```json
+    * {
+    *   "kind": "timed_arena",
+    *   "botUnderTestId": "monte-carlo",
+    *   "baselineId": "aggressive",
+    *   "gamesPerColor": 10,
+    *   "seed": 42,
+    *   "results": [
+    *     {
+    *       "timeControl": {"label": "1+0", "initialMs": 60000, "incrementMs": 0},
+    *       "totalGames": 20,
+    *       "wins": 8, "losses": 10, "draws": 2,
+    *       "winRatePercent": 45.0,
+    *       "flagCounts": {"bot": 1, "baseline": 0},
+    *       "latencyMs": {"count": 10, "p50": 120, "p95": 340, "p99": 400, "max": 420},
+    *       "durationMs": 5321
+    *     }
+    *   ]
+    * }
+    * ```
+    */
+  private[bench] def timedReportJson(
+      botUnderTestId: String,
+      baselineId: String,
+      gamesPerColor: Int,
+      seed: Long,
+      results: List[TimedMatchResult]
+  ): Json =
+    Json.obj(
+      "kind"           -> Json.str("timed_arena"),
+      "botUnderTestId" -> Json.str(botUnderTestId),
+      "baselineId"     -> Json.str(baselineId),
+      "gamesPerColor"  -> Json.int(gamesPerColor),
+      "seed"           -> Json.int(seed),
+      "results"        -> Json.arr(results.map(timedMatchResultJson)*)
+    )
+
+  private def timedMatchResultJson(r: TimedMatchResult): Json =
+    Json.obj(
+      "timeControl" -> Json.obj(
+        "label"       -> Json.str(r.timeControl.label),
+        "initialMs"   -> Json.int(r.timeControl.initialMs),
+        "incrementMs" -> Json.int(r.timeControl.incrementMs)
+      ),
+      "totalGames"     -> Json.int(r.totalGames),
+      "wins"           -> Json.int(r.wins),
+      "losses"         -> Json.int(r.losses),
+      "draws"          -> Json.int(r.draws),
+      "winRatePercent" -> Json.num(r.scorePercent),
+      "flagCounts"     -> Json.obj("bot" -> Json.int(r.botTimeouts), "baseline" -> Json.int(r.baselineTimeouts)),
+      "latencyMs"      -> Json.obj(
+        "count" -> Json.int(r.latency.count),
+        "p50"   -> Json.int(r.latency.p50Ms),
+        "p95"   -> Json.int(r.latency.p95Ms),
+        "p99"   -> Json.int(r.latency.p99Ms),
+        "max"   -> Json.int(r.latency.maxMs)
+      ),
+      "durationMs" -> Json.int(r.durationMs)
+    )
+
+  /** Writes rendered JSON to `path`, overwriting any existing file. */
+  private[bench] def writeJsonReport(path: String, json: Json): Unit =
+    Files.writeString(Path.of(path), Json.render(json))
 
 case class MatchResult(
     totalGames: Int,
