@@ -50,6 +50,26 @@ class JsonSpec extends FunSuite:
     assertEquals(Json.parse("1e3"), Right(Json.num(1000.0)))
   }
 
+  test("parse: \\u escapes are decoded as hexadecimal, not decimal") {
+    // \u0041 is code point 0x41 = 'A'; decimal parsing would wrongly decode it as code point 41 ('(' is 40, ')' 41).
+    assertEquals(Json.parse("\"\\u0041\""), Right(Json.str("A")))
+    // Escapes whose digits include a-f are the case decimal parsing can't even represent.
+    assertEquals(Json.parse("\"\\u00Ff\""), Right(Json.str(0xff.toChar.toString)))
+    assert(Json.parse("\"\\uzzzz\"").isLeft)
+  }
+
+  test("render: a control character below 0x20 round-trips through its \\u escape") {
+    val withBell = Json.str("a" + 0x01.toChar + "b")
+    assertEquals(Json.render(withBell), "\"a\\u0001b\"")
+    assertEquals(Json.parse(Json.render(withBell)), Right(withBell))
+  }
+
+  test("render: NaN and Infinity fall back to null instead of emitting invalid JSON tokens") {
+    assertEquals(Json.render(Json.num(Double.NaN)), "null")
+    assertEquals(Json.render(Json.num(Double.PositiveInfinity)), "null")
+    assertEquals(Json.render(Json.num(Double.NegativeInfinity)), "null")
+  }
+
   test("field/asStr/asNum/asBool/asArr: navigate a parsed document") {
     val json = Json
       .parse("""{"kind":"x","seed":42,"rate":66.7,"ok":true,"items":[1,2,3]}""")

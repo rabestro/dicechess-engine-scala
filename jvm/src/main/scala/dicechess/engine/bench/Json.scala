@@ -57,7 +57,7 @@ object Json:
     case JNull        => sb.append("null")
     case JBool(value) => sb.append(if value then "true" else "false")
     case JInt(value)  => sb.append(value)
-    case JNum(value)  => sb.append(value)
+    case JNum(value)  => sb.append(if value.isNaN || value.isInfinite then "null" else value.toString)
     case JStr(value)  => appendString(sb, value)
     case JArr(items)  =>
       sb.append('[')
@@ -185,7 +185,7 @@ object Json:
                   if i + 6 > s.length then Left(s"incomplete unicode escape at $i")
                   else
                     val hex = s.substring(i + 2, i + 6)
-                    hex.toIntOption match
+                    parseHex4(hex) match
                       case Some(code) => sb.append(code.toChar); loop(i + 6)
                       case None       => Left(s"invalid unicode escape '$hex' at $i")
                 case c => Left(s"invalid escape character '$c' at $i")
@@ -193,6 +193,16 @@ object Json:
             sb.append(c)
             loop(i + 1)
     loop(start + 1)
+
+  /** Parses a 4-digit `\u` escape as hexadecimal (`Character.digit` reports invalid digits as `-1` instead of throwing,
+    * unlike `Integer.parseInt`/`String.toIntOption`, which default to radix 10 and would silently misdecode e.g. `A` as
+    * code point 41 instead of `0x41`).
+    */
+  private def parseHex4(hex: String): Option[Int] =
+    if hex.length != 4 then None
+    else
+      val digits = hex.map(c => Character.digit(c, 16))
+      if digits.exists(_ < 0) then None else Some(digits.foldLeft(0)((acc, d) => acc * 16 + d))
 
   private def parseNumber(s: String, start: Int): Either[String, (Json, Int)] =
     var i = start
