@@ -8,7 +8,9 @@ package dicechess.engine.bench
   * on): for observations with sample mean `m` and sample variance `v` of the per-observation score, and hypothesis
   * means `s0`/`s1` (the expected scores at `elo0`/`elo1`),
   *
-  * {{{LLR ≈ N · (s1 − s0) · (2m − s0 − s1) / (2v)}}}
+  * ```text
+  * LLR ≈ N · (s1 − s0) · (2m − s0 − s1) / (2v)
+  * ```
   *
   * [[runTimedMatch]] feeds this exclusively [[Pentanomial]] observations: one mirrored-seed colour pair (bot as White
   * and as Black under the same dice draw) is ONE observation with score in `{0, ¼, ½, ¾, 1}` — the pair's two game

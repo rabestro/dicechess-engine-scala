@@ -68,12 +68,21 @@ object TimedArenaRunner:
       if parts.length != 4 then sys.error(s"Invalid --sprt spec '$spec': expected 'elo0,elo1,alpha,beta'")
       val elo0  = sprtNumber(spec, parts(0))
       val elo1  = sprtNumber(spec, parts(1))
-      val alpha = sprtNumber(spec, parts(2))
-      val beta  = sprtNumber(spec, parts(3))
+      val alpha = sprtRate(spec, "alpha", sprtNumber(spec, parts(2)))
+      val beta  = sprtRate(spec, "beta", sprtNumber(spec, parts(3)))
+      if elo0 >= elo1 then sys.error(s"Invalid --sprt spec '$spec': elo0 must be < elo1")
       (args.patch(idx, Nil, 2), Some(SprtConfig(elo0, elo1, alpha, beta)))
 
   private def sprtNumber(spec: String, value: String): Double =
     value.toDoubleOption.getOrElse(sys.error(s"Invalid --sprt spec '$spec': '$value' is not a number"))
+
+  /** Error rates must sit strictly inside `(0, 1)`: [[Sprt.test]]'s bounds are logarithms of `beta / (1 - alpha)` and
+    * `(1 - beta) / alpha`, which degenerate to `±Infinity`/`NaN` at or beyond the interval's ends — silently making one
+    * verdict unreachable, the first pair always decisive, or every LLR comparison `false` forever.
+    */
+  private def sprtRate(spec: String, name: String, value: Double): Double =
+    if value <= 0.0 || value >= 1.0 then sys.error(s"Invalid --sprt spec '$spec': $name must be in (0, 1)")
+    value
 
   /** Parses comma-separated chess-clock presets in `minutes[+incrementSeconds]` notation (e.g. `1+0`, `3+2`, `10+10`)
     * into [[TimeControl]]s. The base is a positive integer number of minutes; the increment a non-negative number of
