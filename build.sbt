@@ -2,7 +2,7 @@ import sbt.{given, *}
 import org.scalajs.linker.interface.ESVersion
 
 ThisBuild / organization := "lv.id.jc"
-ThisBuild / version      := "1.11.3-SNAPSHOT"
+ThisBuild / version      := "1.11.4-SNAPSHOT"
 ThisBuild / scalaVersion := "3.8.4"
 
 ThisBuild / description := "High-performance Dice Chess engine and probability calculator in Scala 3."
