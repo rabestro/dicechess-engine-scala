@@ -39,7 +39,7 @@ Daily tasks (defined in `mise.toml` + executable file tasks under `.mise/tasks/`
 
 ```bash
 mise run check          # THE pre-PR gate: scalafix check, clean, scalafmt check, coverage test + report
-mise run test           # sbt testOnly * (JVM + JS)
+mise run test           # sbt testOnly * (JVM + JS + Wasm on Node)
 mise run format         # sbt scalafmtAll; scalafixAll — git add new .scala files FIRST
 mise run compile | run | console | coverage | clean
 mise run bench | bench:quick | bench:filter <regex>     # JMH benchmarks
@@ -107,6 +107,7 @@ Common failure signatures:
 - Exclude `.claude/worktrees/` from repo-wide greps — a leftover worktree contains a full source copy and produces duplicate hits.
 - sbt 2 rejects multiple CLI arguments and space-separated command lists (sbt 1 style) — every multi-step invocation must be ONE string joined with `;` (e.g. `sbt 'clean; coverage; testOnly *; coverageReport'`). This affects every `mise` task and CI workflow step that chains sbt commands.
 - sbt 2's bare `test` key is defined as `testQuick`'s "skip if unchanged" semantics, not sbt 1's "run everything" — a warm build can silently report "0 tests, success". `testOnly *` always runs the full suite and is used everywhere `test` used to mean "run everything" (mise tasks, CI, publish/release workflows).
+- `build.sbt`'s explicit root project (`dicechessEngineScala`) carries the whole `test`/`coverage` gate via `.aggregate(rootJVM, rootJS, rootWasm, benchmark)` — under sbt 1 nothing claimed `.` and sbt's own synthetic root aggregated every project for free, but `projectMatrix` rows live under `.sbt/matrix/<id>` so the list is now hand-maintained. **Omitting a project silently drops it from the gate instead of failing** (a missing `rootWasm` cost 408 Wasm tests with a green build). Add every new project here, and sanity-check `mise run test` still prints three totals: 527 JVM, 408 JS, 408 Wasm.
 - sbt 2 defaults `Test / exportJars` to `true` (sbt 1 defaulted to `false`), packing test resources into a CAS-cached jar. `OnnxEvalSearchSpec`/`OnnxExpectimaxSearchSpec` resolve the bundled ONNX test model via `getClass.getResource(...).getPath`, which needs a real filesystem path — `build.sbt` sets `Test / exportJars := false` on `rootJVM` to keep it working.
 - The instrumented scoverage runtime lazily creates `scoverage-data/` via a non-atomic check-then-mkdir on the first measurement write, which can lose a race against test startup and throw `FileNotFoundException`. `build.sbt` hooks `Test / test`, `Test / testOnly`, and `Test / testQuick` on `rootJVM` to pre-create that directory.
 - sbt 2's global, cross-session compile cache (`~/Library/Caches/sbt/v2/cas`) is keyed by content hash, not by `target/`'s physical state — `clean` or deleting `target/` does **not** invalidate it. Rerunning `coverage; testOnly *; coverageReport` with unchanged sources can replay cached (non-instrumented) class files and silently skip scoverage's `scoverage.coverage` metadata write, making `coverageReport` warn "No coverage data, skipping reports" instead of failing. CI is unaffected (every run starts with a fresh runner, so there's no warm cache to hit); locally, if `mise run coverage`/`check` reports success suspiciously fast with no coverage percentage printed, clear `~/Library/Caches/sbt/v2/cas` and rerun.

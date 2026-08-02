@@ -159,11 +159,17 @@ lazy val rootJS  = root.js(ScalaV)
 
 // projectMatrix rows never claim the literal build-root directory — they live under
 // .sbt/matrix/<id> — so without this, sbt auto-generates its own empty synthetic
-// project at "." that does NOT aggregate rootJVM/rootJS, and bare `sbt test`/`coverage`
-// would silently report zero tests. Reclaim "." explicitly, matching crossProject's
-// sbt-1 behavior where the shared root aggregated jvm+js.
+// project at "." that aggregates nothing, and bare `sbt test`/`coverage` would
+// silently report zero tests. Reclaim "." explicitly.
+//
+// The aggregate list must stay exhaustive: under sbt 1 nothing claimed "." either, so
+// sbt's own synthetic root aggregated EVERY project in the build — verified against the
+// last green sbt 1 CI run, which compiled jvm + js + .wasm + benchmark and reported three
+// test totals (527 JVM, 408 JS, 408 Wasm). Dropping a project here silently removes it
+// from the `test`/`coverage` gate rather than failing, so keep this in sync when adding
+// a project.
 lazy val dicechessEngineScala = (project in file("."))
-  .aggregate(rootJVM, rootJS)
+  .aggregate(rootJVM, rootJS, rootWasm, benchmark)
   .settings(
     // Must differ from rootJVM/rootJS's `name` ("dicechess-engine-scala") — sbt 2's
     // shared target/out/ layout keys output directories by project name, not base
