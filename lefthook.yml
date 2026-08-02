@@ -18,6 +18,15 @@ pre-commit:
       glob: "**.{scala,sbt}"
       run: scalafmt --test {staged_files}
 
+    # Workflow YAML must parse. A broken workflow does not fail CI — it silently
+    # stops running, so its checks simply disappear rather than turn red, and
+    # publish/release are never exercised by a pull request at all. That is exactly
+    # how invalid indentation reached main once already. Ruby ships with macOS and
+    # the runners, so this costs milliseconds and needs no extra tool.
+    - name: workflow-yaml
+      glob: ".github/workflows/*.y*ml"
+      run: ruby -ryaml -e 'ARGV.each { |f| YAML.load_file(f) }' {staged_files}
+
 # Pre-push is a hermetic one-second safety net, not a test gate: a full-project
 # format check via the native CLI (no Docker, no network). It catches what the
 # per-commit hook can miss: --no-verify commits, rebase/merge fallout.
