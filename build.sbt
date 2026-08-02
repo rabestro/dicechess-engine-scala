@@ -66,7 +66,7 @@ lazy val commonSettings = Seq(
   libraryDependencies ++= Seq(
     "com.monovore"  %% "decline"          % "2.5.0",
     "org.typelevel" %% "cats-core"        % "2.13.0",
-    "io.circe"      %% "circe-core"       % "0.14.15",
+    "io.circe"      %% "circe-core"       % "0.14.16",
     "io.circe"      %% "circe-generic"    % "0.14.15",
     "io.circe"      %% "circe-parser"     % "0.14.15",
     "org.scalameta" %% "munit"            % "1.3.0" % Test,
