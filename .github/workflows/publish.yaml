@@ -80,11 +80,17 @@ jobs:
         run: |
           sbt rootJS/fullOptJS
           bash .mise/tasks/package/prepare
+        env:
+          # Pass the version explicitly — the tag already carries it. Letting the script
+          # scrape it back out of sbt cost two releases (#544 and the run after it).
+          PACKAGE_VERSION: ${{ github.ref_name }}
 
       - name: Build WebAssembly package
         run: |
           sbt rootWasm/fullLinkJS
           bash .mise/tasks/package/prepare-wasm
+        env:
+          PACKAGE_VERSION: ${{ github.ref_name }}
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
