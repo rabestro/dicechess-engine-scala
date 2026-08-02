@@ -14,17 +14,17 @@ jobs:
       contents: read
       checks: write # Required to publish check runs with test reports
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0  # Disables shallow clones to enable accurate historical git analytics in SonarCloud
       - name: Setup Java
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.0.0
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
          distribution: temurin
          java-version: '25'
          cache: sbt
       - name: Setup sbt
-        uses: sbt/setup-sbt@93e926cbdb4a428e41b4ef754124ec82925ffdc2 # v1.1.5
+        uses: sbt/setup-sbt@bfea3c5f48abd221b04a6df4798aa5eb8b6a2baf # v1.5.6
       - name: Setup Node.js
         # Scala.js runs JS/Wasm tests on Node; the Wasm backend (1.22+) emits
         # ES2022 + WebAssembly GC, which needs a current Node, not the runner default.
