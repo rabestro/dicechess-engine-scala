@@ -17,17 +17,34 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0  # Disables shallow clones to enable accurate historical git analytics in SonarCloud
-      - name: Validate workflow YAML
+      - name: Validate workflows
         # A broken workflow does not fail CI — it silently stops running, so its checks
         # disappear rather than turn red, and publish/release are never exercised by a
         # pull request at all. Invalid indentation reached main that way once already.
         # Checked here as well as in the pre-commit hook, because the hook can be skipped
-        # with --no-verify. Ruby is preinstalled on the runner; this takes milliseconds.
-        # Block scalar, not a plain one: in a plain scalar a ` #` starts a YAML comment, so
-        # `puts "ok #{f}"` silently truncated the command mid-quote — the file still parsed,
-        # which is precisely why the YAML guard below could not catch it. Caught by CI.
+        # with --no-verify.
+        #
+        # Same tool and version as the hook (mise.toml pins actionlint), so the two cannot
+        # disagree. Downloaded rather than installed via mise: this job provisions its JVM
+        # toolchain through setup-java/setup-sbt and deliberately does not use mise. The
+        # version and the SHA-256 are both pinned, and the checksum is verified before the
+        # binary runs — equivalent to the repo's SHA-pinning policy for actions.
+        #
+        # `-shellcheck=` matches the hook: actionlint picks shellcheck up from PATH when
+        # present, and the runner has one, so leaving it on would lint `run:` bodies here
+        # but not locally.
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
         run: |
-          ruby -ryaml -e 'Dir[".github/workflows/*.y*ml"].each { |f| YAML.load_file(f); puts "ok #{f}" }'
+          set -euo pipefail
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "$archive" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}"
+          echo "${ACTIONLINT_SHA256}  ${archive}" | sha256sum -c -
+          tar -xzf "$archive" actionlint
+          ./actionlint -shellcheck= -color
+          rm -f "$archive" actionlint
       - name: Setup Java
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
