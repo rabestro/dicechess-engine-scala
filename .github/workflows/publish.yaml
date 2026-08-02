@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - "v*"
+  # Manual re-run for an existing tag. A release can leave the tag pushed and some artifacts
+  # published but not others — v1.11.4 published nothing, v1.11.5 published the Maven jar and
+  # then lost both npm packages — and there was no way to retry. Tags created by release.yaml
+  # via GITHUB_TOKEN never fire the push event above either (GitHub anti-recursion).
+  # Caveat: a dispatch runs the workflow file as it exists *at that ref*, so this only helps
+  # for tags cut after this change landed.
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -13,6 +20,16 @@ jobs:
       packages: write
 
     steps:
+      - name: Verify the ref is a release tag
+        # The publish steps derive the version from `${GITHUB_REF_NAME#v}`. On a tag push that
+        # is always vX.Y.Z, but a dispatch can target any ref — a branch name would silently
+        # publish a garbage version, so refuse anything that is not a release tag.
+        run: |
+          case "$GITHUB_REF_NAME" in
+            v[0-9]*.[0-9]*.[0-9]*) echo "Publishing $GITHUB_REF_NAME" ;;
+            *) echo "::error::Refusing to publish from '$GITHUB_REF_NAME' — expected a vX.Y.Z tag"; exit 1 ;;
+          esac
+
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
