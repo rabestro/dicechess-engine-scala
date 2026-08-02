@@ -17,6 +17,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0  # Disables shallow clones to enable accurate historical git analytics in SonarCloud
+      - name: Validate workflow YAML
+        # A broken workflow does not fail CI — it silently stops running, so its checks
+        # disappear rather than turn red, and publish/release are never exercised by a
+        # pull request at all. Invalid indentation reached main that way once already.
+        # Checked here as well as in the pre-commit hook, because the hook can be skipped
+        # with --no-verify. Ruby is preinstalled on the runner; this takes milliseconds.
+        # Block scalar, not a plain one: in a plain scalar a ` #` starts a YAML comment, so
+        # `puts "ok #{f}"` silently truncated the command mid-quote — the file still parsed,
+        # which is precisely why the YAML guard below could not catch it. Caught by CI.
+        run: |
+          ruby -ryaml -e 'Dir[".github/workflows/*.y*ml"].each { |f| YAML.load_file(f); puts "ok #{f}" }'
       - name: Setup Java
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
