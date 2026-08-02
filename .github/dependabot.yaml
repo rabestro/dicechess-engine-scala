@@ -43,7 +43,15 @@ updates:
     commit-message:
       prefix: "chore"
     ignore:
-      # sbt 1.x -> 2.x is a breaking major requiring a deliberate, manual migration
-      # (plugin ecosystem compatibility, build definition changes) - not an automated bump.
+      # ANY sbt major bump is a deliberate, manual migration, never an automated one:
+      # plugins must first be republished for the new sbt binary version, and the build
+      # definition itself needs rewriting. Still current now that the build is on sbt 2 —
+      # this guards 2.x -> 3.x exactly as it guarded 1.x -> 2.x. Minor/patch bumps are
+      # unaffected and still arrive automatically.
+      #
+      # History: Dependabot opened #434 (1.12.12 -> 2.0.1) unprompted; it was closed and
+      # this rule added the same day. The migration was eventually done by hand in #529,
+      # which took a build-definition rewrite (crossProject -> projectMatrix) plus fixes
+      # for several silent behaviour changes — i.e. exactly what must not land unreviewed.
       - dependency-name: "org.scala-sbt:sbt"
         update-types: [ "version-update:semver-major" ]
