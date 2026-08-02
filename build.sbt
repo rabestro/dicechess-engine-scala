@@ -1,5 +1,6 @@
 import sbt.{given, *}
 import org.scalajs.linker.interface.ESVersion
+import scala.jdk.CollectionConverters.*
 
 ThisBuild / organization := "lv.id.jc"
 ThisBuild / version      := "1.11.4-SNAPSHOT"
@@ -41,6 +42,10 @@ val ScalaV = "3.8.4"
 // Fails the build when a coverage run produced no instrumentation metadata, instead of
 // letting `coverageReport` warn and exit 0 with the threshold unenforced (#531).
 lazy val coverageDataCheck = taskKey[Unit]("Verify the coverage run actually instrumented the code")
+
+// The mirror image: refuse to publish a jar that IS coverage-instrumented.
+lazy val assertNoCoverageInstrumentation =
+  taskKey[Unit]("Fail if the packaged jar carries scoverage instrumentation")
 
 // projectMatrix's default layout is src/main/scala + src/main/scala-<platform-suffix>,
 // keyed off the row's own (synthetic, .sbt/matrix/<id>) base directory. Pin every row
@@ -145,6 +150,44 @@ lazy val root = (projectMatrix in file("."))
                |property is only read at server startup, so the `shutdown` is required.""".stripMargin
           )
         streams.value.log.info(s"Coverage instrumentation metadata present: $metadata")
+      },
+      // Refuse to publish a coverage-instrumented jar. sbt 2's thin client reuses the
+      // server across workflow steps, so a release step inherits `set coverageEnabled :=
+      // true` from the validation run — and if nothing forces a recompile it publishes the
+      // instrumented classes. That artifact would carry `scala.runtime.coverage.Invoker`
+      // calls and write measurement files at runtime in every consumer.
+      // `Def.uncached` for the same reason as coverageDataCheck: otherwise sbt replays this
+      // task's own earlier success and the check silently stops checking.
+      assertNoCoverageInstrumentation := Def.uncached {
+        // In sbt 2 `packageBin` yields an xsbti.HashedVirtualFileRef, not a File — it has to
+        // go through `fileConverter` to get a real path.
+        val jar    = fileConverter.value.toPath((Compile / packageBin).value).toFile
+        val marker = "scala/runtime/coverage/Invoker"
+        val zip    = new java.util.zip.ZipFile(jar)
+        // `entries().asScala`, not `stream()`: the Java Stream's wildcard element type does
+        // not unify with Scala 3's inference for the Predicate lambda.
+        val hits =
+          try
+            zip.entries().asScala.count { entry =>
+              entry.getName.endsWith(".class") && {
+                val bytes = zip.getInputStream(entry).readAllBytes()
+                new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1).contains(marker)
+              }
+            }
+          finally zip.close()
+        if (hits > 0)
+          sys.error(
+            s"""$jar is coverage-instrumented: $hits class file(s) reference $marker.
+               |
+               |Publishing this would ship instrumented bytecode that writes scoverage
+               |measurement files inside every consumer. Cause: sbt 2's thin client reuses
+               |the server from an earlier step, so `coverageEnabled` is still set from the
+               |validation run. Restart the server and rebuild before publishing:
+               |
+               |  sbt shutdown
+               |  sbt 'clean; rootJVM/assertNoCoverageInstrumentation; rootJVM/publish'""".stripMargin
+          )
+        streams.value.log.info(s"No coverage instrumentation in ${jar.getName}")
       },
       Compile / doc / scalacOptions ++= Seq(
         "-project",
