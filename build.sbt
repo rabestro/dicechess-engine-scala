@@ -139,7 +139,7 @@ lazy val root = (projectMatrix in file("."))
                |
                |  sbt shutdown
                |  rm -rf target/covcache
-               |  sbt -Dsbt.global.localcache="$$PWD/target/covcache" 'clean; coverage; testOnly *; coverageReport'
+               |  sbt -Dsbt.global.localcache="$$PWD/target/covcache" 'clean; coverage; testOnly *; rootJVM/coverageDataCheck; coverageReport'
                |
                |`mise run coverage` and `mise run check` already do exactly this. Note the
                |property is only read at server startup, so the `shutdown` is required.""".stripMargin
