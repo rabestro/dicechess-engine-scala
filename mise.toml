@@ -45,7 +45,24 @@ run = "sbt 'testOnly *'"
 
 [tasks.coverage]
 description = "📊 Run tests with scoverage and generate detailed local reports"
-run = "sbt 'clean; coverage; rootJVM/testOnly *; coverageReport'"
+# Runs against a throwaway, repo-local sbt build cache — load-bearing, see #531.
+#
+# Coverage on Scala 3 is the compiler's own `-coverage-out`, and the compiler is what
+# writes the instrumentation metadata. If sbt 2's action cache serves `compile`, the
+# compiler never runs, nothing is measured, and `coverageReport` only warns — the 85%
+# threshold silently goes unenforced. `clean` cannot help: the cache lives outside target/.
+#
+# Both preamble lines are required:
+#   * `shutdown` — `-Dsbt.global.localcache` is read when the server starts, so an already
+#     running server would ignore it and quietly reuse the global cache.
+#   * `rm -rf` — guarantees the run starts cold even if a previous one left the dir behind.
+# A session `set Global / cacheStores := Nil` looks like it should work and does change the
+# setting, but the cache is not read from it — verified ineffective, do not "simplify" to it.
+run = """
+sbt shutdown >/dev/null 2>&1 || true
+rm -rf target/covcache
+sbt -Dsbt.global.localcache="$PWD/target/covcache" 'clean; coverage; rootJVM/testOnly *; rootJVM/coverageDataCheck; coverageReport'
+"""
 
 [tasks.check]
 description = "✅ Run a full validation cycle"
@@ -54,7 +71,13 @@ description = "✅ Run a full validation cycle"
 # failed (#354). `scalafixAll --check` stays before `clean` to reuse a warm compile — no extra build.
 # sbt 2 requires the whole chain as ONE semicolon-joined command — separate CLI args (or a
 # bare-space-separated command list, sbt 1 style) fail to parse under sbt 2's stricter parser.
-run = "sbt 'scalafixAll --check; clean; scalafmtCheckAll; coverage; testOnly *; coverageReport'"
+# The throwaway build cache and `coverageDataCheck` keep the coverage threshold
+# enforceable — see the `coverage` task above and #531 for why both are required.
+run = """
+sbt shutdown >/dev/null 2>&1 || true
+rm -rf target/covcache
+sbt -Dsbt.global.localcache="$PWD/target/covcache" 'scalafixAll --check; clean; scalafmtCheckAll; coverage; testOnly *; rootJVM/coverageDataCheck; coverageReport'
+"""
 
 [tasks.console]
 description = "💻 Launch an interactive Scala REPL"

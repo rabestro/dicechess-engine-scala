@@ -38,6 +38,10 @@ ThisBuild / credentials ++= (for {
 
 val ScalaV = "3.8.4"
 
+// Fails the build when a coverage run produced no instrumentation metadata, instead of
+// letting `coverageReport` warn and exit 0 with the threshold unenforced (#531).
+lazy val coverageDataCheck = taskKey[Unit]("Verify the coverage run actually instrumented the code")
+
 // projectMatrix's default layout is src/main/scala + src/main/scala-<platform-suffix>,
 // keyed off the row's own (synthetic, .sbt/matrix/<id>) base directory. Pin every row
 // back to this repo's crossProject-era physical layout (shared/ + jvm/ + js/) instead,
@@ -105,26 +109,43 @@ lazy val root = (projectMatrix in file("."))
       // a real filesystem path — a jar-embedded resource path breaks onnxruntime's native
       // file loader (`ORT_NO_SUCHFILE`). Restore the directory classpath for tests.
       Test / exportJars := false,
-      // Pre-existing scoverage runtime race (scoverage/sbt-scoverage#228-like): the
-      // instrumented runtime lazily creates scoverage-data/ via a non-atomic
-      // check-then-mkdir on first measurement write, and that can lose a race against
-      // test startup, throwing FileNotFoundException. Force the directory to exist
-      // before the test JVM(s) start.
-      Test / test := (Test / test)
-        .dependsOn(Def.task {
-          IO.createDirectory(coverageDataDir.value / "scoverage-data")
-        })
-        .evaluated,
-      Test / testOnly := (Test / testOnly)
-        .dependsOn(Def.task {
-          IO.createDirectory(coverageDataDir.value / "scoverage-data")
-        })
-        .evaluated,
-      Test / testQuick := (Test / testQuick)
-        .dependsOn(Def.task {
-          IO.createDirectory(coverageDataDir.value / "scoverage-data")
-        })
-        .evaluated,
+      // Backstop for #531: prove the coverage gate actually measured something.
+      //
+      // Coverage on Scala 3 is the compiler's own `-coverage-out:<dir>`, and the compiler
+      // is what creates that directory and writes `scoverage.coverage` into it. sbt 2's
+      // action cache can serve `compile` outright, in which case the compiler never runs,
+      // the metadata is never written, and `coverageReport` merely warns "No coverage
+      // data, skipping reports" — so `coverageFailOnMinimum` cannot fail and the gate
+      // passes having measured nothing. `clean` does not help: the cache lives outside
+      // `target/`. The coverage tasks avoid this by pointing the cache at a throwaway
+      // repo-local directory (see mise.toml and the CI workflows); this task makes any
+      // path that misses that loud instead of silent.
+      //
+      // Deliberately a plain, explicitly-invoked task rather than an override of `test`
+      // or `coverageReport`: aggregation does not route through a subproject's overridden
+      // tasks, which is exactly how the previous attempt at this silently did nothing.
+      // `Def.uncached` is essential, not decoration: without it sbt 2 caches this task's
+      // own successful result and replays it, so the check silently passes even once the
+      // metadata is gone — the same cache-replay trap it exists to catch.
+      coverageDataCheck := Def.uncached {
+        val metadata = coverageDataDir.value / "scoverage-data" / "scoverage.coverage"
+        if (!metadata.isFile)
+          sys.error(
+            s"""Coverage instrumentation metadata is missing: $metadata
+               |
+               |The compiler did not run, so nothing was measured and the coverage
+               |threshold could not be enforced (see #531). sbt 2's build cache served the
+               |compile, so the compiler never wrote it. Re-run against a cold cache:
+               |
+               |  sbt shutdown
+               |  rm -rf target/covcache
+               |  sbt -Dsbt.global.localcache="$$PWD/target/covcache" 'clean; coverage; testOnly *; coverageReport'
+               |
+               |`mise run coverage` and `mise run check` already do exactly this. Note the
+               |property is only read at server startup, so the `shutdown` is required.""".stripMargin
+          )
+        streams.value.log.info(s"Coverage instrumentation metadata present: $metadata")
+      },
       Compile / doc / scalacOptions ++= Seq(
         "-project",
         name.value,
