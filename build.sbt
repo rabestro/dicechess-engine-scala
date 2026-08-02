@@ -68,7 +68,7 @@ def layout(platformDir: String) = Seq(
 lazy val commonSettings = Seq(
   name := "dicechess-engine-scala",
   libraryDependencies ++= Seq(
-    "com.monovore"  %% "decline"          % "2.5.0",
+    "com.monovore"  %% "decline"          % "2.6.2",
     "org.typelevel" %% "cats-core"        % "2.13.0",
     "io.circe"      %% "circe-core"       % "0.14.16",
     "io.circe"      %% "circe-generic"    % "0.14.15",
