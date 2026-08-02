@@ -4,23 +4,38 @@
 
 set -euo pipefail
 
-# Get version from sbt.
+# Determine the version.
 #
-# Scoped to rootJVM and matched anywhere in the output, both deliberately. An unscoped
-# `print version` prints one line *per project* once the release workflow has run
-# `set ThisBuild / version := ...`:
-#     rootJVM / version	1.11.5
-#     rootJS / version	1.11.5
-# so an anchored `^semver$` filter matches nothing, grep exits 1, and `pipefail` kills this
-# script silently — which is exactly how the v1.11.5 release lost its npm packages.
-# `|| true` keeps the pipeline alive so the emptiness check below can report it properly.
-VERSION=$(sbt -no-colors --error 'print rootJVM/version' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?' | head -n 1 || true)
+# CI passes it explicitly via PACKAGE_VERSION, because it already knows it — the release
+# workflow from its version bump, publish.yaml from the tag name. Scraping it back out of
+# sbt there was pure risk for no gain, and it cost two releases: the output shape depends
+# on session state (an unscoped `print version` prints one line *per project* once
+# `set ThisBuild / version := ...` has run) and, in CI, on which stream sbt writes to.
+#
+# The sbt query stays as a fallback so `mise run package:prepare` still works locally with
+# no arguments. `|| true` keeps the pipeline alive so the check below can report properly
+# instead of `pipefail` killing the script silently.
+VERSION="${PACKAGE_VERSION:-}"
 if [[ -z "$VERSION" ]]; then
-  echo "error: could not determine the project version from sbt" >&2
-  echo "       'print rootJVM/version' produced no semver-looking output" >&2
+  SBT_OUT=$(sbt -no-colors --error 'print rootJVM/version' 2>&1 || true)
+  VERSION=$(printf '%s' "$SBT_OUT" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?' | head -n 1 || true)
+fi
+if [[ -z "$VERSION" ]]; then
+  echo "error: could not determine the project version" >&2
+  echo "       set PACKAGE_VERSION, or make 'print rootJVM/version' return a semver." >&2
+  echo "       raw sbt output was:" >&2
+  printf '%s\n' "${SBT_OUT:-<sbt was not queried>}" | sed 's/^/         /' >&2
   exit 1
 fi
-CLEAN_VERSION=$(echo "$VERSION" | sed 's/-SNAPSHOT//')
+# Normalise: publish.yaml passes the tag name (vX.Y.Z), release.yaml passes a bare
+# version, and the sbt fallback yields X.Y.Z-SNAPSHOT. npm accepts none of the prefixed or
+# suffixed forms, so strip both here rather than relying on every caller to do it.
+CLEAN_VERSION="${VERSION#v}"
+CLEAN_VERSION="${CLEAN_VERSION%-SNAPSHOT}"
+if [[ ! "$CLEAN_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "error: '$VERSION' does not normalise to a semver version (got '$CLEAN_VERSION')" >&2
+  exit 1
+fi
 
 # Create distribution directory
 mkdir -p dist
