@@ -27,12 +27,20 @@ jobs:
         uses: sbt/setup-sbt@v1
 
       # Run sbt directly (no mise): the runner already has the JVM toolchain, jq, and gh,
-      # so mise would only install the local-dev tool set for nothing. Mirrors `mise run check`.
+      # so mise would only install the local-dev tool set for nothing. Runs the same gates
+      # as `mise run check`, but deliberately in a different order: scalafmt first to fail
+      # fast before any compile. `mise run check`'s clean-before-scalafmtCheckAll ordering
+      # (#354) guards against a warm target/, which cannot happen here — the runner starts
+      # from a fresh checkout, and setup-java's `cache: sbt` restores only ~/.sbt, ~/.ivy2
+      # and the coursier cache, never sbt 2's compile CAS.
+      # sbt 2 requires the whole chain as ONE semicolon-joined command — separate CLI args
+      # (sbt 1 style) fail to parse. Bare `test` is also sbt 2's testQuick ("skip if
+      # unchanged"), not "run everything" — `testOnly *` is the sbt-2-safe equivalent.
       - name: Run checks
-        run: sbt scalafmtCheckAll 'scalafixAll --check' clean coverage test coverageReport
+        run: sbt 'scalafmtCheckAll; scalafixAll --check; clean; coverage; testOnly *; coverageReport'
 
       - name: Publish JVM artifact to GitHub Packages (Maven)
-        run: sbt "set ThisBuild / version := \"${GITHUB_REF_NAME#v}\"" rootJVM/publish
+        run: sbt "set ThisBuild / version := \"${GITHUB_REF_NAME#v}\"; rootJVM/publish"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

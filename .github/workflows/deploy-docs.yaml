@@ -56,10 +56,12 @@ jobs:
         working-directory: ${{ env.BUILD_PATH }}
 
       - name: Generate Visual Test Cases Catalog
-        run: sbt "project rootJVM" "Test / runMain dicechess.engine.movegen.DocGenerator"
+        # sbt 2 requires the whole chain as ONE semicolon-joined command — separate CLI
+        # args (sbt 1 style) fail to parse.
+        run: sbt 'project rootJVM; Test / runMain dicechess.engine.movegen.DocGenerator'
 
       - name: Generate King Capture Probability Test Cases Catalog
-        run: sbt "project rootJVM" "Test / runMain dicechess.engine.search.KingCaptureDocGenerator"
+        run: sbt 'project rootJVM; Test / runMain dicechess.engine.search.KingCaptureDocGenerator'
 
       - name: Build with Astro
         run: npm run build
@@ -69,9 +71,12 @@ jobs:
         run: sbt doc
 
       - name: Merge Scaladoc into Astro dist
+        # sbt 2's shared build cache moved output from jvm/target/... to
+        # target/out/jvm/scala-<ver>/<module>/... — still goes stale on a scalaVersion
+        # bump (see AGENTS.md Documentation section).
         run: |
           mkdir -p ${{ env.BUILD_PATH }}/dist/api
-          cp -r jvm/target/scala-3.8.4/api/* ${{ env.BUILD_PATH }}/dist/api/
+          cp -r target/out/jvm/scala-3.8.4/dicechess-engine-scala/api/* ${{ env.BUILD_PATH }}/dist/api/
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v5
