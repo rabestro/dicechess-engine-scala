@@ -4,10 +4,22 @@
 
 set -euo pipefail
 
-# Get version from sbt
-# sbt 2's thin client appends a trailing ANSI clear-line sequence after stdout, which
-# `tail -n 1` would otherwise capture instead of the version — filter for the semver shape.
-VERSION=$(sbt -no-colors --error 'print version' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?$' | tail -n 1)
+# Get version from sbt.
+#
+# Scoped to rootJVM and matched anywhere in the output, both deliberately. An unscoped
+# `print version` prints one line *per project* once the release workflow has run
+# `set ThisBuild / version := ...`:
+#     rootJVM / version	1.11.5
+#     rootJS / version	1.11.5
+# so an anchored `^semver$` filter matches nothing, grep exits 1, and `pipefail` kills this
+# script silently — which is exactly how the v1.11.5 release lost its npm packages.
+# `|| true` keeps the pipeline alive so the emptiness check below can report it properly.
+VERSION=$(sbt -no-colors --error 'print rootJVM/version' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?' | head -n 1 || true)
+if [[ -z "$VERSION" ]]; then
+  echo "error: could not determine the project version from sbt" >&2
+  echo "       'print rootJVM/version' produced no semver-looking output" >&2
+  exit 1
+fi
 CLEAN_VERSION=$(echo "$VERSION" | sed 's/-SNAPSHOT//')
 
 # Create distribution directory
