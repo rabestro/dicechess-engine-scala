@@ -45,7 +45,11 @@ run = "sbt 'testOnly *'"
 
 [tasks.coverage]
 description = "📊 Run tests with scoverage and generate detailed local reports"
-run = "sbt 'clean; coverage; rootJVM/testOnly *; coverageReport'"
+# Deliberately JVM-only (as it was pre-sbt-2): coverage is disabled for rootJS, rootWasm
+# and benchmark, so running them here would add ~55s and measure nothing. The full
+# three-platform run (527 JVM / 408 JS / 408 Wasm) is the `check` task's and CI's job.
+# The cold-cache wrapper is required — see .mise/lib/sbt-cold-cache.sh and #531.
+run = "bash .mise/lib/sbt-cold-cache.sh 'clean; coverage; rootJVM/testOnly *; rootJVM/coverageDataCheck; coverageReport'"
 
 [tasks.check]
 description = "✅ Run a full validation cycle"
@@ -54,7 +58,9 @@ description = "✅ Run a full validation cycle"
 # failed (#354). `scalafixAll --check` stays before `clean` to reuse a warm compile — no extra build.
 # sbt 2 requires the whole chain as ONE semicolon-joined command — separate CLI args (or a
 # bare-space-separated command list, sbt 1 style) fail to parse under sbt 2's stricter parser.
-run = "sbt 'scalafixAll --check; clean; scalafmtCheckAll; coverage; testOnly *; coverageReport'"
+# The cold-cache wrapper and `coverageDataCheck` keep the coverage threshold enforceable
+# — see .mise/lib/sbt-cold-cache.sh and #531 for why both are required.
+run = "bash .mise/lib/sbt-cold-cache.sh 'scalafixAll --check; clean; scalafmtCheckAll; coverage; testOnly *; rootJVM/coverageDataCheck; coverageReport'"
 
 [tasks.console]
 description = "💻 Launch an interactive Scala REPL"
