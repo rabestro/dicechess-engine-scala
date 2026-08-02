@@ -23,7 +23,11 @@ jobs:
         # pull request at all. Invalid indentation reached main that way once already.
         # Checked here as well as in the pre-commit hook, because the hook can be skipped
         # with --no-verify. Ruby is preinstalled on the runner; this takes milliseconds.
-        run: ruby -ryaml -e 'Dir[".github/workflows/*.y*ml"].each { |f| YAML.load_file(f); puts "ok #{f}" }'
+        # Block scalar, not a plain one: in a plain scalar a ` #` starts a YAML comment, so
+        # `puts "ok #{f}"` silently truncated the command mid-quote — the file still parsed,
+        # which is precisely why the YAML guard below could not catch it. Caught by CI.
+        run: |
+          ruby -ryaml -e 'Dir[".github/workflows/*.y*ml"].each { |f| YAML.load_file(f); puts "ok #{f}" }'
       - name: Setup Java
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
