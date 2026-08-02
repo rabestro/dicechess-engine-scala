@@ -5,7 +5,9 @@
 set -euo pipefail
 
 # Get version from sbt
-VERSION=$(sbt -no-colors --error 'print version' | tail -n 1 | tr -d '[:space:]')
+# sbt 2's thin client appends a trailing ANSI clear-line sequence after stdout, which
+# `tail -n 1` would otherwise capture instead of the version — filter for the semver shape.
+VERSION=$(sbt -no-colors --error 'print version' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?$' | tail -n 1)
 CLEAN_VERSION=$(echo "$VERSION" | sed 's/-SNAPSHOT//')
 
 # Create distribution directory
@@ -15,8 +17,8 @@ mkdir -p dist
 sed -i.bak "s/\"version\": \"[^\"]*\"/\"version\": \"$CLEAN_VERSION\"/" package.json
 rm package.json.bak
 
-# Copy assets to the distribution folder
-cp js/target/scala-3.*/dicechess-engine-scala-opt/main.js dist/dicechess-engine.js
+# Copy assets to the distribution folder (sbt 2's shared target/out/ layout, not js/target/)
+cp target/out/sjs1/scala-3.*/dicechess-engine-scala/dicechess-engine-scala-opt/main.js dist/dicechess-engine.js
 cp js/dicechess-engine.d.ts dist/
 cp js/README.md dist/README.md
 

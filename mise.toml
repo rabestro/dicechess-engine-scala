@@ -22,7 +22,7 @@ depends = ["setup:tools", "hook:install"]
 [tasks."setup:tools"]
 description = "🛠️  Install system and build dependencies (SBT, universal-ctags, tree)"
 run_windows = """
-winget install --id sbt.sbt --version 1.12.11 --exact --accept-package-agreements --accept-source-agreements
+winget install --id sbt.sbt --version 2.0.4 --exact --accept-package-agreements --accept-source-agreements
 winget install --id UniversalCtags.UniversalCtags --accept-package-agreements --accept-source-agreements
 winget install --id GnuWin32.Tree --accept-package-agreements --accept-source-agreements
 """
@@ -38,18 +38,23 @@ run = "sbt rootJVM/run"
 
 [tasks.test]
 description = "🧪 Execute MUnit automated tests (JVM + JS)"
-run = "sbt test"
+# sbt 2's bare `test` key is defined as testQuick's "skip if unchanged" semantics, not
+# sbt 1's "run everything" — `testOnly *` is the sbt-2-safe equivalent that always runs
+# the full suite and still fails loudly on a real test failure.
+run = "sbt 'testOnly *'"
 
 [tasks.coverage]
 description = "📊 Run tests with scoverage and generate detailed local reports"
-run = "sbt clean coverage rootJVM/test coverageReport"
+run = "sbt 'clean; coverage; rootJVM/testOnly *; coverageReport'"
 
 [tasks.check]
 description = "✅ Run a full validation cycle"
 # `scalafmtCheckAll` runs AFTER `clean`: sbt-scalafmt's incremental cache can otherwise skip an
 # actually-misformatted file on a warm target/, so `check` passed locally while CI (fresh checkout)
 # failed (#354). `scalafixAll --check` stays before `clean` to reuse a warm compile — no extra build.
-run = "sbt 'scalafixAll --check' clean scalafmtCheckAll coverage test coverageReport"
+# sbt 2 requires the whole chain as ONE semicolon-joined command — separate CLI args (or a
+# bare-space-separated command list, sbt 1 style) fail to parse under sbt 2's stricter parser.
+run = "sbt 'scalafixAll --check; clean; scalafmtCheckAll; coverage; testOnly *; coverageReport'"
 
 [tasks.console]
 description = "💻 Launch an interactive Scala REPL"
@@ -85,7 +90,7 @@ run = "sbt clean"
 
 [tasks.format]
 description = "✨ Reformat codebase"
-run = "sbt scalafmtAll scalafixAll"
+run = "sbt 'scalafmtAll; scalafixAll'"
 
 [tasks."format:check"]
 description = "🔍 Verify code formatting"
@@ -109,17 +114,17 @@ run = "rm -rf dist"
 
 [tasks."docs:generate"]
 description = "📝 Generate visual test cases catalog from JSON files"
-run = "sbt \"project rootJVM\" \"Test / runMain dicechess.engine.movegen.DocGenerator\""
+run = "sbt 'project rootJVM; Test / runMain dicechess.engine.movegen.DocGenerator'"
 
 [tasks."docs:search:generate"]
 description = "📝 Generate visual test cases catalog for King Capture Probability"
-run = "sbt \"project rootJVM\" \"Test / runMain dicechess.engine.search.KingCaptureDocGenerator\""
+run = "sbt 'project rootJVM; Test / runMain dicechess.engine.search.KingCaptureDocGenerator'"
 
 # Single sbt session for all generators: parallel depends would boot two sbt
 # instances in the same project and collide on the server socket (#326).
 [tasks."docs:generate:all"]
 description = "📝 Generate all visual test-case catalogs in a single sbt session"
-run = "sbt \"project rootJVM\" \"Test / runMain dicechess.engine.movegen.DocGenerator\" \"Test / runMain dicechess.engine.search.KingCaptureDocGenerator\""
+run = "sbt 'project rootJVM; Test / runMain dicechess.engine.movegen.DocGenerator; Test / runMain dicechess.engine.search.KingCaptureDocGenerator'"
 
 [tasks."docs:dev"]
 description = "🚀 Run the documentation site dev server"

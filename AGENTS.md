@@ -32,15 +32,15 @@ mise install     # java temurin-25, node 26, lefthook, betterleaks, scalafmt (pi
 mise run setup   # brew install sbt universal-ctags tree + install git hooks
 ```
 
-- Node is required even for plain `sbt test` — JS/Wasm tests execute on Node. Missing/old Node fails the JS test run, not just docs.
+- Node is required even for plain `sbt 'testOnly *'` — JS/Wasm tests execute on Node. Missing/old Node fails the JS test run, not just docs.
 - Consuming the published Maven/npm artifacts (in downstream repos) needs a `read:packages` GitHub token even though the packages are public. Inside this repo use `mise run publish:local` instead.
 
 Daily tasks (defined in `mise.toml` + executable file tasks under `.mise/tasks/`):
 
 ```bash
 mise run check          # THE pre-PR gate: scalafix check, clean, scalafmt check, coverage test + report
-mise run test           # sbt test (all scopes: JVM + JS + Wasm on Node)
-mise run format         # sbt scalafmtAll scalafixAll — git add new .scala files FIRST
+mise run test           # sbt testOnly * (JVM + JS)
+mise run format         # sbt scalafmtAll; scalafixAll — git add new .scala files FIRST
 mise run compile | run | console | coverage | clean
 mise run bench | bench:quick | bench:filter <regex>     # JMH benchmarks
 mise run arena [base] [games]                           # bot arena (BotMatchRunner)
@@ -97,7 +97,7 @@ Common failure signatures:
 - `git add` new `.scala` files **before** `mise run format`: `sbt scalafmtAll` skips untracked files, then the native-scalafmt pre-commit hook fails the commit.
 - Do not "optimize" the `check` task order: `clean` runs before `scalafmtCheckAll` deliberately — sbt-scalafmt's warm cache can skip a misformatted file (#354).
 - `publish.yaml` and `release.yaml` duplicate publish steps intentionally: tags created by `release.yaml` via `GITHUB_TOKEN` do not trigger `publish.yaml` (GitHub anti-recursion). Edit both in sync.
-- `deploy-docs.yaml` hardcodes `jvm/target/scala-<version>/api` for the Scaladoc merge — it goes stale on every Scala version bump; check it whenever `scalaVersion` changes.
+- `deploy-docs.yaml` hardcodes `target/out/jvm/scala-<version>/dicechess-engine-scala/api` for the Scaladoc merge — it goes stale on every Scala version bump; check it whenever `scalaVersion` changes.
 - Turn maximality is measured in **dice consumed, not move count** — castling spends two dice in one move; the active color never changes within a turn. Regression suites: `TurnGeneratorSuite` (#347), `EnPassantMicroMoveSuite`.
 - The engine does **not** support Chess960 castling — squares e1/h1/a1 are hardcoded.
 - Root `package.json` version is dead weight — the real version comes from sbt at `package:prepare` time. Never "fix" or trust it.
@@ -105,6 +105,11 @@ Common failure signatures:
 - The pinned scalafmt version in `mise.toml` must exactly match `version` in `.scalafmt.conf` — the native pre-commit CLI does not auto-dispatch versions.
 - Doc generators must run in ONE sbt session (`mise run docs:generate:all`); two parallel sbt boots collide on the server socket (#326).
 - Exclude `.claude/worktrees/` from repo-wide greps — a leftover worktree contains a full source copy and produces duplicate hits.
+- sbt 2 rejects multiple CLI arguments and space-separated command lists (sbt 1 style) — every multi-step invocation must be ONE string joined with `;` (e.g. `sbt 'clean; coverage; testOnly *; coverageReport'`). This affects every `mise` task and CI workflow step that chains sbt commands.
+- sbt 2's bare `test` key is defined as `testQuick`'s "skip if unchanged" semantics, not sbt 1's "run everything" — a warm build can silently report "0 tests, success". `testOnly *` always runs the full suite and is used everywhere `test` used to mean "run everything" (mise tasks, CI, publish/release workflows).
+- sbt 2 defaults `Test / exportJars` to `true` (sbt 1 defaulted to `false`), packing test resources into a CAS-cached jar. `OnnxEvalSearchSpec`/`OnnxExpectimaxSearchSpec` resolve the bundled ONNX test model via `getClass.getResource(...).getPath`, which needs a real filesystem path — `build.sbt` sets `Test / exportJars := false` on `rootJVM` to keep it working.
+- The instrumented scoverage runtime lazily creates `scoverage-data/` via a non-atomic check-then-mkdir on the first measurement write, which can lose a race against test startup and throw `FileNotFoundException`. `build.sbt` hooks `Test / test`, `Test / testOnly`, and `Test / testQuick` on `rootJVM` to pre-create that directory.
+- sbt 2's global, cross-session compile cache (`~/Library/Caches/sbt/v2/cas`) is keyed by content hash, not by `target/`'s physical state — `clean` or deleting `target/` does **not** invalidate it. Rerunning `coverage; testOnly *; coverageReport` with unchanged sources can replay cached (non-instrumented) class files and silently skip scoverage's `scoverage.coverage` metadata write, making `coverageReport` warn "No coverage data, skipping reports" instead of failing. CI is unaffected (every run starts with a fresh runner, so there's no warm cache to hit); locally, if `mise run coverage`/`check` reports success suspiciously fast with no coverage percentage printed, clear `~/Library/Caches/sbt/v2/cas` and rerun.
 
 ## Git & PR workflow
 <!-- dc-shared:git-pr v1 — keep identical across dicechess repos -->
@@ -162,7 +167,7 @@ failures cheaply. When in doubt, escalate one tier — reviewer time costs more 
 ## Documentation
 
 - Docs site: `docs/` (Astro + Starlight, mermaid + KaTeX), deployed together with Scaladoc to GitHub Pages by `deploy-docs.yaml` on pushes to `main` touching `docs/**`, the movegen/search test-resource fixtures, or the workflow itself. Local dev: `mise run docs:dev`.
-- Caveat: the workflow's `src/main/scala/**` path filter matches nothing in the crossProject layout (sources live under `shared/`, `jvm/`, `js/`), so engine-source changes do NOT trigger a deploy — a broken Scaladoc fence surfaces on the next unrelated docs deploy, not on your merge. Run `sbt doc` locally; fixing the filter to `{shared,jvm,js}/src/main/scala/**` is a known open item.
+- Caveat: the workflow's `src/main/scala/**` path filter matches nothing in this repo's cross-platform layout (sources live under `shared/`, `jvm/`, `js/`), so engine-source changes do NOT trigger a deploy — a broken Scaladoc fence surfaces on the next unrelated docs deploy, not on your merge. Run `sbt doc` locally; fixing the filter to `{shared,jvm,js}/src/main/scala/**` is a known open item.
 - Update-trigger map:
   - Changed movegen/KCP JSON fixtures → catalog pages regenerate; preview with `mise run docs:generate:all`.
   - Changed the JS API → update `js/dicechess-engine.d.ts` and the README usage examples.

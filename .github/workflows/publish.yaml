@@ -28,11 +28,14 @@ jobs:
 
       # Run sbt directly (no mise): the runner already has the JVM toolchain, jq, and gh,
       # so mise would only install the local-dev tool set for nothing. Mirrors `mise run check`.
+      # sbt 2 requires the whole chain as ONE semicolon-joined command — separate CLI args
+      # (sbt 1 style) fail to parse. Bare `test` is also sbt 2's testQuick ("skip if
+      # unchanged"), not "run everything" — `testOnly *` is the sbt-2-safe equivalent.
       - name: Run checks
-        run: sbt scalafmtCheckAll 'scalafixAll --check' clean coverage test coverageReport
+        run: sbt 'scalafmtCheckAll; scalafixAll --check; clean; coverage; testOnly *; coverageReport'
 
       - name: Publish JVM artifact to GitHub Packages (Maven)
-        run: sbt "set ThisBuild / version := \"${GITHUB_REF_NAME#v}\"" rootJVM/publish
+        run: sbt "set ThisBuild / version := \"${GITHUB_REF_NAME#v}\"; rootJVM/publish"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

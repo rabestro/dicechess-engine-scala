@@ -53,14 +53,19 @@ jobs:
 
       # Run sbt directly (no mise): the runner already has the JVM toolchain, jq, and gh,
       # so mise would only install the local-dev tool set for nothing. Mirrors `mise run check`.
+      # sbt 2 requires the whole chain as ONE semicolon-joined command — separate CLI args
+      # (sbt 1 style) fail to parse. Bare `test` is also sbt 2's testQuick ("skip if
+      # unchanged"), not "run everything" — `testOnly *` is the sbt-2-safe equivalent.
       - name: Run validation checks
-        run: sbt scalafmtCheckAll 'scalafixAll --check' clean coverage test coverageReport
+        run: sbt 'scalafmtCheckAll; scalafixAll --check; clean; coverage; testOnly *; coverageReport'
 
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@v6
         if: always() # Always run even if tests fail!
         with:
-          report_paths: '**/target/test-reports/*.xml'
+          # sbt 2's shared build cache moved output from <platform>/target/... to
+          # target/out/<platform>/scala-<ver>/<module>/...
+          report_paths: '**/target/out/**/test-reports/*.xml'
           detailed_summary: true
           include_passed: true
 
@@ -132,7 +137,7 @@ jobs:
           git push origin ${{ steps.bump_version.outputs.new_tag }}
 
       - name: Publish JVM artifact to GitHub Packages (Maven)
-        run: sbt "set ThisBuild / version := \"${{ steps.bump_version.outputs.new_version }}\"" rootJVM/publish
+        run: sbt "set ThisBuild / version := \"${{ steps.bump_version.outputs.new_version }}\"; rootJVM/publish"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
