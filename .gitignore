@@ -12,6 +12,10 @@ project/target/
 project/project/
 .history/
 .scala-build/
+# Synthetic base directories sbt 2 generates for projectMatrix rows (rootJVM/rootJS).
+# Currently only ever empty — and git does not track empty directories — so this is
+# defensive: it keeps generated paths out of the index if anything starts writing there.
+.sbt/
 
 # IDEs
 .idea/
