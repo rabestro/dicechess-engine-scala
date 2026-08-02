@@ -3,7 +3,7 @@ import org.scalajs.linker.interface.ESVersion
 import scala.jdk.CollectionConverters.*
 
 ThisBuild / organization := "lv.id.jc"
-ThisBuild / version      := "1.11.6-SNAPSHOT"
+ThisBuild / version      := "1.11.7-SNAPSHOT"
 ThisBuild / scalaVersion := "3.8.4"
 
 ThisBuild / description := "High-performance Dice Chess engine and probability calculator in Scala 3."
