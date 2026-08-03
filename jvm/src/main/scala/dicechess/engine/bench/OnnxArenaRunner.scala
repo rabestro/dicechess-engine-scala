@@ -1,7 +1,15 @@
 package dicechess.engine.bench
 
 import dicechess.engine.domain.{Color, GameState}
-import dicechess.engine.search.{BotInfo, BotRegistry, KcpFeatures, OnnxEvalSearch, OnnxFeatures, RichFeatures}
+import dicechess.engine.search.{
+  BotInfo,
+  BotRegistry,
+  KcpFeatures,
+  OnnxEvalSearch,
+  OnnxFeatures,
+  RawBoardFeatures,
+  RichFeatures
+}
 
 /** Local arena between an externally-trained (LightGBM, via ONNX) one-ply evaluator and a built-in bot — the
   * acceptance-gate check for the Dice Chess AI hackathon project (>= 55% win rate over enough games to be a real
@@ -36,7 +44,9 @@ object OnnxArenaRunner:
       case "material" => OnnxFeatures.extract
       case "rich"     => RichFeatures.extract
       case "kcp"      => KcpFeatures.extract
-      case other      => sys.error(s"Unknown feature set '$other' (expected 'material', 'rich', or 'kcp')")
+      case "rawboard" => RawBoardFeatures.extract
+      case other      =>
+        sys.error(s"Unknown feature set '$other' (expected 'material', 'rich', 'kcp', or 'rawboard')")
 
     val opponentInfo = BotRegistry.availableBots
       .find(_.id.equalsIgnoreCase(opponentId))
