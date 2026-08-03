@@ -10,6 +10,7 @@ import dicechess.engine.search.{
   OnnxFeatures,
   OpeningBookBot,
   OpeningBookParser,
+  RawBoardFeatures,
   RichFeatures,
   RootRescoreModel,
   SearchAlgorithm
@@ -65,7 +66,9 @@ object OnnxExpectimaxArenaRunner:
       case "material" => OnnxFeatures.extract
       case "rich"     => RichFeatures.extract
       case "kcp"      => KcpFeatures.extract
-      case other      => sys.error(s"Unknown feature set '$other' (expected 'material', 'rich', or 'kcp')")
+      case "rawboard" => RawBoardFeatures.extract
+      case other      =>
+        sys.error(s"Unknown feature set '$other' (expected 'material', 'rich', 'kcp', or 'rawboard')")
 
     val rescoreModelPath = args.lift(5).map(_.trim).filter(_.nonEmpty)
     val rescoreWeight    = args.lift(6).flatMap(_.toDoubleOption).getOrElse(0.5)

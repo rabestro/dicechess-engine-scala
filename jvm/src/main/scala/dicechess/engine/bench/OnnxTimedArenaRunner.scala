@@ -8,6 +8,7 @@ import dicechess.engine.search.{
   KcpFeatures,
   OnnxExpectimaxSearch,
   OnnxFeatures,
+  RawBoardFeatures,
   RichFeatures
 }
 
@@ -48,7 +49,9 @@ object OnnxTimedArenaRunner:
       case "material" => OnnxFeatures.extract
       case "rich"     => RichFeatures.extract
       case "kcp"      => KcpFeatures.extract
-      case other      => sys.error(s"Unknown feature set '$other' (expected 'material', 'rich', or 'kcp')")
+      case "rawboard" => RawBoardFeatures.extract
+      case other      =>
+        sys.error(s"Unknown feature set '$other' (expected 'material', 'rich', 'kcp', or 'rawboard')")
 
     val baseline       = args.lift(2).getOrElse("aggressive")
     val games          = args.lift(3).flatMap(_.toIntOption).getOrElse(10)
