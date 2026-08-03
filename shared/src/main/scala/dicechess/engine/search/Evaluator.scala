@@ -15,6 +15,21 @@ object Evaluator:
     */
   val KingExposurePenalty: Int = 2000
 
+  /** Centipawns per friendly attacker of a square in the enemy king's ring, used by [[evaluateAggressive]].
+    *
+    * Named rather than inlined because #513 changed what it multiplies: the count used to come from an early-exiting
+    * probe that stopped at the first attacking piece type, so in practice it scaled a number that rarely exceeded one
+    * or two. It now scales the true attacker count, which raises the term's weight relative to the pawn-storm and
+    * proximity heuristics it was balanced against.
+    *
+    * Kept at 25 on evidence, not inertia. A sweep of 6/8/10/12/15/20/25 against the pre-#513 behaviour (2000 games
+    * each) put every corrected weight at or above level, 50.6–51.9%, with a mild monotone preference for smaller
+    * values; a direct A/B of w10 and w12 against w25 (3000 games) then measured only +0.9pp, inside the ±1.8pp the
+    * sample can resolve. Re-scaling on that would be tuning to noise, so the correction ships alone. This is still the
+    * knob to turn if the balance is revisited — with a run large enough to separate the candidates.
+    */
+  val RingWeight: Int = 25
+
   /** Evaluates the overall position for the given `color`, including material and king safety heuristics.
     *
     * @param state
@@ -154,6 +169,14 @@ object Evaluator:
       }
 
       // 3. King Ring Pressure Heuristic
+      //
+      // `allAttackers`, not `isSquareAttacked` (#513): the latter returns the attackers of the FIRST
+      // matching piece type and stops — an early exit that is its documented contract and what keeps
+      // it cheap for legality checks, but which makes `.count` something other than the number of
+      // attackers. Probing order being pawns → knights → diagonal → orthogonal → king, a square
+      // attacked by one pawn and three pieces scored 1 × RingWeight while one attacked by two knights
+      // scored 2 × RingWeight, ranking a broad multi-piece attack BELOW a narrow same-type one — the
+      // opposite of what "ring pressure" is meant to reward.
       var kingRingPressure = 0
       for {
         r <- (ekRank - 1) to (ekRank + 1)
@@ -162,8 +185,8 @@ object Evaluator:
         if !(r == ekRank && f == ekFile)
       } {
         val targetSq          = Square(f.toChar, r)
-        val friendlyAttackers = MoveGenerator.isSquareAttacked(state, targetSq, color)
-        if !friendlyAttackers.isEmpty then kingRingPressure += friendlyAttackers.count * 25
+        val friendlyAttackers = MoveGenerator.allAttackers(state, targetSq, color)
+        kingRingPressure += friendlyAttackers.count * RingWeight
       }
 
       standardScore + pawnStormBonus + proximityBonus + kingRingPressure
