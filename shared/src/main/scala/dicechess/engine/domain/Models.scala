@@ -361,6 +361,13 @@ case class GameState(
   inline def dicePool: List[Int] = flags.dicePool
   inline def halfMoveClock: Int  = flags.halfMoveClock
 
+  /** Value equality over every field, mailbox included — hand-written rather than derived because `mailbox` is an
+    * `IArray`, whose default equality is by reference; `java.util.Arrays.equals` compares it by content instead.
+    *
+    * Worth stating explicitly because the opposite was once assumed in `ExpectimaxSearch` (#514): two positions reached
+    * by different move orders **do** compare equal, so `GameState` is usable as a `Map`/`Set` key directly. A separate
+    * key type is only ever warranted on cost grounds — [[hashCode]] walks the 64-entry mailbox — never on correctness.
+    */
   override def equals(obj: Any): Boolean = obj match
     case that: GameState =>
       this.whitePieces == that.whitePieces &&
