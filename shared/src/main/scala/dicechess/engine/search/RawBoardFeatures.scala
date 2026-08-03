@@ -19,8 +19,16 @@ import dicechess.engine.domain.*
   * move stops being an input dimension, exactly as the `own minus opponent` convention does for the material features.
   * The starting array is symmetric under this transform, so both colors encode it identically.
   *
-  * Unlike [[RichFeatures]] this needs '''no move generation''', which is the point: it is cheap enough for the leaves
-  * of a deeper search, where `mobility_diff`'s two `generateAllMoves` passes are not affordable.
+  * Unlike [[RichFeatures]] this needs '''no move generation'''. That does '''not''' make it cheaper, which is worth
+  * stating plainly because the opposite was assumed when this was written: extraction gets cheaper, but the model
+  * behind it does not. Measured on the one-ply arena over the same 400/1600-game harness, a raw-board net costs ~0.195
+  * s/game against ~0.0375 s/game for a rich(9) GBDT — '''~5x more per evaluation''', because a 768-wide input through a
+  * 256x32 MLP outweighs the two `generateAllMoves` passes it saves. A 2-ply run at `candidateLimit = 24` corroborates
+  * it: rich finishes 400 games in ~25 minutes, this did not finish in two hours.
+  *
+  * So the reason to use this set is '''strength per evaluation''', not throughput: at one ply it scores 57.3% against
+  * the `aggressive` baseline where rich(9) scores 48.0%, while costing 1/253 of the `kcp` teacher's 60.8%. Anything
+  * that budgets leaf evaluations — a deeper search, or a bot under a clock — has to weigh that 5x.
   *
   * @note
   *   Dice-free by construction, like every other feature set here: it scores an afterstate whose next roll is unknown.
