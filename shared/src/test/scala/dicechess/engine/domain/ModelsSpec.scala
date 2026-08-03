@@ -240,3 +240,32 @@ class ModelsSpec extends FunSuite:
     assertEquals(state, copy)
     assertEquals(state.hashCode(), copy.hashCode())
   }
+
+  // The claim `ExpectimaxSearch.LeafKey` once denied (#514): a position reached by two different
+  // move orders compares equal, so GameState deduplicates transpositions as a hash key. Two quiet
+  // single-step pawn pushes commute — neither sets an en-passant square, and both reset the same
+  // half-move clock — so the two orders must land on an identical state.
+  private def transposed(first: Move, second: Move): GameState =
+    FenParser.parse(FenParser.InitialPosition).toOption.get.makeMove(first).makeMove(second)
+
+  test("GameState reached by transposed move orders compares equal and hashes alike") {
+    val a3 = Move(Square('a', 2), Square('a', 3), Move.QuietMove)
+    val h3 = Move(Square('h', 2), Square('h', 3), Move.QuietMove)
+
+    val viaA = transposed(a3, h3)
+    val viaH = transposed(h3, a3)
+
+    assertEquals(viaA, viaH, "the same position built by different move orders must compare equal")
+    assertEquals(viaA.hashCode(), viaH.hashCode(), "equal states must hash alike")
+  }
+
+  test("GameState deduplicates transpositions when used directly as a hash key") {
+    // The concrete consequence: no separate key type is needed for correctness. LeafKey exists to
+    // avoid hashing the 64-entry mailbox, which is a cost argument, not this one.
+    val a3 = Move(Square('a', 2), Square('a', 3), Move.QuietMove)
+    val h3 = Move(Square('h', 2), Square('h', 3), Move.QuietMove)
+
+    val seen = scala.collection.mutable.HashSet(transposed(a3, h3))
+    assert(!seen.add(transposed(h3, a3)), "the transposed twin must be recognised as already seen")
+    assertEquals(seen.size, 1)
+  }

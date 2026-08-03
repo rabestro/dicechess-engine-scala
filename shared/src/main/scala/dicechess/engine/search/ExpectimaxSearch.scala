@@ -302,8 +302,13 @@ final class ExpectimaxSearch(
     *
     * Exactness is the whole point: a key that merged two genuinely different positions could discard the one holding
     * the minimum and silently change the search's value, so this carries every field that distinguishes a position for
-    * an arbitrary evaluator. [[GameState]] itself cannot serve as the key — its `mailbox` is an `IArray`, which
-    * compares by reference, so equal positions built by different move orders would never match.
+    * an arbitrary evaluator.
+    *
+    * [[GameState]] *would* work as the key — it hand-overrides `equals`/`hashCode` and compares the mailbox by content
+    * (`java.util.Arrays.equals`), so transposed positions do match. The reason for a separate key is **cost, not
+    * correctness**: `GameState.hashCode` runs `java.util.Arrays.hashCode` over the 64-entry mailbox, while this mixes
+    * eleven primitives in register arithmetic. On a path that hashes once per leaf, tens of thousands of times per
+    * chance node, that difference is the whole point of the deduplication.
     *
     * `mailbox` is omitted because it is a redundant index over the same eight bitboards, not independent state. `flags`
     * is included as a whole: it packs castling rights and the half-move clock, both of which genuinely differ between
