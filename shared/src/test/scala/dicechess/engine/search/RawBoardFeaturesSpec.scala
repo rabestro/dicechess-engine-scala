@@ -9,7 +9,15 @@ import munit.FunSuite
   */
 class RawBoardFeaturesSpec extends FunSuite:
 
-  private def parse(fen: String): GameState = FenParser.parse(fen).toOption.get
+  // Surfaces the parser's own message: `.toOption.get` (the pattern sibling specs use) would turn a
+  // typo in a fixture into a bare NoSuchElementException instead of naming what is wrong with the FEN.
+  private def parse(fen: String): GameState =
+    FenParser.parse(fen).fold(error => fail(s"invalid fixture FEN '$fen': $error"), identity)
+
+  /** Every cell must be exactly 0.0f or 1.0f — these are indicator planes, not counts. */
+  private def assertBinary(features: Array[Float]): Unit =
+    val offending = features.filterNot(v => v == 0.0f || v == 1.0f)
+    assert(offending.isEmpty, s"non-binary values present: ${offending.take(5).mkString(", ")}")
 
   /** The 64 squares of one plane, by its position in the vector. */
   private def plane(features: Array[Float], index: Int): Array[Float] =
@@ -25,6 +33,7 @@ class RawBoardFeaturesSpec extends FunSuite:
 
   test("width and columnNames agree"):
     val features = RawBoardFeatures.extract(parse(FenParser.InitialPosition), Color.White)
+    assertBinary(features)
     assertEquals(features.length, RawBoardFeatures.Width)
     assertEquals(features.length, 768)
     assertEquals(RawBoardFeatures.columnNames.length, 768)
@@ -82,3 +91,19 @@ class RawBoardFeaturesSpec extends FunSuite:
         .extract(withPawnDice, Color.White)
         .sameElements(RawBoardFeatures.extract(withKingDice, Color.White))
     )
+
+  test("an empty board encodes to all zeros"):
+    val features = RawBoardFeatures.extract(parse("8/8/8/8/8/8/8/8 w - - 0 1"), Color.White)
+    assertBinary(features)
+    assertEquals(features.sum, 0.0f)
+    assertEquals(features.length, RawBoardFeatures.Width)
+
+  test("a fully occupied board sets exactly 64 cells, one per square"):
+    // Every square filled: the planes partition the board, so no square may land in two of them.
+    val fen      = "rrrrkrrr/pppppppp/pppppppp/pppppppp/PPPPPPPP/PPPPPPPP/PPPPPPPP/RRRRKRRR w - - 0 1"
+    val features = RawBoardFeatures.extract(parse(fen), Color.White)
+    assertBinary(features)
+    assertEquals(features.sum, 64.0f)
+    // Summing the 12 planes cell-wise must give 1 everywhere — a double-counted square would give 2.
+    val perSquare = (0 until 64).map(sq => (0 until 12).map(pl => features(pl * 64 + sq)).sum)
+    assertEquals(perSquare.toSet, Set(1.0f))
