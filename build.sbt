@@ -58,7 +58,11 @@ def layout(platformDir: String) = Seq(
   ),
   Test / unmanagedSourceDirectories := Seq(
     (ThisBuild / baseDirectory).value / "shared" / "src" / "test" / "scala",
-    (ThisBuild / baseDirectory).value / platformDir / "src" / "test" / "scala"
+    (ThisBuild / baseDirectory).value / platformDir / "src" / "test" / "scala",
+    // Java-source test fixtures (currently only under jvm/): proving a facade is callable from
+    // Java needs code the Scala compiler never gets to see. Nonexistent on js/wasm rows, so this
+    // is a no-op there.
+    (ThisBuild / baseDirectory).value / platformDir / "src" / "test" / "java"
   ),
   Compile / unmanagedResourceDirectories := Seq(
     (ThisBuild / baseDirectory).value / "shared" / "src" / "main" / "resources",
