@@ -12,7 +12,7 @@ import scala.util.Random
   */
 object BotMatchRunner:
 
-  private val StartFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+  private[bench] val StartFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
   /** @param args
     *   `baseBotId` (default `greedy`), `gamesPerColor` (default `50`), a trailing optional `seed` (default `42`), and
@@ -382,36 +382,21 @@ object BotMatchRunner:
   private[bench] def runTimedMatch(
       botUnderTestId: String,
       baselineId: String,
-      gamesPerColor: Int,
-      tc: TimeControl,
-      startState: GameState = FenParser.parse(StartFen).toOption.get,
-      seed: Long = 42L,
-      sprtConfig: Option[SprtConfig] = None
+      setup: TimedMatchSetup
   ): TimedMatchResult =
-    runTimedMatch(
-      resolveOpponent(botUnderTestId),
-      resolveOpponent(baselineId),
-      gamesPerColor,
-      tc,
-      startState,
-      seed,
-      sprtConfig
-    )
+    runTimedMatch(resolveOpponent(botUnderTestId), resolveOpponent(baselineId), setup)
 
   /** Algorithm-level overload of [[runTimedMatch]] — lets a test field an opponent (e.g. a [[WebhookBot]] pointed at a
     * mock endpoint) without registering it in the process-wide [[BotRegistry]] singleton, whose contents other suites
-    * assert exactly. No default arguments: the id-based overload above already carries them, and Scala allows defaults
-    * on only one alternative.
+    * assert exactly. Both overloads take the same [[TimedMatchSetup]], so neither carries defaults of its own — which
+    * is what removes the asymmetry that previously made adding a parameter change which alternative a call resolved to.
     */
   private[bench] def runTimedMatch(
       botAlgo: SearchAlgorithm,
       baseAlgo: SearchAlgorithm,
-      gamesPerColor: Int,
-      tc: TimeControl,
-      startState: GameState,
-      seed: Long,
-      sprtConfig: Option[SprtConfig]
+      setup: TimedMatchSetup
   ): TimedMatchResult =
+    import setup.{gameSink, gamesPerColor, seed, sprtConfig, startState, tc}
     var wins             = 0
     var losses           = 0
     var draws            = 0
@@ -449,15 +434,24 @@ object BotMatchRunner:
       record(blackRes, Color.Black)
       pairsPlayed += 1
 
+      // The pair's two 0/½/1 scores sum and double to an exact integer 0..4 — one of Pentanomial's five bins.
+      // Unconditional: [[PairVariance]] needs this histogram to state what the run could resolve, whether or not
+      // SPRT stopping was requested.
+      val bin = math.round((botScore(whiteRes, Color.White) + botScore(blackRes, Color.Black)) * 2).toInt
+      pentanomial = bin match
+        case 0 => pentanomial.copy(n0 = pentanomial.n0 + 1)
+        case 1 => pentanomial.copy(n1 = pentanomial.n1 + 1)
+        case 2 => pentanomial.copy(n2 = pentanomial.n2 + 1)
+        case 3 => pentanomial.copy(n3 = pentanomial.n3 + 1)
+        case _ => pentanomial.copy(n4 = pentanomial.n4 + 1)
+
+      gameSink.foreach { sink =>
+        sink(
+          PairObservation(i, bin, botScore(whiteRes, Color.White), botScore(blackRes, Color.Black), whiteRes, blackRes)
+        )
+      }
+
       sprtConfig.foreach { cfg =>
-        // The pair's two 0/½/1 scores sum and double to an exact integer 0..4 — one of Pentanomial's five bins.
-        val bin = math.round((botScore(whiteRes, Color.White) + botScore(blackRes, Color.Black)) * 2).toInt
-        pentanomial = bin match
-          case 0 => pentanomial.copy(n0 = pentanomial.n0 + 1)
-          case 1 => pentanomial.copy(n1 = pentanomial.n1 + 1)
-          case 2 => pentanomial.copy(n2 = pentanomial.n2 + 1)
-          case 3 => pentanomial.copy(n3 = pentanomial.n3 + 1)
-          case _ => pentanomial.copy(n4 = pentanomial.n4 + 1)
         val result = Sprt.test(pentanomial, Sprt.Trinomial.Empty, cfg.elo0, cfg.elo1, cfg.alpha, cfg.beta)
         sprtResult = Some(result)
         if result.verdict != Sprt.Verdict.Continue then continue = false
@@ -474,7 +468,8 @@ object BotMatchRunner:
       baselineTimeouts = baselineTimeouts,
       latency = LatencyStats.from(latencies.toList),
       durationMs = System.currentTimeMillis() - startTime,
-      sprt = sprtResult
+      sprt = sprtResult,
+      pentanomial = pentanomial
     )
 
   private[bench] def printTimedSummary(botId: String, baselineId: String, results: List[TimedMatchResult]): Unit =
@@ -861,7 +856,41 @@ object BotMatchRunner:
         "max"   -> Json.int(r.latency.maxMs)
       ),
       "durationMs" -> Json.int(r.durationMs),
-      "sprt"       -> r.sprt.map(sprtResultJson).getOrElse(Json.JNull)
+      "sprt"       -> r.sprt.map(sprtResultJson).getOrElse(Json.JNull),
+      "pairs"      -> pentanomialJson(r.pentanomial),
+      "resolution" -> resolutionJson(r)
+    )
+
+  /** The mirrored-pair histogram (#508). Emitted raw so a run can be re-analysed later — the collapsed SPRT verdict
+    * cannot be un-collapsed, and every earlier run's observations are gone for good.
+    */
+  private def pentanomialJson(p: Sprt.Pentanomial): Json =
+    Json.obj(
+      "n0"    -> Json.int(p.n0),
+      "n1"    -> Json.int(p.n1),
+      "n2"    -> Json.int(p.n2),
+      "n3"    -> Json.int(p.n3),
+      "n4"    -> Json.int(p.n4),
+      "total" -> Json.int(p.total)
+    )
+
+  /** What difference this run could actually have resolved, and what it would take to resolve 2pp / 3pp — the point of
+    * the exercise. Both binnings of the same games are reported so the value of pairing is visible rather than assumed.
+    */
+  private def resolutionJson(r: TimedMatchResult): Json =
+    val c = PairVariance.compare(r.pentanomial, Sprt.Trinomial(r.losses.toLong, r.draws.toLong, r.wins.toLong))
+    def num(v: Double): Json                    = if v.isFinite then Json.num(v) else Json.JNull
+    def games(d: Double, byPair: Boolean): Json =
+      c.gamesToResolve(d).map((p, g) => Json.int(if byPair then p else g)).getOrElse(Json.JNull)
+    Json.obj(
+      "pairScoreSd"               -> num(c.pairs.sd),
+      "gameScoreSd"               -> num(c.games.sd),
+      "ci95HalfWidthPercent"      -> num(c.pairs.ci95HalfWidthPercent),
+      "varianceReduction"         -> num(c.varianceReduction),
+      "gamesToResolve2pcPaired"   -> games(2.0, byPair = true),
+      "gamesToResolve2pcUnpaired" -> games(2.0, byPair = false),
+      "gamesToResolve3pcPaired"   -> games(3.0, byPair = true),
+      "gamesToResolve3pcUnpaired" -> games(3.0, byPair = false)
     )
 
   private def sprtResultJson(r: Sprt.Result): Json =
@@ -987,6 +1016,31 @@ final case class SprtConfig(elo0: Double, elo1: Double, alpha: Double, beta: Dou
 /** Aggregated result of a time-controlled match, from the bot-under-test's perspective. `sprt` is populated only when
   * [[BotMatchRunner.runTimedMatch]] was given a [[SprtConfig]].
   */
+/** Everything about how to run a timed match except who plays it — the two [[BotMatchRunner.runTimedMatch]] overloads
+  * differ only in how they resolve the players, so this carries the whole of the rest.
+  *
+  * Grouped rather than passed as a positional tail for a reason beyond the parameter count: defaults now live in one
+  * place instead of on a single overload. Scala permits them on only one alternative, and that asymmetry silently
+  * changed which alternative a call resolved to the moment a parameter was added (a `WebhookBot` argument started
+  * binding to a `String`), which a shared setup object makes impossible.
+  *
+  * @param gamesPerColor
+  *   mirrored pairs to play — a CAP rather than a fixed count when `sprtConfig` is set
+  * @param seed
+  *   dice for pair `i` come from `Random(seed + i)` in both colour phases; `42` reproduces this runner's original
+  *   behaviour exactly
+  * @param gameSink
+  *   optional per-pair record (#508), so a run's raw observations survive it; `None` costs nothing
+  */
+final case class TimedMatchSetup(
+    gamesPerColor: Int,
+    tc: TimeControl,
+    startState: GameState = FenParser.parse(BotMatchRunner.StartFen).toOption.get,
+    seed: Long = 42L,
+    sprtConfig: Option[SprtConfig] = None,
+    gameSink: Option[PairObservation => Unit] = None
+)
+
 final case class TimedMatchResult(
     timeControl: TimeControl,
     totalGames: Int,
@@ -997,7 +1051,11 @@ final case class TimedMatchResult(
     baselineTimeouts: Int,
     latency: LatencyStats,
     durationMs: Long,
-    sprt: Option[Sprt.Result] = None
+    sprt: Option[Sprt.Result] = None,
+    /** Mirrored-pair score histogram, always populated by [[BotMatchRunner.runTimedMatch]] (#508). Consumed by
+      * [[PairVariance]] to state what difference the run could actually have resolved.
+      */
+    pentanomial: Sprt.Pentanomial = Sprt.Pentanomial.Empty
 ):
   /** Win-rate of the bot under test, counting draws as half a point. */
   def scorePercent: Double = (wins + 0.5 * draws) / totalGames * 100.0

@@ -88,14 +88,10 @@ class WebhookBotSpec extends FunSuite:
     BotMatchRunner.runTimedMatch(
       new WebhookBot(endpoint.url, Secret),
       RandomSearch,
-      gamesPerColor,
       // Generous budget: the assertions target protocol behaviour, not speed — every webhook turn pays for path
       // generation, JSON rendering, and a loopback HTTP round trip, and a tight clock would turn CI slowness into
       // a flag-fall and a red `botTimeouts == 0` assertion. Wall time is unaffected (both sides answer instantly).
-      TimeControl.ofSeconds(120, 1),
-      start,
-      seed = 42L,
-      sprtConfig = None
+      TimedMatchSetup(gamesPerColor, TimeControl.ofSeconds(120, 1), start, seed = 42L)
     )
 
   test("sign: matches the platform's HMAC-SHA256 signature byte-for-byte") {

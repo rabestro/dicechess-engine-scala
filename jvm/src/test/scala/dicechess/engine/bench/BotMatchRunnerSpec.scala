@@ -179,7 +179,7 @@ class BotMatchRunnerSpec extends FunSuite:
   }
 
   test("runTimedMatch: O(1) bots never flag and the W/L/D totals are consistent") {
-    val r = BotMatchRunner.runTimedMatch("greedy", "random", 2, TimeControl.ofSeconds(6, 0))
+    val r = BotMatchRunner.runTimedMatch("greedy", "random", TimedMatchSetup(2, TimeControl.ofSeconds(6, 0)))
     assertEquals(r.totalGames, 4)
     assertEquals(r.wins + r.losses + r.draws, 4)
     assertEquals(r.botTimeouts, 0)
@@ -191,13 +191,13 @@ class BotMatchRunnerSpec extends FunSuite:
     "runTimedMatch: same seed reproduces results, a different seed changes them, default seed matches the old hardcoded stream"
   ) {
     val tc = TimeControl.ofSeconds(6, 0)
-    val a  = BotMatchRunner.runTimedMatch("greedy", "aggressive", 6, tc, seed = 7)
-    val b  = BotMatchRunner.runTimedMatch("greedy", "aggressive", 6, tc, seed = 7)
-    val c  = BotMatchRunner.runTimedMatch("greedy", "aggressive", 6, tc, seed = 99)
+    val a  = BotMatchRunner.runTimedMatch("greedy", "aggressive", TimedMatchSetup(6, tc, seed = 7))
+    val b  = BotMatchRunner.runTimedMatch("greedy", "aggressive", TimedMatchSetup(6, tc, seed = 7))
+    val c  = BotMatchRunner.runTimedMatch("greedy", "aggressive", TimedMatchSetup(6, tc, seed = 99))
     assertEquals((a.wins, a.losses, a.draws), (b.wins, b.losses, b.draws))
     // Default seed (42) must reproduce the pre-existing hardcoded-stream behaviour exactly.
-    val default    = BotMatchRunner.runTimedMatch("greedy", "aggressive", 6, tc)
-    val explicit42 = BotMatchRunner.runTimedMatch("greedy", "aggressive", 6, tc, seed = 42)
+    val default    = BotMatchRunner.runTimedMatch("greedy", "aggressive", TimedMatchSetup(6, tc))
+    val explicit42 = BotMatchRunner.runTimedMatch("greedy", "aggressive", TimedMatchSetup(6, tc, seed = 42))
     assertEquals((default.wins, default.losses, default.draws), (explicit42.wins, explicit42.losses, explicit42.draws))
     // A different seed draws an independent sample — different dice, different games.
     assertNotEquals((a.wins, a.losses, a.draws), (c.wins, c.losses, c.draws))
@@ -206,7 +206,7 @@ class BotMatchRunnerSpec extends FunSuite:
   // ---- SPRT stopping for the timed runner (#522) ----
 
   test("runTimedMatch: without sprtConfig, gamesPerColor is a fixed count and sprt is None") {
-    val r = BotMatchRunner.runTimedMatch("greedy", "aggressive", 4, TimeControl.ofSeconds(6, 0))
+    val r = BotMatchRunner.runTimedMatch("greedy", "aggressive", TimedMatchSetup(4, TimeControl.ofSeconds(6, 0)))
     assertEquals(r.totalGames, 8)
     assertEquals(r.sprt, None)
   }
@@ -215,7 +215,11 @@ class BotMatchRunnerSpec extends FunSuite:
     // Greedy dominates Random (see the untimed "Random vs Greedy" test); a generous cap and loose error rates should
     // let the LLR cross a bound well before all 60 pairs play out.
     val cfg = SprtConfig(elo0 = 0, elo1 = 100, alpha = 0.05, beta = 0.05)
-    val r   = BotMatchRunner.runTimedMatch("greedy", "random", 60, TimeControl.ofSeconds(6, 0), sprtConfig = Some(cfg))
+    val r   = BotMatchRunner.runTimedMatch(
+      "greedy",
+      "random",
+      TimedMatchSetup(60, TimeControl.ofSeconds(6, 0), sprtConfig = Some(cfg))
+    )
     val sprtResult = r.sprt.getOrElse(fail("sprtConfig was supplied, so sprt must be populated"))
     assert(r.totalGames < 120, s"expected the match to stop before the 60-pair cap, got ${r.totalGames} games")
     assertEquals(sprtResult.verdict, Sprt.Verdict.AcceptH1)
@@ -226,7 +230,11 @@ class BotMatchRunnerSpec extends FunSuite:
   test("runTimedMatch: with sprtConfig, an even matchup runs to the gamesPerColor cap (Continue)") {
     // Same bot on both sides: perfectly even, so the LLR should never leave the (lower, upper) band.
     val cfg = SprtConfig(elo0 = 0, elo1 = 20, alpha = 0.05, beta = 0.05)
-    val r   = BotMatchRunner.runTimedMatch("greedy", "greedy", 5, TimeControl.ofSeconds(6, 0), sprtConfig = Some(cfg))
+    val r   = BotMatchRunner.runTimedMatch(
+      "greedy",
+      "greedy",
+      TimedMatchSetup(5, TimeControl.ofSeconds(6, 0), sprtConfig = Some(cfg))
+    )
     assertEquals(r.totalGames, 10)
     val sprtResult = r.sprt.getOrElse(fail("sprtConfig was supplied, so sprt must be populated"))
     assertEquals(sprtResult.verdict, Sprt.Verdict.Continue)
@@ -365,7 +373,7 @@ class BotMatchRunnerSpec extends FunSuite:
   }
 
   test("timedReportJson: schema round-trips through render/parse") {
-    val result = BotMatchRunner.runTimedMatch("greedy", "random", 2, TimeControl.ofSeconds(6, 0))
+    val result = BotMatchRunner.runTimedMatch("greedy", "random", TimedMatchSetup(2, TimeControl.ofSeconds(6, 0)))
     val json   = BotMatchRunner.timedReportJson("greedy", "random", 2, 42L, List(result))
 
     val parsed = Json.parse(Json.render(json)).getOrElse(fail("report did not render as valid JSON"))
@@ -418,7 +426,7 @@ class BotMatchRunnerSpec extends FunSuite:
       java.util.Locale.setDefault(java.util.Locale.GERMANY)
       Console.withOut(out) {
         BotMatchRunner.runArena("greedy", Some("random"), 2, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-        val timed = BotMatchRunner.runTimedMatch("greedy", "random", 1, TimeControl.ofSeconds(6, 0))
+        val timed = BotMatchRunner.runTimedMatch("greedy", "random", TimedMatchSetup(1, TimeControl.ofSeconds(6, 0)))
         BotMatchRunner.printTimedSummary("greedy", "random", List(timed))
       }
     finally java.util.Locale.setDefault(originalLocale)
