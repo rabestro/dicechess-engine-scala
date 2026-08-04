@@ -10,6 +10,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Without this the job inherits the 6-hour default: an sbt server that hangs instead of
+    # failing keeps the PR "in progress" all afternoon and burns the whole runner budget.
+    # Observed on #561, where `scalafmtCheckAll` sat on a step that normally takes 13 s for
+    # 50+ minutes until it was cancelled by hand. A full run is ~6 minutes; 30 leaves room
+    # for a cold cache and still fails fast.
+    timeout-minutes: 30
     permissions:
       contents: read
       checks: write # Required to publish check runs with test reports
@@ -62,7 +68,16 @@ jobs:
       - name: Show sbt version
         run: sbt --version
       - name: scalafmt check
-        run: sbt scalafmtCheckAll
+        # `--server` runs the build in the foreground instead of through sbtn. The thin
+        # client is the default in sbt 2, and it swallows whatever kills the background
+        # server: run 30940093788 exited 1 exactly 0.37 s after "set current project",
+        # printing not one line — no "scalafmt: Checking N Scala sources", no formatting
+        # error — while the identical tree had passed in the PR run 15 minutes earlier.
+        # A bare exit code is undiagnosable after the fact, and the server log does not
+        # survive the runner. This is also the first sbt invocation of the job, so there is
+        # no server worth reusing, and leaving none behind suits the coverage step below,
+        # which shuts the server down anyway to get its own `-Dsbt.global.localcache`.
+        run: sbt --server scalafmtCheckAll
       - name: Run tests with Coverage
         # Runs sbt against a throwaway, repo-local build cache: a cache-served `compile` skips
         # the compiler, so nothing is instrumented and the 85% coverage threshold goes silently
