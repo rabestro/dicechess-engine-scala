@@ -105,7 +105,15 @@ rather than forfeiting.
 
 ## API documentation in the IDE
 
-There is no separate JavaDoc build — the engine has no Java main sources to generate one from.
-The published `-javadoc.jar` contains rendered **Scaladoc** instead, which is the standard Maven
-convention for Scala artifacts. IDEs attach it exactly as they would real JavaDoc, so Java and
-Kotlin callers get `JvmApi`'s documentation on hover with no extra setup.
+There is no separate JavaDoc build, and there cannot be one: the `javadoc` tool parses `.java`
+source files, and every source file in this repository is Scala. The `jvm/` directory name refers
+to the cross-compilation target (as opposed to `js/` and `.wasm/`), not to the language — its
+sources live under `jvm/src/main/scala/`. All of that code compiles to ordinary JVM bytecode and
+is callable from Java; it is simply not *written* in Java, so there is nothing for `javadoc` to
+read.
+
+Documentation still reaches Java and Kotlin callers, because the published `-javadoc.jar` contains
+rendered **Scaladoc**. In Maven the `-javadoc` classifier means "API documentation", not "output of
+the javadoc tool", so shipping Scaladoc under it is the standard convention for Scala artifacts.
+IDEs attach it exactly as they would real JavaDoc — `JvmApi`'s documentation shows up on hover with
+no extra setup.
