@@ -95,3 +95,9 @@ object Move:
 
     /** Returns the raw integer representation of the move. */
     def toInt: Int = move
+
+    /** Long algebraic (UCI) notation, e.g. `"e2e4"` or `"e7e8q"` for a queen promotion. */
+    def toUci: String =
+      import PieceType.asNotation
+      val promStr = promotionPieceType.map(_.asNotation).getOrElse("")
+      s"${move.fromSquare.toNotation}${move.toSquare.toNotation}$promStr"

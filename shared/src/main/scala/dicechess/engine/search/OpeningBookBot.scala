@@ -53,8 +53,7 @@ class OpeningBookBot(val underlying: SearchAlgorithm, val book: Map[String, Stri
       case _                         => false
 
   /** Long-algebraic notation of a micro-move including any promotion suffix (e.g. `"e2e4"`, `"e7e8q"`). */
-  private def uci(move: Move): String =
-    move.fromSquare.toNotation + move.toSquare.toNotation + move.promotionPieceType.fold("")(_.asNotation)
+  private def uci(move: Move): String = move.toUci
 
   /** Multiset signature of a move sequence: its UCI tokens sorted and joined, so two orderings of the same turn compare
     * equal.

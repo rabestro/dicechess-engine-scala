@@ -51,23 +51,13 @@ object EngineFacade {
               moves(rng.nextInt(moves.length))
             }
 
-            val isPromotion = chosenMove.isPromotion
-            val dict        = js.Dictionary[String](
+            val dict = js.Dictionary[String](
               "from" -> chosenMove.fromSquare.toNotation,
               "to"   -> chosenMove.toSquare.toNotation
             )
 
-            if isPromotion then {
-              // Chessground promotion format is "q", "r", "b", "n"
-              val promChar = chosenMove.flags match {
-                case Move.KnightPromotion | Move.KnightPromoCapture => "n"
-                case Move.BishopPromotion | Move.BishopPromoCapture => "b"
-                case Move.RookPromotion | Move.RookPromoCapture     => "r"
-                case Move.QueenPromotion | Move.QueenPromoCapture   => "q"
-                case _                                              => "q"
-              }
-              dict.put("promotion", promChar)
-            }
+            // Chessground promotion format is "q", "r", "b", "n"
+            chosenMove.promotionPieceType.foreach(pt => dict.put("promotion", pt.asNotation))
 
             dict
           }
@@ -138,16 +128,8 @@ object EngineFacade {
 
               val moveOpt = moves.find { m =>
                 m.fromSquare == fromSq && m.toSquare == toSq &&
-                (!m.isPromotion || promotion.isEmpty || {
-                  val promChar = m.flags match {
-                    case Move.KnightPromotion | Move.KnightPromoCapture => "n"
-                    case Move.BishopPromotion | Move.BishopPromoCapture => "b"
-                    case Move.RookPromotion | Move.RookPromoCapture     => "r"
-                    case Move.QueenPromotion | Move.QueenPromoCapture   => "q"
-                    case _                                              => "q"
-                  }
-                  promChar == promotion.get
-                })
+                (!m.isPromotion || promotion.isEmpty ||
+                  m.promotionPieceType.exists(_.asNotation == promotion.get))
               }
 
               moveOpt match {

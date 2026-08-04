@@ -183,8 +183,7 @@ object WebhookBot:
   /** Long-algebraic notation of a micro-move including any promotion suffix (e.g. `"e2e4"`, `"e7e8q"`) — the token
     * vocabulary of the `legalMoves` tree and of endpoint responses.
     */
-  private[bench] def uci(move: Move): String =
-    move.fromSquare.toNotation + move.toSquare.toNotation + move.promotionPieceType.fold("")(_.asNotation)
+  private[bench] def uci(move: Move): String = move.toUci
 
   /** Hex HMAC-SHA256 of `"<timestampEpochSeconds>.<body>"` under `secret` — byte-compatible with the platform's
     * `X-DiceChess-Signature`.
