@@ -43,10 +43,38 @@ class OnnxWidthDuelRunnerSpec extends FunSuite:
     // Otherwise the run would spend hours measuring nothing but its own noise, and the score would sit near 50%
     // for a reason that looks exactly like a genuine null result.
     val error = intercept[RuntimeException](parse("m.onnx", "24", "24"))
-    assert(error.getMessage.contains("must differ"), error.getMessage)
+    assert(error.getMessage.contains("must be greater"), error.getMessage)
+
+  test("a narrower wideK is refused rather than silently inverting the conclusion"):
+    // Every label would stay self-consistent — "K=8 (bot under test) vs K=24" — while the sentence the report is read
+    // with, "above 50% means widening helped", quietly became false. Swapping the arguments is the fix, not tolerance.
+    val error = intercept[RuntimeException](parse("m.onnx", "8", "24"))
+    assert(error.getMessage.contains("must be greater"), error.getMessage)
 
   test("a non-positive game count is refused"):
-    assert(intercept[RuntimeException](parse("m.onnx", "48", "24", "rich", "0")).getMessage.contains("> 0"))
+    assert(intercept[RuntimeException](parse("m.onnx", "48", "24", "rich", "0")).getMessage.contains("positive"))
+
+  test("a malformed number is refused instead of falling back to its default"):
+    // The dangerous case: `wideK=abc` used to run at 48 and produce a report that looked perfectly normal, which for
+    // a measurement tool is worse than crashing — the number gets quoted later as if it answered the question asked.
+    for (args, name) <- List(
+        (Seq("m.onnx", "abc"), "wideK"),
+        (Seq("m.onnx", "48", "xyz"), "narrowK"),
+        (Seq("m.onnx", "48", "24", "rich", "lots"), "gamesPerColor"),
+        (Seq("m.onnx", "48", "24", "rich", "10", "3+2", "later"), "seed")
+      )
+    do
+      val error = intercept[RuntimeException](parse(args*))
+      assert(error.getMessage.contains(name), s"$name: ${error.getMessage}")
+
+  test("zero and negative widths are refused"):
+    assert(intercept[RuntimeException](parse("m.onnx", "0")).getMessage.contains("positive"))
+    assert(intercept[RuntimeException](parse("m.onnx", "48", "-1")).getMessage.contains("positive"))
+
+  test("absent arguments still take their defaults"):
+    // The rejections above must not have turned "not supplied" into an error.
+    val a = parse("m.onnx")
+    assertEquals((a.wideK, a.narrowK, a.gamesPerColor, a.seed), (48, 24, 10, 42L))
 
   test("a missing model path is refused with the usage line"):
     assert(intercept[RuntimeException](parse()).getMessage.contains("Usage"))

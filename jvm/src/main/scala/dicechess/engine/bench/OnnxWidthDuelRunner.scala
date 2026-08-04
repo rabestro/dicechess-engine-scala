@@ -26,7 +26,7 @@ import dicechess.engine.search.*
   * Reports through [[BotMatchRunner.runTimedMatch]], so a `--json` run carries the mirrored-pair histogram and the
   * `resolution` block (#508): what difference the run could actually have resolved, rather than only a win rate.
   *
-  * Usage: `runMain dicechess.engine.bench.OnnxWidthDuelRunner <model.onnx> <wideK> <narrowK> [features] [gamesPerColor]
+  * Usage: `runMain dicechess.engine.bench.OnnxWidthDuelRunner <model.onnx> [wideK] [narrowK] [features] [gamesPerColor]
   * [presets] [seed] [--sprt elo0,elo1,alpha,beta] [--json report.json]`
   */
 object OnnxWidthDuelRunner:
@@ -53,23 +53,47 @@ object OnnxWidthDuelRunner:
       case "rawboard" => RawBoardFeatures.extract
       case other      => sys.error(s"Unknown feature set '$other' (expected 'material', 'rich', 'kcp', or 'rawboard')")
 
+  /** A positional integer that must be positive, defaulting only when the argument is ABSENT.
+    *
+    * `toIntOption.getOrElse(default)` would silently swallow a typo: `wideK=abc` would run at 48 and the report would
+    * look perfectly normal. For a measurement tool that is worse than crashing — the number would be quoted later as
+    * though it answered the question that was asked.
+    */
+  private def positiveInt(positional: Array[String], index: Int, name: String, default: Int): Int =
+    positional.lift(index) match
+      case None      => default
+      case Some(raw) =>
+        val parsed = raw.toIntOption.getOrElse(sys.error(s"$name must be an integer, got '$raw'"))
+        if parsed <= 0 then sys.error(s"$name must be positive, got $parsed")
+        parsed
+
+  /** Same contract for the seed. A silently defaulted seed is the quietest failure of the three: two runs meant to be
+    * independent samples would replay the identical dice stream, and nothing in the output would say so.
+    */
+  private def longArg(positional: Array[String], index: Int, name: String, default: Long): Long =
+    positional.lift(index) match
+      case None      => default
+      case Some(raw) => raw.toLongOption.getOrElse(sys.error(s"$name must be an integer, got '$raw'"))
+
   private[bench] def parseArgs(args: Array[String]): DuelArgs =
     val (afterJson, jsonPath)    = BotMatchRunner.extractJsonPath(args)
     val (positional, sprtConfig) = TimedArenaRunner.extractSprtConfig(afterJson)
 
     val modelPath = positional.headOption.getOrElse(
       sys.error(
-        "Usage: OnnxWidthDuelRunner <model.onnx> <wideK> <narrowK> [features] [gamesPerColor] [presets] [seed] " +
+        "Usage: OnnxWidthDuelRunner <model.onnx> [wideK] [narrowK] [features] [gamesPerColor] [presets] [seed] " +
           "[--sprt elo0,elo1,alpha,beta] [--json report.json]"
       )
     )
-    val wideK   = positional.lift(1).flatMap(_.toIntOption).getOrElse(48)
-    val narrowK = positional.lift(2).flatMap(_.toIntOption).getOrElse(24)
-    val games   = positional.lift(4).flatMap(_.toIntOption).getOrElse(10)
+    val wideK   = positiveInt(positional, 1, "wideK", 48)
+    val narrowK = positiveInt(positional, 2, "narrowK", 24)
+    val games   = positiveInt(positional, 4, "gamesPerColor", 10)
+    val seed    = longArg(positional, 6, "seed", 42L)
 
-    if games <= 0 then sys.error(s"gamesPerColor must be > 0, got $games")
-    // Duelling a configuration against itself would burn the whole run to measure nothing but noise.
-    if wideK == narrowK then sys.error(s"wideK and narrowK must differ, both were $narrowK")
+    // Strictly greater, not merely different. The wide side is reported as the bot under test, so a
+    // score above 50% is read as "widening helped" — passing the narrower limit as `wideK` would make
+    // that sentence false while every label stayed self-consistent. Swap the arguments instead.
+    if wideK <= narrowK then sys.error(s"wideK ($wideK) must be greater than narrowK ($narrowK)")
 
     DuelArgs(
       modelPath = modelPath,
@@ -78,7 +102,7 @@ object OnnxWidthDuelRunner:
       featureSet = positional.lift(3).getOrElse("rich"),
       gamesPerColor = games,
       presets = positional.lift(5).getOrElse("3+2"),
-      seed = positional.lift(6).flatMap(_.toLongOption).getOrElse(42L),
+      seed = seed,
       sprtConfig = sprtConfig,
       jsonPath = jsonPath
     )
