@@ -65,6 +65,7 @@ export default defineConfig({
 					label: 'Developer Experience',
 					items: [
 						{ label: 'JavaScript API Reference', slug: 'architecture/javascript-api' },
+						{ label: 'JVM API Reference', slug: 'architecture/jvm-api' },
 						{ label: 'AI Agent Workflows', slug: 'guidelines/agent-workflows' },
 						{ label: 'NPM Packaging & Local Integration', slug: 'guidelines/npm-packaging' },
 						{ label: 'Maven Artifact & JVM Integration', slug: 'guidelines/maven-artifact' },

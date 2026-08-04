@@ -9,6 +9,7 @@ Cross-compiled Scala 3 Dice Chess rules engine — the single source of truth fo
 - Published contracts consumed by dicechess-analytics, the play site, and bots:
   - The DFEN string format (FEN extended with a 7th field = remaining dice pool) — parser in `shared/src/main/scala/dicechess/engine/domain/FenParser.scala`, canonicalization in `movegen/Dfen.scala`.
   - Two exported JS objects: `DiceChess` (`js/src/main/scala/dicechess/engine/api/JsApi.scala`) and `EngineFacade` (`js/src/main/scala/dicechess/engine/EngineFacade.scala`), both typed by the hand-written `js/dicechess-engine.d.ts`.
+  - `JvmApi` (`jvm/src/main/scala/dicechess/engine/jvmapi/JvmApi.scala`) — the facade non-Scala JVM callers (Java, Kotlin) bind to, consumed by dicechess-bot-java. Everything outside it is Scala-shaped surface such consumers cannot use without reflection or unchecked casts, so treat the facade as the contract and the rest as internal. Its Java-callability is pinned by a Java-source test (`jvm/src/test/java/`) — a Scala-only test cannot catch a signature that stops being reachable from Java.
 - Changing any of these contracts is a cross-repo event — flag it in the PR description and treat as high blast radius.
 
 ## Architecture map
@@ -17,7 +18,7 @@ Cross-compiled Scala 3 Dice Chess rules engine — the single source of truth fo
   - `domain/` — opaque-type game state: `Bitboard`/`Square`/`Piece`/`Color` (`Models.scala`), `Position`, `GameFlags`, `Move`, `FenParser` (DFEN), `Symmetry`.
   - `movegen/` — `MagicBitboards`, `LeaperAttacks`, `PawnGeneration`, `MoveGenerator`, `LegalMovesFilter`, `Dfen`. Allocation-sensitive hot path.
   - `search/` — `TurnGenerator` (exhaustive micro-move paths), `Evaluator`, `BotRegistry` (six built-in bots + runtime `registerCustomBot`), `KingCaptureProbability` (216 dice outcomes), `MonteCarloEquity`/`MonteCarloSearch`, `ExpectimaxSearch`, `OpeningBook`(+`Bot`/`Parser`), `TimeManager`/`TimeBudgetedSearch`, `DrawOfferLogic`, ONNX feature extractors (`OnnxFeatures`, `RichFeatures`, `KcpFeatures`).
-- `jvm/src/main/scala/dicechess/engine/` — entry point `Main.scala` (JLine REPL CLI, `cli/`), six arena runners in `bench/` (`BotMatchRunner`, `TimedArenaRunner`, `OpeningBookArenaRunner`, `OnnxArenaRunner`, `OnnxExpectimaxArenaRunner`, `OnnxTimedArenaRunner`), and JVM-only ONNX inference bots (`search/OnnxEvalSearch.scala`, `OnnxExpectimaxSearch.scala` on onnxruntime). ONNX bots are absent from the npm bundles.
+- `jvm/src/main/scala/dicechess/engine/` — entry point `Main.scala` (JLine REPL CLI, `cli/`), six arena runners in `bench/` (`BotMatchRunner`, `TimedArenaRunner`, `OpeningBookArenaRunner`, `OnnxArenaRunner`, `OnnxExpectimaxArenaRunner`, `OnnxTimedArenaRunner`), JVM-only ONNX inference bots (`search/OnnxEvalSearch.scala`, `OnnxExpectimaxSearch.scala` on onnxruntime), and `jvmapi/JvmApi.scala` — the Java/Kotlin-facing facade (the JVM row's counterpart to `js/`'s `EngineFacade`). ONNX bots are absent from the npm bundles.
 - `js/` — Scala.js facade layer; `.wasm/` — the `rootWasm` project relinking the same sources to WebAssembly (ES2022 + WasmGC).
 - `benchmark/` — JMH micro-benchmarks (excluded from coverage and publishing).
 - `docs/` — Astro + Starlight documentation site (see Documentation below).
