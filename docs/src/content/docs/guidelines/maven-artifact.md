@@ -48,13 +48,18 @@ Java and Kotlin callers depend on the same artifact, but bind to
 Scala API. The Scala surface leans on constructs that do not survive the language boundary
 intact — `Either` returns, extension methods (which compile onto synthetic `$package` classes with
 no ordinary entry point), and opaque types like `Move` that erase to `int`, turning a
-`List[List[Move]]` into an unchecked `List[List[Object]]` of boxed integers. `JvmApi` exposes only
-`java.util` types, primitives, and opaque handles, so none of that reaches the caller.
+`List[List[Move]]` into an unchecked `List[List[Object]]` of boxed integers. `JvmApi` keeps all of
+that away from the caller: its signatures use `java.util` types, primitives, opaque handles passed
+straight back to the engine, and one facade-owned result type, `JvmApi.Turn`.
 
 Note the `_3` suffix in the artifact ID: Maven has no equivalent of sbt's `%%` operator, so the
 Scala binary-version suffix has to be spelled out.
 
 ```xml
+<properties>
+    <dicechess.engine.version><!-- latest release --></dicechess.engine.version>
+</properties>
+
 <repositories>
     <repository>
         <id>github-dicechess-engine</id>
@@ -66,7 +71,7 @@ Scala binary-version suffix has to be spelled out.
     <dependency>
         <groupId>lv.id.jc</groupId>
         <artifactId>dicechess-engine-scala_3</artifactId>
-        <version><!-- latest release --></version>
+        <version>${dicechess.engine.version}</version>
     </dependency>
 </dependencies>
 ```

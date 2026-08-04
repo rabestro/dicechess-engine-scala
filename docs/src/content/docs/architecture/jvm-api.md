@@ -68,11 +68,19 @@ Every legal **full turn** playable from the position — not individual micro-mo
 static java.util.List<JvmApi.Turn> legalTurns(GameState state)
 ```
 
-Each `Turn` carries both the turn's UCI micro-moves and the position they lead to:
+Each `Turn` carries both the turn's UCI micro-moves and the position they lead to, read through
+accessors named after the fields:
 
 ```java
-record Turn(java.util.List<String> uci, GameState finalState)
+JvmApi.Turn turn = ...;
+java.util.List<String> uci = turn.uci();
+GameState finalState = turn.finalState();
 ```
+
+`Turn` is a Scala case class, so it reads like a Java record — accessor per field, plus `equals`,
+`hashCode`, and `toString` — but it is **not** a `java.lang.Record` and cannot be used in record
+deconstruction patterns. Its compiled form also carries `scala.Product` and Scala's `copy`
+machinery; those members are visible to a Java caller but are not part of this facade's contract.
 
 **Returns:** a list of legal turns, empty when the roll has no legal turn (a forced pass).
 
