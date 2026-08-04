@@ -12,7 +12,7 @@ import scala.util.Random
   */
 object BotMatchRunner:
 
-  private val StartFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+  private[bench] val StartFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
   /** @param args
     *   `baseBotId` (default `greedy`), `gamesPerColor` (default `50`), a trailing optional `seed` (default `42`), and
@@ -382,39 +382,21 @@ object BotMatchRunner:
   private[bench] def runTimedMatch(
       botUnderTestId: String,
       baselineId: String,
-      gamesPerColor: Int,
-      tc: TimeControl,
-      startState: GameState = FenParser.parse(StartFen).toOption.get,
-      seed: Long = 42L,
-      sprtConfig: Option[SprtConfig] = None,
-      gameSink: Option[PairObservation => Unit] = None
+      setup: TimedMatchSetup
   ): TimedMatchResult =
-    runTimedMatch(
-      resolveOpponent(botUnderTestId),
-      resolveOpponent(baselineId),
-      gamesPerColor,
-      tc,
-      startState,
-      seed,
-      sprtConfig,
-      gameSink
-    )
+    runTimedMatch(resolveOpponent(botUnderTestId), resolveOpponent(baselineId), setup)
 
   /** Algorithm-level overload of [[runTimedMatch]] — lets a test field an opponent (e.g. a [[WebhookBot]] pointed at a
     * mock endpoint) without registering it in the process-wide [[BotRegistry]] singleton, whose contents other suites
-    * assert exactly. No default arguments: the id-based overload above already carries them, and Scala allows defaults
-    * on only one alternative.
+    * assert exactly. Both overloads take the same [[TimedMatchSetup]], so neither carries defaults of its own — which
+    * is what removes the asymmetry that previously made adding a parameter change which alternative a call resolved to.
     */
   private[bench] def runTimedMatch(
       botAlgo: SearchAlgorithm,
       baseAlgo: SearchAlgorithm,
-      gamesPerColor: Int,
-      tc: TimeControl,
-      startState: GameState,
-      seed: Long,
-      sprtConfig: Option[SprtConfig],
-      gameSink: Option[PairObservation => Unit]
+      setup: TimedMatchSetup
   ): TimedMatchResult =
+    import setup.{gameSink, gamesPerColor, seed, sprtConfig, startState, tc}
     var wins             = 0
     var losses           = 0
     var draws            = 0
@@ -453,8 +435,8 @@ object BotMatchRunner:
       pairsPlayed += 1
 
       // The pair's two 0/½/1 scores sum and double to an exact integer 0..4 — one of Pentanomial's five bins.
-      // Binned unconditionally: this histogram is what makes the run's resolving power computable afterwards
-      // (see PairVariance), so it must not depend on whether SPRT stopping happened to be requested.
+      // Unconditional: [[PairVariance]] needs this histogram to state what the run could resolve, whether or not
+      // SPRT stopping was requested.
       val bin = math.round((botScore(whiteRes, Color.White) + botScore(blackRes, Color.Black)) * 2).toInt
       pentanomial = bin match
         case 0 => pentanomial.copy(n0 = pentanomial.n0 + 1)
@@ -1034,6 +1016,31 @@ final case class SprtConfig(elo0: Double, elo1: Double, alpha: Double, beta: Dou
 /** Aggregated result of a time-controlled match, from the bot-under-test's perspective. `sprt` is populated only when
   * [[BotMatchRunner.runTimedMatch]] was given a [[SprtConfig]].
   */
+/** Everything about how to run a timed match except who plays it — the two [[BotMatchRunner.runTimedMatch]] overloads
+  * differ only in how they resolve the players, so this carries the whole of the rest.
+  *
+  * Grouped rather than passed as a positional tail for a reason beyond the parameter count: defaults now live in one
+  * place instead of on a single overload. Scala permits them on only one alternative, and that asymmetry silently
+  * changed which alternative a call resolved to the moment a parameter was added (a `WebhookBot` argument started
+  * binding to a `String`), which a shared setup object makes impossible.
+  *
+  * @param gamesPerColor
+  *   mirrored pairs to play — a CAP rather than a fixed count when `sprtConfig` is set
+  * @param seed
+  *   dice for pair `i` come from `Random(seed + i)` in both colour phases; `42` reproduces this runner's original
+  *   behaviour exactly
+  * @param gameSink
+  *   optional per-pair record (#508), so a run's raw observations survive it; `None` costs nothing
+  */
+final case class TimedMatchSetup(
+    gamesPerColor: Int,
+    tc: TimeControl,
+    startState: GameState = FenParser.parse(BotMatchRunner.StartFen).toOption.get,
+    seed: Long = 42L,
+    sprtConfig: Option[SprtConfig] = None,
+    gameSink: Option[PairObservation => Unit] = None
+)
+
 final case class TimedMatchResult(
     timeControl: TimeControl,
     totalGames: Int,

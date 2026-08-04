@@ -49,7 +49,11 @@ object TimedArenaRunner:
       val controls = parsePresets(presets)
       val results  =
         controls.map(tc =>
-          BotMatchRunner.runTimedMatch(botId, baseline, games, tc, seed = seed, sprtConfig = sprtConfig)
+          BotMatchRunner.runTimedMatch(
+            botId,
+            baseline,
+            TimedMatchSetup(games, tc, seed = seed, sprtConfig = sprtConfig)
+          )
         )
       BotMatchRunner.printTimedSummary(botId, baseline, results)
       jsonPath.foreach { path =>

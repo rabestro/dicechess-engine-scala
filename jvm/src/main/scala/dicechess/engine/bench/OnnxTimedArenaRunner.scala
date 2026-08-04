@@ -79,6 +79,6 @@ object OnnxTimedArenaRunner:
       )
       println(s"Timed arena: $modelPath (features=$featureSet, K=$candidateLimit) vs $baseline, controls=$presets")
       val controls = TimedArenaRunner.parsePresets(presets)
-      val results  = controls.map(tc => BotMatchRunner.runTimedMatch(botId, baseline, games, tc))
+      val results  = controls.map(tc => BotMatchRunner.runTimedMatch(botId, baseline, TimedMatchSetup(games, tc)))
       BotMatchRunner.printTimedSummary(botId, baseline, results)
     finally bot.close()
