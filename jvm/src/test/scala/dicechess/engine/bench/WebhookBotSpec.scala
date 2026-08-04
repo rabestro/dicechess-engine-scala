@@ -95,7 +95,8 @@ class WebhookBotSpec extends FunSuite:
       TimeControl.ofSeconds(120, 1),
       start,
       seed = 42L,
-      sprtConfig = None
+      sprtConfig = None,
+      gameSink = None
     )
 
   test("sign: matches the platform's HMAC-SHA256 signature byte-for-byte") {
