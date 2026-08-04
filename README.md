@@ -98,6 +98,11 @@ Every release also publishes the JVM artifact `lv.id.jc:dicechess-engine-scala_3
 This is the integration path for JVM backends (e.g. `dicechess-analytics`) that need the engine
 as the source of truth for rules validation.
 
+Scala consumers use the engine API directly. **Java and Kotlin consumers** (e.g. `dicechess-bot-java`)
+bind to `dicechess.engine.jvmapi.JvmApi` instead — a narrow facade that keeps `Either` returns,
+extension methods, and erased opaque types from reaching the caller. See the
+[JVM API Reference](https://jc.id.lv/dicechess-engine-scala/architecture/jvm-api/).
+
 GitHub Packages requires authentication even for public packages, so consumers need a token
 with `read:packages` scope (locally: `GITHUB_ACTOR` + `GITHUB_TOKEN` environment variables):
 
