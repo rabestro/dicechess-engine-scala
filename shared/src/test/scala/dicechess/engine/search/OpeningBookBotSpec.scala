@@ -10,8 +10,7 @@ class OpeningBookBotSpec extends FunSuite:
   private val startNoDice   = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
   /** Long-algebraic notation of a micro-move, mirroring the decorator's internal matcher. */
-  private def uci(m: Move): String =
-    m.fromSquare.toNotation + m.toSquare.toNotation + m.promotionPieceType.fold("")(_.asNotation)
+  private def uci(m: Move): String = m.toUci
 
   private def silentBot(result: Option[ScoredSequence] = None): SearchAlgorithm =
     new SearchAlgorithm:

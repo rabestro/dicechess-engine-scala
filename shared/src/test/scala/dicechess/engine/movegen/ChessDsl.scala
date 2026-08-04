@@ -30,16 +30,7 @@ object ChessDsl:
   extension (move: Move)
     /** Converts a Move into its standard algebraic notation string (e.g., "e2e4" or "e7e8q").
       */
-    def toNotation: String =
-      val promStr = if move.isPromotion then
-        move.flags match
-          case Move.KnightPromotion | Move.KnightPromoCapture => "n"
-          case Move.BishopPromotion | Move.BishopPromoCapture => "b"
-          case Move.RookPromotion | Move.RookPromoCapture     => "r"
-          case Move.QueenPromotion | Move.QueenPromoCapture   => "q"
-          case _                                              => ""
-      else ""
-      s"${move.fromSquare.toNotation}${move.toSquare.toNotation}$promStr"
+    def toNotation: String = move.toUci
 
   extension (fen: String)
     /** Appends a single die value as the 7th FEN field, returning a [[FenWithDice]] builder.

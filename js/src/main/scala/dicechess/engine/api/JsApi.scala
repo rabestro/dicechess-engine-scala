@@ -62,10 +62,7 @@ object JsApi:
         case Left(_)      => js.Array()
         case Right(state) =>
           val allMoves = LegalMovesFilter.filterMaximalMoves(state)
-          allMoves.map { m =>
-            val base = m.fromSquare.toNotation + m.toSquare.toNotation
-            m.promotionPieceType.map(pt => base + pt.asNotation).getOrElse(base)
-          }.toJSArray
+          allMoves.map(_.toUci).toJSArray
 
   /** Returns the piece type associated with a dice roll.
     *
