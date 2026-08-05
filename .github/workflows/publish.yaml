@@ -57,7 +57,7 @@ jobs:
         # the two cannot drift; invoked with bash because the runner already provisions the JVM
         # toolchain and needs no mise (same pattern as `bash .mise/tasks/package/prepare`).
         # `rootJVM/coverageDataCheck` fails the build loudly if metadata is missing anyway.
-        run: bash .mise/lib/sbt-cold-cache.sh 'scalafmtCheckAll; scalafixAll --check; clean; coverage; testOnly *; rootJVM/coverageDataCheck; coverageReport'
+        run: bash .mise/lib/sbt-cold-cache.sh 'scalafmtCheckAll; scalafixAll --check; clean; coverage; testOnly *; rootJVM/coverageDataCheck; arena/coverageDataCheck; coverageReport'
 
       - name: Publish JVM artifact to GitHub Packages (Maven)
         # `sbt shutdown` first, and it is load-bearing twice over. sbt 2's thin client reuses
@@ -67,10 +67,10 @@ jobs:
         #   2. its session `set coverageEnabled := true` from the validation run, so with no
         #      recompile forced it would publish coverage-instrumented bytecode.
         # `clean` guarantees a fresh uninstrumented build; assertNoCoverageInstrumentation
-        # proves it rather than trusting it.
+        # and assertNoBenchClasses prove it rather than trusting it.
         run: |
           sbt shutdown >/dev/null 2>&1 || true
-          sbt "set ThisBuild / version := \"${GITHUB_REF_NAME#v}\"; clean; rootJVM/assertNoCoverageInstrumentation; rootJVM/publish"
+          sbt "set ThisBuild / version := \"${GITHUB_REF_NAME#v}\"; clean; rootJVM/assertNoCoverageInstrumentation; rootJVM/assertNoBenchClasses; rootJVM/publish"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

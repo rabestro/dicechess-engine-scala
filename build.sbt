@@ -47,6 +47,10 @@ lazy val coverageDataCheck = taskKey[Unit]("Verify the coverage run actually ins
 lazy val assertNoCoverageInstrumentation =
   taskKey[Unit]("Fail if the packaged jar carries scoverage instrumentation")
 
+// Prove the published engine jar carries no bench/arena classes (#564).
+lazy val assertNoBenchClasses =
+  taskKey[Unit]("Fail if the packaged jar carries dicechess/engine/bench classes")
+
 // projectMatrix's default layout is src/main/scala + src/main/scala-<platform-suffix>,
 // keyed off the row's own (synthetic, .sbt/matrix/<id>) base directory. Pin every row
 // back to this repo's crossProject-era physical layout (shared/ + jvm/ + js/) instead,
@@ -193,6 +197,24 @@ lazy val root = (projectMatrix in file("."))
                |  sbt 'clean; rootJVM/assertNoCoverageInstrumentation; rootJVM/publish'""".stripMargin
           )
         streams.value.log.info(s"No coverage instrumentation in ${jar.getName}")
+      },
+      assertNoBenchClasses := Def.uncached {
+        val jar    = fileConverter.value.toPath((Compile / packageBin).value).toFile
+        val marker = "dicechess/engine/bench/"
+        val zip    = new java.util.zip.ZipFile(jar)
+        val hits   =
+          try
+            zip.entries().asScala.count { entry =>
+              entry.getName.startsWith(marker)
+            }
+          finally zip.close()
+        if (hits > 0)
+          sys.error(
+            s"""$jar carries $hits bench class file(s) under $marker.
+               |
+               |The engine artifact must not ship bench/arena tooling to consumers (see #564).""".stripMargin
+          )
+        streams.value.log.info(s"No bench classes in ${jar.getName}")
       },
       Compile / doc / scalacOptions ++= Seq(
         "-project",
