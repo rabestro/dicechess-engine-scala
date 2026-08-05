@@ -105,7 +105,7 @@ object PreRankRecallProbeMain:
       val gaps                        = disagreed.map(d => d.wideScore - d.narrowScore)
       val realGain                    = gaps.filter(_ > 0).sorted
       val ties                        = gaps.count(_ == 0)
-      val exposedGain                 = exposed.filterNot(_.agreed).count(d => d.wideScore - d.narrowScore > 0)
+      val exposedGain                 = exposedDis.count(d => d.wideScore - d.narrowScore > 0)
       val turns                       = decisions.map(_.legalTurns).sorted
       val medianTurns                 = turns(n / 2)
       def pct(a: Int, b: Int): String = if b == 0 then "n/a" else f"${100.0 * a / b}%.1f%%"
@@ -147,30 +147,42 @@ object PreRankRecallProbeMain:
       val fenAt  = header.indexOf("fen")
       val diceAt = header.indexOf("dice")
       if fenAt < 0 || diceAt < 0 then sys.error(s"corpus must have 'fen' and 'dice' columns, got: $header")
-      lines.map { line =>
+      // `lift`, not indexing: one blank or truncated row would otherwise abort a run that takes hours, and the
+      // corpus is machine-written — a row short of its columns is a row to skip, not a reason to lose the sample.
+      lines.flatMap { line =>
         val cells = line.split(',')
-        (cells(fenAt), cells(diceAt))
+        for
+          fen  <- cells.lift(fenAt)
+          dice <- cells.lift(diceAt)
+        yield (fen, dice)
       }.toVector
     }
-    val picked = new Random(seed).shuffle(rows).iterator
-    Iterator
-      .continually(if picked.hasNext then Some(picked.next()) else None)
-      .takeWhile(_.isDefined)
-      .flatten
+    // Iterator, so parsing stops at `wanted` rather than parsing the whole shuffled corpus and discarding most of it.
+    new Random(seed)
+      .shuffle(rows)
+      .iterator
       .flatMap((fen, dice) => parseState(fen, dice))
       .take(wanted)
       .toList
 
-  /** The corpus stores a bare FEN plus the roll in a separate column; the search needs both in one state. */
+  private def dieValue(letter: Char): Option[Int] = letter match
+    case 'P' => Some(PieceType.Pawn.diceValue)
+    case 'N' => Some(PieceType.Knight.diceValue)
+    case 'B' => Some(PieceType.Bishop.diceValue)
+    case 'R' => Some(PieceType.Rook.diceValue)
+    case 'Q' => Some(PieceType.Queen.diceValue)
+    case 'K' => Some(PieceType.King.diceValue)
+    case _   => None
+
+  /** The corpus stores a bare FEN plus the roll in a separate column; the search needs both in one state.
+    *
+    * Rejects a roll it cannot read in FULL rather than keeping the letters it recognised. An under-filled pool still
+    * parses into a perfectly valid position — just one with fewer dice, and so with far fewer legal turns — which would
+    * slip into the sample and drag down the "exposed to the cut" population the probe reports its rate over. Dropping
+    * the row is visible in the sample count; silently shrinking it is not.
+    */
   private[bench] def parseState(fen: String, dice: String): Option[GameState] =
-    val pool = dice.toUpperCase.flatMap {
-      case 'P' => Some(PieceType.Pawn.diceValue)
-      case 'N' => Some(PieceType.Knight.diceValue)
-      case 'B' => Some(PieceType.Bishop.diceValue)
-      case 'R' => Some(PieceType.Rook.diceValue)
-      case 'Q' => Some(PieceType.Queen.diceValue)
-      case 'K' => Some(PieceType.King.diceValue)
-      case _   => None
-    }.toList
-    if pool.isEmpty then None
+    val letters = dice.toUpperCase.toList
+    val pool    = letters.flatMap(dieValue)
+    if pool.isEmpty || pool.sizeIs != letters.size then None
     else FenParser.parse(s"$fen 0 1").toOption.map(_.withDicePool(pool))

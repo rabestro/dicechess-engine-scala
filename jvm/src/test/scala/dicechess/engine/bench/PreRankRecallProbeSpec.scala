@@ -52,6 +52,16 @@ class PreRankRecallProbeSpec extends FunSuite:
     assertEquals(PreRankRecallProbeMain.parseState(startFen, ""), None)
     assertEquals(PreRankRecallProbeMain.parseState(startFen, "xyz"), None)
 
+  test("a partly unreadable roll is rejected rather than under-filled"):
+    // The dangerous case is not the wholly invalid roll but the mixed one: keeping just the letters we recognise
+    // yields a VALID position with fewer dice, hence fewer legal turns, which would enter the sample and shift the
+    // "exposed to the cut" population the probe measures. Verified unnecessary for today's corpus — 0 malformed
+    // rolls in 1,311,296 rows — and kept so a future corpus cannot bias the number without failing here first.
+    assertEquals(PreRankRecallProbeMain.parseState(startFen, "P!B"), None)
+    // The boundary the rule must NOT cross: a short roll whose every letter is readable is still a roll. The check
+    // is about characters the parser cannot map, not about the pool's length — length is the platform's business.
+    assertEquals(PreRankRecallProbeMain.parseState(startFen, "PN").map(_.dicePool.size), Some(2))
+
   test("an unparseable FEN yields no position"):
     assertEquals(PreRankRecallProbeMain.parseState("not-a-fen", "PNB"), None)
 
