@@ -110,6 +110,7 @@ lazy val root = (projectMatrix in file("."))
     scalaVersions = Seq(ScalaV),
     settings = layout("jvm") ++ Seq(
       // JVM-specific settings
+      coverageMinimumStmtTotal                          := 90,
       libraryDependencies += "org.jline"                 % "jline"       % "4.3.1",
       libraryDependencies += "com.microsoft.onnxruntime" % "onnxruntime" % "1.28.0",
       // sbt 2 defaults Test/exportJars to true (sbt 1 defaulted to false), packing
@@ -237,7 +238,7 @@ lazy val rootJS  = root.js(ScalaV)
 // from the `test`/`coverage` gate rather than failing, so keep this in sync when adding
 // a project.
 lazy val dicechessEngineScala = (project in file("."))
-  .aggregate(rootJVM, rootJS, rootWasm, benchmark)
+  .aggregate(rootJVM, rootJS, rootWasm, benchmark, arena)
   .settings(
     // Must differ from rootJVM/rootJS's `name` ("dicechess-engine-scala") — sbt 2's
     // shared target/out/ layout keys output directories by project name, not base
@@ -274,4 +275,31 @@ lazy val benchmark = project
     coverageEnabled         := false,
     publish / skip          := true,
     scalacOptions -= "-Werror"
+  )
+
+lazy val arena = project
+  .in(file("arena"))
+  .dependsOn(rootJVM)
+  .settings(commonSettings)
+  .settings(
+    name                     := "dicechess-arena",
+    publish / skip           := true,
+    coverageMinimumStmtTotal := 70,
+    coverageFailOnMinimum    := true,
+    coverageDataCheck        := Def.uncached {
+      val metadata = coverageDataDir.value / "scoverage-data" / "scoverage.coverage"
+      if (!metadata.isFile)
+        sys.error(
+          s"""Coverage instrumentation metadata is missing: $metadata
+             |
+             |The compiler did not run, so nothing was measured and the coverage
+             |threshold could not be enforced (see #531). sbt 2's build cache served the
+             |compile, so the compiler never wrote it. Re-run against a cold cache:
+             |
+             |  sbt shutdown
+             |  rm -rf target/covcache
+             |  sbt -Dsbt.global.localcache="$$PWD/target/covcache" 'clean; coverage; testOnly *; arena/coverageDataCheck; coverageReport'""".stripMargin
+        )
+      streams.value.log.info(s"Coverage instrumentation metadata present: $metadata")
+    }
   )
