@@ -1,6 +1,5 @@
 package dicechess.engine.bench
 
-import dicechess.engine.domain.*
 import dicechess.engine.search.*
 
 /** Duels one model against itself at two different `candidateLimit` values, under a clock.
@@ -26,116 +25,73 @@ import dicechess.engine.search.*
   * Reports through [[BotMatchRunner.runTimedMatch]], so a `--json` run carries the mirrored-pair histogram and the
   * `resolution` block (#508): what difference the run could actually have resolved, rather than only a win rate.
   *
-  * Usage: `runMain dicechess.engine.bench.OnnxWidthDuelRunner <model.onnx> [wideK] [narrowK] [features] [gamesPerColor]
-  * [presets] [seed] [--sprt elo0,elo1,alpha,beta] [--json report.json]`
+  * Usage:
+  * `sbt 'arena/runMain dicechess.engine.bench.OnnxWidthDuelRunner <model.onnx> --wide-k 48 --narrow-k 24 --features rich --games 10 --presets 3+2'`
   */
-object OnnxWidthDuelRunner:
+import com.monovore.decline.*
+import cats.implicits.*
 
-  /** Everything the duel needs, parsed. Separated from [[main]] so the parsing — defaults, the two rejects, the
-    * feature-set mapping — is testable without an ONNX session or a game being played.
-    */
-  final private[bench] case class DuelArgs(
-      modelPath: String,
-      wideK: Int,
-      narrowK: Int,
-      featureSet: String,
-      gamesPerColor: Int,
-      presets: String,
-      seed: Long,
-      sprtConfig: Option[SprtConfig],
-      jsonPath: Option[String]
-  ):
-    /** The leaf extractor named by `featureSet`; fails fast rather than serving a model the wrong input width. */
-    def extractFeatures: (GameState, Color) => Array[Float] = featureSet.toLowerCase match
-      case "material" => OnnxFeatures.extract
-      case "rich"     => RichFeatures.extract
-      case "kcp"      => KcpFeatures.extract
-      case "rawboard" => RawBoardFeatures.extract
-      case other      => sys.error(s"Unknown feature set '$other' (expected 'material', 'rich', 'kcp', or 'rawboard')")
+object OnnxWidthDuelRunner {
 
-  /** A positional integer that must be positive, defaulting only when the argument is ABSENT.
-    *
-    * `toIntOption.getOrElse(default)` would silently swallow a typo: `wideK=abc` would run at 48 and the report would
-    * look perfectly normal. For a measurement tool that is worse than crashing — the number would be quoted later as
-    * though it answered the question that was asked.
-    */
-  private def positiveInt(positional: Array[String], index: Int, name: String, default: Int): Int =
-    positional.lift(index) match
-      case None      => default
-      case Some(raw) =>
-        val parsed = raw.toIntOption.getOrElse(sys.error(s"$name must be an integer, got '$raw'"))
-        if parsed <= 0 then sys.error(s"$name must be positive, got $parsed")
-        parsed
+  def main(args: Array[String]): Unit = {
+    import ArenaOptions.*
 
-  /** Same contract for the seed. A silently defaulted seed is the quietest failure of the three: two runs meant to be
-    * independent samples would replay the identical dice stream, and nothing in the output would say so.
-    */
-  private def longArg(positional: Array[String], index: Int, name: String, default: Long): Long =
-    positional.lift(index) match
-      case None      => default
-      case Some(raw) => raw.toLongOption.getOrElse(sys.error(s"$name must be an integer, got '$raw'"))
+    val command = Command(
+      name = "OnnxWidthDuelRunner",
+      header = "Dice Chess Bot Arena - ONNX Width Duel Runner"
+    )(
+      (
+        modelPathOpt,
+        wideKOpt(48),
+        narrowKOpt(24),
+        featuresOpt("rich"),
+        gamesOpt(10),
+        presetsOpt("3+2"),
+        seedOpt(),
+        sprtConfigOpt,
+        jsonPathOpt
+      ).mapN { (modelPath, wideK, narrowK, featureSet, games, presets, seed, sprtConfig, jsonPath) =>
+        if wideK <= narrowK then sys.error(s"wideK ($wideK) must be greater than narrowK ($narrowK)")
 
-  private[bench] def parseArgs(args: Array[String]): DuelArgs =
-    val (afterJson, jsonPath)    = BotMatchRunner.extractJsonPath(args)
-    val (positional, sprtConfig) = TimedArenaRunner.extractSprtConfig(afterJson)
+        val extractFeatures = ArenaOptions.extractFeatures(featureSet)
 
-    val modelPath = positional.headOption.getOrElse(
-      sys.error(
-        "Usage: OnnxWidthDuelRunner <model.onnx> [wideK] [narrowK] [features] [gamesPerColor] [presets] [seed] " +
-          "[--sprt elo0,elo1,alpha,beta] [--json report.json]"
-      )
-    )
-    val wideK   = positiveInt(positional, 1, "wideK", 48)
-    val narrowK = positiveInt(positional, 2, "narrowK", 24)
-    val games   = positiveInt(positional, 4, "gamesPerColor", 10)
-    val seed    = longArg(positional, 6, "seed", 42L)
+        // Two sessions over the SAME file rather than one shared session: each side owns its own ONNX session exactly as a
+        // deployed bot does, so neither gains from a warmed cache the other filled.
+        val wide   = new OnnxExpectimaxSearch(modelPath, ExpectimaxConfig(wideK), extractFeatures)
+        val narrow = new OnnxExpectimaxSearch(modelPath, ExpectimaxConfig(narrowK), extractFeatures)
+        try
+          println(
+            s"Width duel: $modelPath ($featureSet) K=$wideK vs K=$narrowK, " +
+              s"$games mirrored pairs per control, controls=$presets, seed=$seed" +
+              sprtConfig.fold("")(_ => " (SPRT stopping on)")
+          )
+          // The WIDE side is the bot under test, so a reported score above 50% means widening helped.
+          val results = TimedArenaRunner
+            .parsePresets(presets)
+            .map(tc =>
+              BotMatchRunner
+                .runTimedMatch(wide, narrow, TimedMatchSetup(games, tc, seed = seed, sprtConfig = sprtConfig))
+            )
 
-    // Strictly greater, not merely different. The wide side is reported as the bot under test, so a
-    // score above 50% is read as "widening helped" — passing the narrower limit as `wideK` would make
-    // that sentence false while every label stayed self-consistent. Swap the arguments instead.
-    if wideK <= narrowK then sys.error(s"wideK ($wideK) must be greater than narrowK ($narrowK)")
-
-    DuelArgs(
-      modelPath = modelPath,
-      wideK = wideK,
-      narrowK = narrowK,
-      featureSet = positional.lift(3).getOrElse("rich"),
-      gamesPerColor = games,
-      presets = positional.lift(5).getOrElse("3+2"),
-      seed = seed,
-      sprtConfig = sprtConfig,
-      jsonPath = jsonPath
-    )
-
-  def main(args: Array[String]): Unit =
-    val parsed          = parseArgs(args)
-    val extractFeatures = parsed.extractFeatures
-    import parsed.{featureSet, gamesPerColor as games, jsonPath, modelPath, narrowK, presets, seed, sprtConfig, wideK}
-
-    // Two sessions over the SAME file rather than one shared session: each side owns its own ONNX session exactly as a
-    // deployed bot does, so neither gains from a warmed cache the other filled.
-    val wide   = new OnnxExpectimaxSearch(modelPath, ExpectimaxConfig(wideK), extractFeatures)
-    val narrow = new OnnxExpectimaxSearch(modelPath, ExpectimaxConfig(narrowK), extractFeatures)
-    try
-      println(
-        s"Width duel: $modelPath ($featureSet) K=$wideK vs K=$narrowK, " +
-          s"$games mirrored pairs per control, controls=$presets, seed=$seed" +
-          sprtConfig.fold("")(_ => " (SPRT stopping on)")
-      )
-      // The WIDE side is the bot under test, so a reported score above 50% means widening helped.
-      val results = TimedArenaRunner
-        .parsePresets(presets)
-        .map(tc =>
-          BotMatchRunner.runTimedMatch(wide, narrow, TimedMatchSetup(games, tc, seed = seed, sprtConfig = sprtConfig))
-        )
-
-      val wideId   = s"K=$wideK"
-      val narrowId = s"K=$narrowK"
-      BotMatchRunner.printTimedSummary(wideId, narrowId, results)
-      jsonPath.foreach { path =>
-        BotMatchRunner.writeJsonReport(path, BotMatchRunner.timedReportJson(wideId, narrowId, games, seed, results))
-        println(s"Wrote $path")
+          val wideId   = s"K=$wideK"
+          val narrowId = s"K=$narrowK"
+          BotMatchRunner.printTimedSummary(wideId, narrowId, results)
+          jsonPath.foreach { path =>
+            BotMatchRunner
+              .writeJsonReport(path, BotMatchRunner.timedReportJson(wideId, narrowId, games, seed, results))
+            println(s"Wrote $path")
+          }
+        finally
+          wide.close()
+          narrow.close()
       }
-    finally
-      wide.close()
-      narrow.close()
+    )
+
+    command.parse(args.toIndexedSeq, sys.env) match
+      case Left(help) =>
+        System.err.println(help)
+        sys.exit(1)
+      case Right(_) =>
+        ()
+  }
+}

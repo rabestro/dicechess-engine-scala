@@ -283,62 +283,57 @@ class BotMatchRunnerSpec extends FunSuite:
     assertEquals(parsedResults(1).field("sprt"), Some(Json.JNull))
   }
 
-  test("TimedArenaRunner.extractSprtConfig: absent flag, present flag, and malformed specs") {
-    val (unchanged, absent) = TimedArenaRunner.extractSprtConfig(Array("greedy", "random"))
-    assertEquals(unchanged.toList, List("greedy", "random"))
-    assertEquals(absent, None)
+  test("ArenaOptions.sprtConfigOpt: valid and malformed specs") {
+    import com.monovore.decline.Command
+    val cmd = Command("test", "test")(dicechess.engine.bench.ArenaOptions.sprtConfigOpt)
 
-    val (positional, cfg) = TimedArenaRunner.extractSprtConfig(Array("greedy", "--sprt", "0,20,0.05,0.05", "random"))
-    assertEquals(positional.toList, List("greedy", "random"))
-    assertEquals(cfg, Some(SprtConfig(0, 20, 0.05, 0.05)))
+    assertEquals(cmd.parse(Seq("--sprt", "0,20,0.05,0.05"), sys.env), Right(Some(SprtConfig(0, 20, 0.05, 0.05))))
+    assertEquals(cmd.parse(Seq(), sys.env), Right(None))
 
-    intercept[RuntimeException](TimedArenaRunner.extractSprtConfig(Array("--sprt")))
-    intercept[RuntimeException](TimedArenaRunner.extractSprtConfig(Array("--sprt", "0,20,0.05")))      // only 3 values
-    intercept[RuntimeException](TimedArenaRunner.extractSprtConfig(Array("--sprt", "x,20,0.05,0.05"))) // not a number
+    assert(cmd.parse(Seq("--sprt"), sys.env).isLeft)
+    assert(cmd.parse(Seq("--sprt", "0,20,0.05"), sys.env).isLeft)
+    assert(cmd.parse(Seq("--sprt", "x,20,0.05,0.05"), sys.env).isLeft)
   }
 
-  test("TimedArenaRunner.extractSprtConfig: rejects degenerate elo/error-rate ranges") {
+  test("ArenaOptions.sprtConfigOpt: rejects degenerate elo/error-rate ranges") {
+    import com.monovore.decline.Command
+    val cmd = Command("test", "test")(dicechess.engine.bench.ArenaOptions.sprtConfigOpt)
+
     // elo0 must be strictly below elo1 (equal collapses s1 - s0 to 0; reversed inverts the hypotheses).
-    intercept[RuntimeException](TimedArenaRunner.extractSprtConfig(Array("--sprt", "20,20,0.05,0.05")))
-    intercept[RuntimeException](TimedArenaRunner.extractSprtConfig(Array("--sprt", "20,0,0.05,0.05")))
+    assert(cmd.parse(Seq("--sprt", "20,20,0.05,0.05"), sys.env).isLeft)
+    assert(cmd.parse(Seq("--sprt", "20,0,0.05,0.05"), sys.env).isLeft)
     // alpha/beta must sit strictly inside (0, 1): at or beyond the ends, Sprt.test's bounds degenerate to
     // ±Infinity/NaN, making a verdict unreachable, the first pair always decisive, or every comparison false.
-    intercept[RuntimeException](TimedArenaRunner.extractSprtConfig(Array("--sprt", "0,20,0,0.05")))
-    intercept[RuntimeException](TimedArenaRunner.extractSprtConfig(Array("--sprt", "0,20,1,0.05")))
-    intercept[RuntimeException](TimedArenaRunner.extractSprtConfig(Array("--sprt", "0,20,0.05,0")))
-    intercept[RuntimeException](TimedArenaRunner.extractSprtConfig(Array("--sprt", "0,20,0.05,1")))
-    intercept[RuntimeException](TimedArenaRunner.extractSprtConfig(Array("--sprt", "0,20,-0.1,0.05")))
+    assert(cmd.parse(Seq("--sprt", "0,20,0,0.05"), sys.env).isLeft)
+    assert(cmd.parse(Seq("--sprt", "0,20,1,0.05"), sys.env).isLeft)
+    assert(cmd.parse(Seq("--sprt", "0,20,0.05,0"), sys.env).isLeft)
+    assert(cmd.parse(Seq("--sprt", "0,20,0.05,1"), sys.env).isLeft)
+    assert(cmd.parse(Seq("--sprt", "0,20,-0.1,0.05"), sys.env).isLeft)
   }
 
   test("TimedArenaRunner.main: --sprt runs without error and stops a decisive matchup early") {
     val out = new java.io.ByteArrayOutputStream()
     Console.withOut(out) {
-      TimedArenaRunner.main(Array("greedy", "random", "60", "6+0", "--sprt", "0,100,0.05,0.05"))
+      TimedArenaRunner.main(
+        Array(
+          "--base-bot",
+          "greedy",
+          "--opponent",
+          "random",
+          "--games",
+          "60",
+          "--presets",
+          "6+0",
+          "--sprt",
+          "0,100,0.05,0.05"
+        )
+      )
     }
     assert(out.toString("UTF-8").contains("SPRT:"))
   }
 
   test("TimedArenaRunner.main: runs a small matrix without error") {
-    TimedArenaRunner.main(Array("greedy", "random", "1", "6+0"))
-  }
-
-  test("main: a malformed trailing seed argument fails clearly instead of silently defaulting to 42") {
-    intercept[RuntimeException](BotMatchRunner.main(Array("greedy", "1", "not-a-long")))
-    intercept[RuntimeException](TimedArenaRunner.main(Array("greedy", "random", "1", "6+0", "not-a-long")))
-  }
-
-  // ---- Machine-readable report (#521) ----
-
-  test("extractJsonPath: absent flag, present flag, and a missing value") {
-    val (unchanged, absent) = BotMatchRunner.extractJsonPath(Array("greedy", "5"))
-    assertEquals(unchanged.toList, List("greedy", "5"))
-    assertEquals(absent, None)
-
-    val (positional, path) = BotMatchRunner.extractJsonPath(Array("greedy", "--json", "out.json", "5"))
-    assertEquals(positional.toList, List("greedy", "5"))
-    assertEquals(path, Some("out.json"))
-
-    intercept[RuntimeException](BotMatchRunner.extractJsonPath(Array("greedy", "--json")))
+    TimedArenaRunner.main(Array("--base-bot", "greedy", "--opponent", "random", "--games", "1", "--presets", "6+0"))
   }
 
   test("arenaReportJson: schema round-trips through render/parse") {
@@ -408,7 +403,20 @@ class BotMatchRunnerSpec extends FunSuite:
       val untimed = Json.parse(java.nio.file.Files.readString(untimedOut)).getOrElse(fail("invalid untimed JSON"))
       assertEquals(untimed.field("kind").flatMap(_.asStr), Some("untimed_arena"))
 
-      TimedArenaRunner.main(Array("greedy", "random", "1", "6+0", "--json", timedOut.toString))
+      TimedArenaRunner.main(
+        Array(
+          "--base-bot",
+          "greedy",
+          "--opponent",
+          "random",
+          "--games",
+          "1",
+          "--presets",
+          "6+0",
+          "--json",
+          timedOut.toString
+        )
+      )
       val timed = Json.parse(java.nio.file.Files.readString(timedOut)).getOrElse(fail("invalid timed JSON"))
       assertEquals(timed.field("kind").flatMap(_.asStr), Some("timed_arena"))
 

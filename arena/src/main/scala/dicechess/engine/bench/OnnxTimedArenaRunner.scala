@@ -1,16 +1,7 @@
 package dicechess.engine.bench
 
 import dicechess.engine.domain.{Color, GameState}
-import dicechess.engine.search.{
-  BotInfo,
-  BotRegistry,
-  ExpectimaxConfig,
-  KcpFeatures,
-  OnnxExpectimaxSearch,
-  OnnxFeatures,
-  RawBoardFeatures,
-  RichFeatures
-}
+import dicechess.engine.search.{BotInfo, BotRegistry, ExpectimaxConfig, OnnxExpectimaxSearch}
 
 /** Time-controlled arena for the 2-ply ONNX expectimax bot — the clock-aware counterpart of
   * [[OnnxExpectimaxArenaRunner]], filling the one cell [[TimedArenaRunner]] cannot reach on its own: it resolves both
@@ -29,56 +20,62 @@ import dicechess.engine.search.{
   * candidates per move at the same wall-clock budget. Only compare models to each other on **one box, in one session**
   * — never against a number measured elsewhere. This is the single easiest way to misread this harness.
   *
-  * Usage: `runMain dicechess.engine.bench.OnnxTimedArenaRunner <modelPath> [features] [baselineId] [gamesPerColor]
-  * [candidateLimit] [presets]`, where `features` selects the leaf extractor (must match `modelPath`'s trained model),
-  * same options as [[OnnxExpectimaxArenaRunner]]: `material` (default, 7-feature [[OnnxFeatures]]), `rich` (9-feature
-  * [[RichFeatures]]), or `kcp` (13-feature [[KcpFeatures]]) — the latter is one-ply cost at the leaves (see
-  * [[OnnxArenaRunner]]), so expect it to search far narrower than the other two under the same clock. `presets` are
-  * comma-separated chess-clock controls in [[TimedArenaRunner]]'s `minutes[+incrementSeconds]` notation.
+  * Usage:
+  * `sbt 'arena/runMain dicechess.engine.bench.OnnxTimedArenaRunner <modelPath> --features material --baseline aggressive --games 10 --limit 24 --presets 1+0,3+2,10+10'`
   */
+import com.monovore.decline.*
+import cats.implicits.*
+
 object OnnxTimedArenaRunner:
-
   def main(args: Array[String]): Unit =
-    val modelPath = args.headOption.getOrElse(
-      sys.error(
-        "Usage: OnnxTimedArenaRunner <modelPath> [features] [baselineId] [gamesPerColor] [candidateLimit] [presets]"
-      )
-    )
-    val featureSet                                          = args.lift(1).getOrElse("material")
-    val extractFeatures: (GameState, Color) => Array[Float] = featureSet.toLowerCase match
-      case "material" => OnnxFeatures.extract
-      case "rich"     => RichFeatures.extract
-      case "kcp"      => KcpFeatures.extract
-      case "rawboard" => RawBoardFeatures.extract
-      case other      =>
-        sys.error(s"Unknown feature set '$other' (expected 'material', 'rich', 'kcp', or 'rawboard')")
+    val command = Command(
+      name = "OnnxTimedArenaRunner",
+      header = "Dice Chess Bot Arena - ONNX Timed Arena Runner"
+    ) {
+      import ArenaOptions.*
+      val limitOpt =
+        Opts.option[Int]("limit", "candidate limit", short = "l").withDefault(ExpectimaxConfig().candidateLimit)
 
-    val baseline       = args.lift(2).getOrElse("aggressive")
-    val games          = args.lift(3).flatMap(_.toIntOption).getOrElse(10)
-    val candidateLimit = args.lift(4).flatMap(_.toIntOption).getOrElse(ExpectimaxConfig().candidateLimit)
-    val presets        = args.lift(5).getOrElse("1+0,3+2,10+10")
+      (
+        modelPathOpt,
+        featuresOpt("material"),
+        baseBotOpt("aggressive"),
+        gamesOpt(10),
+        limitOpt,
+        presetsOpt("1+0,3+2,10+10")
+      ).mapN { (modelPath, featureSet, baseline, games, candidateLimit, presets) =>
+        val extractFeatures: (GameState, Color) => Array[Float] = ArenaOptions.extractFeatures(featureSet)
 
-    if games <= 0 then sys.error(s"gamesPerColor must be > 0, got $games")
+        if games <= 0 then sys.error(s"gamesPerColor must be > 0, got $games")
 
-    val baselineInfo = BotRegistry.availableBots
-      .find(_.id.equalsIgnoreCase(baseline))
-      .getOrElse(sys.error(s"Baseline bot with ID '$baseline' not found in BotRegistry!"))
+        val baselineInfo = BotRegistry.availableBots
+          .find(_.id.equalsIgnoreCase(baseline))
+          .getOrElse(sys.error(s"Baseline bot with ID '$baseline' not found in BotRegistry!"))
 
-    val botId = "onnx-timed"
-    val bot   = new OnnxExpectimaxSearch(modelPath, ExpectimaxConfig(candidateLimit), extractFeatures)
-    try
-      BotRegistry.registerCustomBot(
-        BotInfo(
-          id = botId,
-          name = s"ONNX Expectimax ($featureSet, K=$candidateLimit)",
-          description = s"clock-aware timed arena over $modelPath",
-          difficulty = baselineInfo.difficulty,
-          isExperimental = true
-        ),
-        bot
-      )
-      println(s"Timed arena: $modelPath (features=$featureSet, K=$candidateLimit) vs $baseline, controls=$presets")
-      val controls = TimedArenaRunner.parsePresets(presets)
-      val results  = controls.map(tc => BotMatchRunner.runTimedMatch(botId, baseline, TimedMatchSetup(games, tc)))
-      BotMatchRunner.printTimedSummary(botId, baseline, results)
-    finally bot.close()
+        val botId = "onnx-timed"
+        val bot   = new OnnxExpectimaxSearch(modelPath, ExpectimaxConfig(candidateLimit), extractFeatures)
+        try
+          BotRegistry.registerCustomBot(
+            BotInfo(
+              id = botId,
+              name = s"ONNX Expectimax ($featureSet, K=$candidateLimit)",
+              description = s"clock-aware timed arena over $modelPath",
+              difficulty = baselineInfo.difficulty,
+              isExperimental = true
+            ),
+            bot
+          )
+          println(
+            s"Timed arena: $modelPath (features=$featureSet, K=$candidateLimit) vs $baseline, controls=$presets"
+          )
+          val controls = TimedArenaRunner.parsePresets(presets)
+          val results  = controls.map(tc => BotMatchRunner.runTimedMatch(botId, baseline, TimedMatchSetup(games, tc)))
+          BotMatchRunner.printTimedSummary(botId, baseline, results)
+        finally bot.close()
+      }
+    }
+    command.parse(args.toIndexedSeq, sys.env) match
+      case Left(help) =>
+        System.err.println(help)
+        sys.exit(1)
+      case Right(_) => ()
