@@ -10,8 +10,9 @@ import dicechess.engine.search.{BotInfo, BotRegistry, OpeningBookBot, OpeningBoo
   * keep your `opening_book.json` git-ignored. The runner registers `<base>-book` (the base bot wrapped by
   * [[dicechess.engine.search.OpeningBookBot]]) and pits the base bot against it via [[BotMatchRunner.runArena]].
   *
-  * Usage: `runMain dicechess.engine.bench.OpeningBookArenaRunner <baseBotId> <bookPath> [gamesPerColor]` (or
-  * `mise run arena:book <baseBotId> <bookPath> [games]`).
+  * Usage:
+  * `runMain dicechess.engine.bench.OpeningBookArenaRunner <bookPath> --base-bot <baseBotId> --games <gamesPerColor>`
+  * (or `mise run arena:book <bookPath> --base-bot <baseBotId> --games [games]`).
   */
 import com.monovore.decline.*
 import cats.implicits.*
@@ -53,8 +54,4 @@ object OpeningBookArenaRunner:
         BotMatchRunner.runArena(baseBotId, Some(bookId), games, BotMatchRunner.StartFen, seed = 42L, jsonPath = None)
       }
     }
-    command.parse(args.toIndexedSeq, sys.env) match
-      case Left(help) =>
-        System.err.println(help)
-        sys.exit(1)
-      case Right(_) => ()
+    ArenaOptions.runCommand(command, args)

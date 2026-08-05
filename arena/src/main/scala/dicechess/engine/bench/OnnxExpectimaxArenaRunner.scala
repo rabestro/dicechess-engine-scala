@@ -24,7 +24,7 @@ import scala.io.Source
   * The model file is read from a runtime path and never committed to this public repository.
   *
   * Usage:
-  * `sbt 'arena/runMain dicechess.engine.bench.OnnxExpectimaxArenaRunner <model.onnx> --opponent aggressive --games 200 --features material'`
+  * `sbt 'arena/runMain dicechess.engine.bench.OnnxExpectimaxArenaRunner <model.onnx> --base-bot aggressive --games 200 --features material'`
   */
 import com.monovore.decline.*
 import cats.implicits.*
@@ -121,8 +121,4 @@ object OnnxExpectimaxArenaRunner:
           finally bot.close()
       }
     }
-    command.parse(args.toIndexedSeq, sys.env) match
-      case Left(help) =>
-        System.err.println(help)
-        sys.exit(1)
-      case Right(_) => ()
+    ArenaOptions.runCommand(command, args)

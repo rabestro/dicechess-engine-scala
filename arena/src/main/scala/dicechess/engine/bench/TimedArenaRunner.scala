@@ -70,11 +70,7 @@ object TimedArenaRunner:
             sys.exit(1)
       }
     }
-    command.parse(args.toIndexedSeq, sys.env) match
-      case Left(help) =>
-        System.err.println(help)
-        sys.exit(1)
-      case Right(_) => ()
+    ArenaOptions.runCommand(command, args)
 
   /** Parses comma-separated chess-clock presets in `minutes[+incrementSeconds]` notation (e.g. `1+0`, `3+2`, `10+10`)
     * into [[TimeControl]]s. The base is a positive integer number of minutes; the increment a non-negative number of

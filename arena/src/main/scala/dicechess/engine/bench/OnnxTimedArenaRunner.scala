@@ -21,7 +21,7 @@ import dicechess.engine.search.{BotInfo, BotRegistry, ExpectimaxConfig, OnnxExpe
   * — never against a number measured elsewhere. This is the single easiest way to misread this harness.
   *
   * Usage:
-  * `sbt 'arena/runMain dicechess.engine.bench.OnnxTimedArenaRunner <modelPath> --features material --baseline aggressive --games 10 --limit 24 --presets 1+0,3+2,10+10'`
+  * `sbt 'arena/runMain dicechess.engine.bench.OnnxTimedArenaRunner <modelPath> --features material --base-bot aggressive --games 10 --limit 24 --presets 1+0,3+2,10+10'`
   */
 import com.monovore.decline.*
 import cats.implicits.*
@@ -74,8 +74,4 @@ object OnnxTimedArenaRunner:
         finally bot.close()
       }
     }
-    command.parse(args.toIndexedSeq, sys.env) match
-      case Left(help) =>
-        System.err.println(help)
-        sys.exit(1)
-      case Right(_) => ()
+    ArenaOptions.runCommand(command, args)

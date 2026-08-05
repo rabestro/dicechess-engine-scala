@@ -87,11 +87,6 @@ object OnnxWidthDuelRunner {
       }
     )
 
-    command.parse(args.toIndexedSeq, sys.env) match
-      case Left(help) =>
-        System.err.println(help)
-        sys.exit(1)
-      case Right(_) =>
-        ()
+    ArenaOptions.runCommand(command, args)
   }
 }

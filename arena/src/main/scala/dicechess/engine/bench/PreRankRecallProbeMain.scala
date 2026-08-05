@@ -71,11 +71,7 @@ object PreRankRecallProbeMain:
           wide.close()
       }
     }
-    command.parse(args.toIndexedSeq, sys.env) match
-      case Left(help) =>
-        System.err.println(help)
-        sys.exit(1)
-      case Right(_) => ()
+    ArenaOptions.runCommand(command, args)
 
 /** Stands in for "no cut at all". Larger than any legal turn count Dice Chess can produce (the observed maximum is
   * ~11.7k), so the wide run genuinely ranks every candidate.

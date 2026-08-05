@@ -116,3 +116,10 @@ private[bench] object ArenaOptions:
       .option[Int]("limit", help = s"Production candidate limit under test (default: $default)")
       .withDefault(default)
       .validate("limit must be > 0")(_ > 0)
+
+  def runCommand(command: Command[Unit], args: Array[String]): Unit =
+    command.parse(args.toIndexedSeq, sys.env) match
+      case Left(help) =>
+        System.err.println(help)
+        sys.exit(1)
+      case Right(fn) => fn

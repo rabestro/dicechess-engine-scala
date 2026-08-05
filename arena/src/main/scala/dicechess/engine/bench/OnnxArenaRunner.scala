@@ -14,8 +14,7 @@ import dicechess.engine.search.{BotInfo, BotRegistry, OnnxEvalSearch}
   * it outside version control (it lives in a private repository's `models/` directory, not published alongside this
   * codebase).
   *
-  * Usage:
-  * `sbt 'arena/runMain dicechess.engine.bench.OnnxArenaRunner <model.onnx> --opponent aggressive --games 200 --features material'`
+  * Usage: `sbt 'arena/runMain dicechess.engine.bench.OnnxArenaRunner <model.onnx> --base-bot <base> --games <N>'`
   */
 import com.monovore.decline.*
 import cats.implicits.*
@@ -56,8 +55,4 @@ object OnnxArenaRunner:
           finally bot.close()
       }
     }
-    command.parse(args.toIndexedSeq, sys.env) match
-      case Left(help) =>
-        System.err.println(help)
-        sys.exit(1)
-      case Right(_) => ()
+    ArenaOptions.runCommand(command, args)
