@@ -2,14 +2,12 @@ package dicechess.engine.cli
 
 import cats.implicits.*
 import com.monovore.decline.*
-import dicechess.engine.bench.BotMatchRunner
 import dicechess.engine.domain.FenParser
 import dicechess.engine.search.KingCaptureProbability
 
 /** Sealed CLI command hierarchy representing parsed REPL actions. */
 sealed trait CliCommand
-case class EvalCommand(fen: String, unicode: Boolean)                                    extends CliCommand
-case class ArenaCommand(base: String, opponent: String, games: Int, fen: Option[String]) extends CliCommand
+case class EvalCommand(fen: String, unicode: Boolean) extends CliCommand
 
 /** Declares command parse schemas, completions, and execution logic using the `decline` library. */
 object Commands:
@@ -22,17 +20,8 @@ object Commands:
     (fenOpt, unicodeOpt).mapN(EvalCommand.apply)
   }
 
-  val baseOpt        = Opts.argument[String](metavar = "BASE")
-  val opponentOpt    = Opts.argument[String](metavar = "OPPONENT")
-  val gamesOpt       = Opts.option[Int]("games", help = "Number of games per color").withDefault(50)
-  val optionalFenOpt = Opts.arguments[String]("FEN").orNone.map(_.map(_.toList.mkString(" ")))
-
-  val arenaCommand = Opts.subcommand("arena", "Run a bot match") {
-    (baseOpt, opponentOpt, gamesOpt, optionalFenOpt).mapN(ArenaCommand.apply)
-  }
-
   val rootCommand = Command("dicechess", "Dice Chess Engine CLI") {
-    evalCommand orElse arenaCommand
+    evalCommand
   }
 
   def execute(command: CliCommand): Unit = command match
@@ -50,9 +39,3 @@ object Commands:
 
         case Left(err) =>
           println(s"Error: $err")
-
-    case ArenaCommand(base, opponent, games, fen) =>
-      try
-        val actualFen = fen.getOrElse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-        BotMatchRunner.runArena(base, Some(opponent), games, actualFen)
-      catch case e: RuntimeException => println(e.getMessage)

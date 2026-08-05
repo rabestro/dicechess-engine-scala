@@ -47,6 +47,10 @@ lazy val coverageDataCheck = taskKey[Unit]("Verify the coverage run actually ins
 lazy val assertNoCoverageInstrumentation =
   taskKey[Unit]("Fail if the packaged jar carries scoverage instrumentation")
 
+// Prove the published engine jar carries no bench/arena classes (#564).
+lazy val assertNoBenchClasses =
+  taskKey[Unit]("Fail if the packaged jar carries dicechess/engine/bench classes")
+
 // projectMatrix's default layout is src/main/scala + src/main/scala-<platform-suffix>,
 // keyed off the row's own (synthetic, .sbt/matrix/<id>) base directory. Pin every row
 // back to this repo's crossProject-era physical layout (shared/ + jvm/ + js/) instead,
@@ -110,6 +114,7 @@ lazy val root = (projectMatrix in file("."))
     scalaVersions = Seq(ScalaV),
     settings = layout("jvm") ++ Seq(
       // JVM-specific settings
+      coverageMinimumStmtTotal                          := 90,
       libraryDependencies += "org.jline"                 % "jline"       % "4.3.1",
       libraryDependencies += "com.microsoft.onnxruntime" % "onnxruntime" % "1.28.0",
       // sbt 2 defaults Test/exportJars to true (sbt 1 defaulted to false), packing
@@ -193,6 +198,24 @@ lazy val root = (projectMatrix in file("."))
           )
         streams.value.log.info(s"No coverage instrumentation in ${jar.getName}")
       },
+      assertNoBenchClasses := Def.uncached {
+        val jar    = fileConverter.value.toPath((Compile / packageBin).value).toFile
+        val marker = "dicechess/engine/bench/"
+        val zip    = new java.util.zip.ZipFile(jar)
+        val hits   =
+          try
+            zip.entries().asScala.count { entry =>
+              entry.getName.startsWith(marker)
+            }
+          finally zip.close()
+        if (hits > 0)
+          sys.error(
+            s"""$jar carries $hits bench class file(s) under $marker.
+               |
+               |The engine artifact must not ship bench/arena tooling to consumers (see #564).""".stripMargin
+          )
+        streams.value.log.info(s"No bench classes in ${jar.getName}")
+      },
       Compile / doc / scalacOptions ++= Seq(
         "-project",
         name.value,
@@ -237,7 +260,7 @@ lazy val rootJS  = root.js(ScalaV)
 // from the `test`/`coverage` gate rather than failing, so keep this in sync when adding
 // a project.
 lazy val dicechessEngineScala = (project in file("."))
-  .aggregate(rootJVM, rootJS, rootWasm, benchmark)
+  .aggregate(rootJVM, rootJS, rootWasm, benchmark, arena)
   .settings(
     // Must differ from rootJVM/rootJS's `name` ("dicechess-engine-scala") — sbt 2's
     // shared target/out/ layout keys output directories by project name, not base
@@ -274,4 +297,31 @@ lazy val benchmark = project
     coverageEnabled         := false,
     publish / skip          := true,
     scalacOptions -= "-Werror"
+  )
+
+lazy val arena = project
+  .in(file("arena"))
+  .dependsOn(rootJVM)
+  .settings(commonSettings)
+  .settings(
+    name                     := "dicechess-arena",
+    publish / skip           := true,
+    coverageMinimumStmtTotal := 70,
+    coverageFailOnMinimum    := true,
+    coverageDataCheck        := Def.uncached {
+      val metadata = coverageDataDir.value / "scoverage-data" / "scoverage.coverage"
+      if (!metadata.isFile)
+        sys.error(
+          s"""Coverage instrumentation metadata is missing: $metadata
+             |
+             |The compiler did not run, so nothing was measured and the coverage
+             |threshold could not be enforced (see #531). sbt 2's build cache served the
+             |compile, so the compiler never wrote it. Re-run against a cold cache:
+             |
+             |  sbt shutdown
+             |  rm -rf target/covcache
+             |  sbt -Dsbt.global.localcache="$$PWD/target/covcache" 'clean; coverage; testOnly *; arena/coverageDataCheck; coverageReport'""".stripMargin
+        )
+      streams.value.log.info(s"Coverage instrumentation metadata present: $metadata")
+    }
   )

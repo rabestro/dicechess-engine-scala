@@ -1,11 +1,11 @@
 ---
 title: Interactive CLI REPL
-description: Documentation for the Dice Chess Engine interactive CLI and arena.
+description: Documentation for the Dice Chess Engine interactive CLI.
 ---
 
 # Interactive CLI REPL
 
-The Dice Chess Engine provides an interactive command-line interface (CLI) to easily evaluate positions, play test matches, and experiment with the engine's capabilities. It uses JLine 3 for a robust terminal experience with command history and line editing, and Decline for strict command-line argument parsing.
+The Dice Chess Engine provides an interactive command-line interface (CLI) to easily evaluate positions and experiment with the engine's capabilities. It uses JLine 3 for a robust terminal experience with command history and line editing, and Decline for strict command-line argument parsing.
 
 ## Starting the CLI
 
@@ -53,28 +53,6 @@ dicechess> eval rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 
 ```bash
 dicechess> eval --unicode rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
-```
-
-### `arena`
-
-Runs a bot-vs-bot match in memory. By default, it runs the `greedy` bot against all other available bots, but you can specify a base bot, an opponent, the number of games, and a custom starting position.
-
-**Usage:**
-
-```bash
-arena [--games <int>] [--fen <FEN>] <BASE> <OPPONENT>
-```
-
-**Examples:**
-
-```bash
-dicechess> arena greedy random
-```
-
-Run 5 games per color from a custom endgame FEN:
-
-```bash
-dicechess> arena greedy random --games 5 --fen "4k3/8/8/8/8/8/8/4K3 b - -"
 ```
 
 ### General Commands

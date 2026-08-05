@@ -17,7 +17,7 @@ object Main:
       .system(true)
       .build()
 
-    val completer = new StringsCompleter("eval", "arena", "help", "exit")
+    val completer = new StringsCompleter("eval", "help", "exit")
 
     val lineReader = LineReaderBuilder
       .builder()

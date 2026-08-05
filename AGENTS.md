@@ -18,7 +18,8 @@ Cross-compiled Scala 3 Dice Chess rules engine — the single source of truth fo
   - `domain/` — opaque-type game state: `Bitboard`/`Square`/`Piece`/`Color` (`Models.scala`), `Position`, `GameFlags`, `Move`, `FenParser` (DFEN), `Symmetry`.
   - `movegen/` — `MagicBitboards`, `LeaperAttacks`, `PawnGeneration`, `MoveGenerator`, `LegalMovesFilter`, `Dfen`. Allocation-sensitive hot path.
   - `search/` — `TurnGenerator` (exhaustive micro-move paths), `Evaluator`, `BotRegistry` (six built-in bots + runtime `registerCustomBot`), `KingCaptureProbability` (216 dice outcomes), `MonteCarloEquity`/`MonteCarloSearch`, `ExpectimaxSearch`, `OpeningBook`(+`Bot`/`Parser`), `TimeManager`/`TimeBudgetedSearch`, `DrawOfferLogic`, ONNX feature extractors (`OnnxFeatures`, `RichFeatures`, `KcpFeatures`).
-- `jvm/src/main/scala/dicechess/engine/` — entry point `Main.scala` (JLine REPL CLI, `cli/`), six arena runners in `bench/` (`BotMatchRunner`, `TimedArenaRunner`, `OpeningBookArenaRunner`, `OnnxArenaRunner`, `OnnxExpectimaxArenaRunner`, `OnnxTimedArenaRunner`), JVM-only ONNX inference bots (`search/OnnxEvalSearch.scala`, `OnnxExpectimaxSearch.scala` on onnxruntime), and `jvmapi/JvmApi.scala` — the Java/Kotlin-facing facade (the JVM row's counterpart to `js/`'s `EngineFacade`). ONNX bots are absent from the npm bundles.
+- `jvm/src/main/scala/dicechess/engine/` — entry point `Main.scala` (JLine REPL CLI, `cli/`), JVM-only ONNX inference bots (`search/OnnxEvalSearch.scala`, `OnnxExpectimaxSearch.scala` on onnxruntime), and `jvmapi/JvmApi.scala` — the Java/Kotlin-facing facade (the JVM row's counterpart to `js/`'s `EngineFacade`). ONNX bots are absent from the npm bundles.
+- `arena/src/main/scala/dicechess/engine/bench/` — non-published sbt project (`arena`): six arena runners (`BotMatchRunner`, `TimedArenaRunner`, `OpeningBookArenaRunner`, `OnnxArenaRunner`, `OnnxExpectimaxArenaRunner`, `OnnxTimedArenaRunner`), SPRT/pentanomial machinery, and measurement probes.
 - `js/` — Scala.js facade layer; `.wasm/` — the `rootWasm` project relinking the same sources to WebAssembly (ES2022 + WasmGC).
 - `benchmark/` — JMH micro-benchmarks (excluded from coverage and publishing).
 - `docs/` — Astro + Starlight documentation site (see Documentation below).
@@ -52,7 +53,7 @@ mise run docs:dev | docs:build                          # docs site (runs the do
 sbt doc                                                 # Scaladoc with COMPILED snippets — not in check
 ```
 
-- ONNX arena runners have no mise task — run via `sbt "rootJVM/runMain dicechess.engine.bench.OnnxArenaRunner <model.onnx> ..."`. Trained models are never committed (the tiny `synthetic_test_model.onnx` test fixtures are the deliberate exception).
+- ONNX arena runners have no mise task — run via `sbt "arena/runMain dicechess.engine.bench.OnnxArenaRunner <model.onnx> ..."`. Trained models are never committed (the tiny `synthetic_test_model.onnx` test fixtures are the deliberate exception).
 - Releases are human-only: `gh workflow run release.yaml -f bump=patch|minor|major` (or local `mise run release:prepare`). Propose, never execute.
 
 Common failure signatures:
@@ -64,7 +65,7 @@ Common failure signatures:
 ## Quality gates — Definition of Done
 
 - `mise run check` passes locally. It is stricter than PR CI: **PR CI (`ci.yaml`) does not run scalafix** — only `check` and the release/publish workflows do, so code can pass PR CI yet fail at release.
-- Statement coverage >= 85%, enforced by `build.sbt` (`coverageFailOnMinimum`). JVM-only; `benchmark/` and `.*Main\.scala` excluded.
+- Statement coverage >= 90% for `rootJVM`, >= 70% for `arena`, enforced by `build.sbt` (`coverageFailOnMinimum`). JVM-only; `benchmark/` and `.*Main\.scala` excluded.
 - The compiler is a gate: `-Werror`, `-Wunused:all`, `-language:strictEquality`, `-Yexplicit-nulls` — any warning fails the build.
 - CI also runs SonarCloud and Qodana scans; PR policy workflow enforces branch naming and issue links (see Git & PR workflow).
 - Per-change-type extras:

@@ -50,7 +50,7 @@ description = "📊 Run tests with scoverage and generate detailed local reports
 # and benchmark, so running them here would add ~55s and measure nothing. The full
 # three-platform run (527 JVM / 408 JS / 408 Wasm) is the `check` task's and CI's job.
 # The cold-cache wrapper is required — see .mise/lib/sbt-cold-cache.sh and #531.
-run = "bash .mise/lib/sbt-cold-cache.sh 'clean; coverage; rootJVM/testOnly *; rootJVM/coverageDataCheck; coverageReport'"
+run = "bash .mise/lib/sbt-cold-cache.sh 'clean; coverage; rootJVM/testOnly *; rootJVM/coverageDataCheck; arena/coverageDataCheck; coverageReport'"
 
 [tasks.check]
 description = "✅ Run a full validation cycle"
@@ -61,7 +61,7 @@ description = "✅ Run a full validation cycle"
 # bare-space-separated command list, sbt 1 style) fail to parse under sbt 2's stricter parser.
 # The cold-cache wrapper and `coverageDataCheck` keep the coverage threshold enforceable
 # — see .mise/lib/sbt-cold-cache.sh and #531 for why both are required.
-run = "bash .mise/lib/sbt-cold-cache.sh 'scalafixAll --check; clean; scalafmtCheckAll; coverage; testOnly *; rootJVM/coverageDataCheck; coverageReport'"
+run = "bash .mise/lib/sbt-cold-cache.sh 'scalafixAll --check; clean; scalafmtCheckAll; coverage; testOnly *; rootJVM/coverageDataCheck; arena/coverageDataCheck; coverageReport'"
 
 [tasks.console]
 description = "💻 Launch an interactive Scala REPL"
@@ -81,15 +81,15 @@ run = "sbt \"benchmark/Jmh/run {{arg(name=\\\"pattern\\\")}}\""
 
 [tasks.arena]
 description = "⚔️  Run the Bot Battle Arena match runner (JVM)"
-run = "sbt 'rootJVM/runMain dicechess.engine.bench.BotMatchRunner {{arg(name=\"base\", default=\"greedy\")}} {{arg(name=\"games\", default=\"50\")}} {{arg(name=\"seed\", default=\"42\")}}'"
+run = "sbt 'arena/runMain dicechess.engine.bench.BotMatchRunner {{arg(name=\"base\", default=\"greedy\")}} {{arg(name=\"games\", default=\"50\")}} {{arg(name=\"seed\", default=\"42\")}}'"
 
 [tasks."arena:timed"]
 description = "⏱️  Run the time-controlled arena (bot vs baseline across time controls; the #372 gate)"
-run = "sbt 'rootJVM/runMain dicechess.engine.bench.TimedArenaRunner {{arg(name=\"bot\", default=\"monte-carlo\")}} {{arg(name=\"baseline\", default=\"aggressive\")}} {{arg(name=\"games\", default=\"10\")}} {{arg(name=\"presets\", default=\"1+0,3+2,10+10\")}} {{arg(name=\"seed\", default=\"42\")}}'"
+run = "sbt 'arena/runMain dicechess.engine.bench.TimedArenaRunner {{arg(name=\"bot\", default=\"monte-carlo\")}} {{arg(name=\"baseline\", default=\"aggressive\")}} {{arg(name=\"games\", default=\"10\")}} {{arg(name=\"presets\", default=\"1+0,3+2,10+10\")}} {{arg(name=\"seed\", default=\"42\")}}'"
 
 [tasks."arena:book"]
 description = "📖⚔️  Arena: <base> bot vs the same bot + a local opening book (book read from a path, never committed). Usage: arena:book <base> <bookPath> [games]"
-run = "sbt 'rootJVM/runMain dicechess.engine.bench.OpeningBookArenaRunner {{arg(name=\"base\", default=\"aggressive\")}} {{arg(name=\"book\", default=\"opening_book.json\")}} {{arg(name=\"games\", default=\"50\")}}'"
+run = "sbt 'arena/runMain dicechess.engine.bench.OpeningBookArenaRunner {{arg(name=\"base\", default=\"aggressive\")}} {{arg(name=\"book\", default=\"opening_book.json\")}} {{arg(name=\"games\", default=\"50\")}}'"
 
 [tasks.clean]
 description = "🧹 Remove build artifacts"
