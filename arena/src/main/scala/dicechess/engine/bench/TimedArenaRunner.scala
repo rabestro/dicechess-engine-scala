@@ -28,7 +28,7 @@ package dicechess.engine.bench
   * `gamesPerColor` becomes a cap instead of a fixed count, and each control stops as soon as the mirrored-pair evidence
   * is decisive — see [[BotMatchRunner.runTimedMatch]].
   *
-  * Example: `sbt 'rootJVM/runMain dicechess.engine.bench.TimedArenaRunner monte-carlo aggressive 10 1+0,3+2,10+10'`
+  * Example: `sbt 'arena/runMain dicechess.engine.bench.TimedArenaRunner monte-carlo aggressive 10 1+0,3+2,10+10'`
   */
 object TimedArenaRunner:
 

@@ -162,7 +162,7 @@ realistic per-move budget**, and guard the clock read so the untimed path pays n
 
 The engine has two arenas, and they make opposite guarantees:
 
-- The **untimed** arena ([`BotMatchRunner`](https://github.com/rabestro/dicechess-engine-scala/blob/main/jvm/src/main/scala/dicechess/engine/bench/BotMatchRunner.scala),
+- The **untimed** arena ([`BotMatchRunner`](https://github.com/rabestro/dicechess-engine-scala/blob/main/arena/src/main/scala/dicechess/engine/bench/BotMatchRunner.scala),
   `OnnxArenaRunner`, `OnnxExpectimaxArenaRunner`) is fully **seeded and reproducible**. The same
   binary and the same seed produce the same games, bit for bit, on any machine. A win rate from it is
   a property of the algorithms.
