@@ -24,7 +24,7 @@ import dicechess.engine.search.{BotInfo, BotRegistry, ExpectimaxConfig, OnnxExpe
   * — never against a number measured elsewhere. This is the single easiest way to misread this harness.
   *
   * Usage:
-  * `sbt 'arena/runMain dicechess.engine.bench.OnnxTimedArenaRunner <modelPath> --features material --baseline aggressive --games 10 --candidate-limit 24 --presets 1+0,3+2,10+10'`
+  * `sbt 'arena/runMain dicechess.engine.bench.OnnxTimedArenaRunner <modelPath> --features material --baseline aggressive --games 10 --candidate-limit 24 --presets 1+0,3+2,10+10 --seed 42'`
   */
 object OnnxTimedArenaRunner:
   def main(args: Array[String]): Unit =
@@ -39,11 +39,10 @@ object OnnxTimedArenaRunner:
         baselineOpt("aggressive"),
         gamesOpt(10),
         candidateLimitOpt(),
-        presetsOpt("1+0,3+2,10+10")
-      ).mapN { (modelPath, featureSet, baseline, games, candidateLimit, presets) =>
+        presetsOpt("1+0,3+2,10+10"),
+        seedOpt()
+      ).mapN { (modelPath, featureSet, baseline, games, candidateLimit, presets, seed) =>
         val extractFeatures: (GameState, Color) => Array[Float] = ArenaOptions.extractFeatures(featureSet)
-
-        if games <= 0 then sys.error(s"gamesPerColor must be > 0, got $games")
 
         val baselineInfo = BotRegistry.availableBots
           .find(_.id.equalsIgnoreCase(baseline))
@@ -63,10 +62,11 @@ object OnnxTimedArenaRunner:
             bot
           )
           println(
-            s"Timed arena: $modelPath (features=$featureSet, K=$candidateLimit) vs $baseline, controls=$presets"
+            s"Timed arena: $modelPath (features=$featureSet, K=$candidateLimit) vs $baseline, controls=$presets, seed=$seed"
           )
           val controls = TimedArenaRunner.parsePresets(presets)
-          val results  = controls.map(tc => BotMatchRunner.runTimedMatch(botId, baseline, TimedMatchSetup(games, tc)))
+          val results  =
+            controls.map(tc => BotMatchRunner.runTimedMatch(botId, baseline, TimedMatchSetup(games, tc, seed = seed)))
           BotMatchRunner.printTimedSummary(botId, baseline, results)
         finally bot.close()
       }
