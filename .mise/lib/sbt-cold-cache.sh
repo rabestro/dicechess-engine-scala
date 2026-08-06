@@ -43,4 +43,4 @@ cache_dir="$repo_root/target/covcache"
 sbt shutdown >/dev/null 2>&1 || true
 rm -rf "$cache_dir"
 
-exec sbt -Dsbt.global.localcache="$cache_dir" "$@"
+exec sbt --server -Dsbt.global.localcache="$cache_dir" "$@"

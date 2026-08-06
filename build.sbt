@@ -150,7 +150,7 @@ lazy val root = (projectMatrix in file("."))
                |
                |  sbt shutdown
                |  rm -rf target/covcache
-               |  sbt -Dsbt.global.localcache="$$PWD/target/covcache" 'clean; coverage; testOnly *; rootJVM/coverageDataCheck; coverageReport'
+               |  sbt -Dsbt.global.localcache="$$PWD/target/covcache" 'clean; coverage; testOnly *; rootJVM/coverageDataCheck; arena/coverageDataCheck; cli/coverageDataCheck; coverageReport'
                |
                |`mise run coverage` and `mise run check` already do exactly this. Note the
                |property is only read at server startup, so the `shutdown` is required.""".stripMargin
@@ -321,7 +321,7 @@ lazy val arena = project
              |
              |  sbt shutdown
              |  rm -rf target/covcache
-             |  sbt -Dsbt.global.localcache="$$PWD/target/covcache" 'clean; coverage; testOnly *; arena/coverageDataCheck; coverageReport'""".stripMargin
+             |  sbt -Dsbt.global.localcache="$$PWD/target/covcache" 'clean; coverage; testOnly *; rootJVM/coverageDataCheck; arena/coverageDataCheck; cli/coverageDataCheck; coverageReport'""".stripMargin
         )
       streams.value.log.info(s"Coverage instrumentation metadata present: $metadata")
     }
@@ -334,10 +334,26 @@ lazy val cli = project
   .settings(
     name            := "dicechess-cli",
     publish / skip  := true,
-    coverageEnabled := false,
     libraryDependencies ++= Seq(
       "com.monovore"  %% "decline"   % "2.6.2",
       "org.typelevel" %% "cats-core" % "2.13.0",
       "org.jline"      % "jline"     % "4.3.1"
-    )
+    ),
+    coverageMinimumStmtTotal := 60,
+    coverageDataCheck        := Def.uncached {
+      val metadata = coverageDataDir.value / "scoverage-data" / "scoverage.coverage"
+      if (!metadata.isFile)
+        sys.error(
+          s"""Coverage instrumentation metadata is missing: $metadata
+             |
+             |The compiler did not run, so nothing was measured and the coverage
+             |threshold could not be enforced (see #531). sbt 2's build cache served the
+             |compile, so the compiler never wrote it. Re-run against a cold cache:
+             |
+             |  sbt shutdown
+             |  rm -rf target/covcache
+             |  sbt -Dsbt.global.localcache="$$PWD/target/covcache" 'clean; coverage; testOnly *; cli/coverageDataCheck; coverageReport'""".stripMargin
+        )
+      streams.value.log.info(s"Coverage instrumentation metadata present: $metadata")
+    }
   )
