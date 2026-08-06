@@ -1,19 +1,25 @@
 package dicechess.engine.search
 
-import io.circe.*
-import io.circe.parser.*
-
-/** Deserialises an opening book from its on-the-wire JSON form: a flat object mapping each canonical
-  * [[OpeningBook.key]] to the comma-separated continuation.
+/** Validates and parses opening-book TSV data, rejecting malformed entries before bot registration.
   *
-  * ```json
-  * {
-  *   "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - BPR": "e2e4,f1c4"
-  * }
+  * Expected TSV format (canonical [[OpeningBook.key]] mapped to comma-separated continuations):
+  * ```text
+  * rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - BPR	e2e4,f1c4
   * ```
   */
 object OpeningBookParser:
 
-  /** Parses the opening-book JSON map, returning a decoding [[io.circe.Error]] on malformed input. */
-  def parse(jsonStr: String): Either[Error, Map[String, String]] =
-    decode[Map[String, String]](jsonStr)
+  /** Parses the opening-book TSV string, returning a decoding Exception on malformed input. */
+  def parse(tsvStr: String): Either[Exception, Map[String, String]] =
+    val parsed = tsvStr.linesIterator
+      .filter(_.trim.nonEmpty)
+      .map(_.split("\t", -1))
+      .toList
+      .partitionMap {
+        case Array(k, v) if k.trim.nonEmpty && v.trim.nonEmpty => Right(k.trim -> v.trim)
+        case other                                             => Left(s"Malformed line: ${other.mkString("\t")}")
+      }
+
+    parsed match
+      case (Nil, valid) => Right(valid.toMap)
+      case (errors, _)  => Left(new IllegalArgumentException(errors.mkString("; ")))
