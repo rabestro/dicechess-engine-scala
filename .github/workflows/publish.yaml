@@ -57,7 +57,7 @@ jobs:
         # the two cannot drift; invoked with bash because the runner already provisions the JVM
         # toolchain and needs no mise (same pattern as `bash .mise/tasks/package/prepare`).
         # `rootJVM/coverageDataCheck` fails the build loudly if metadata is missing anyway.
-        run: bash .mise/lib/sbt-cold-cache.sh 'scalafmtCheckAll; scalafixAll --check; clean; coverage; testOnly *; rootJVM/coverageDataCheck; arena/coverageDataCheck; coverageReport'
+        run: bash .mise/lib/sbt-cold-cache.sh 'scalafmtCheckAll; scalafixAll --check; clean; coverage; testOnly *; rootJVM/coverageDataCheck; arena/coverageDataCheck; cli/coverageDataCheck; coverageReport'
 
       - name: Publish JVM artifact to GitHub Packages (Maven)
         # `sbt shutdown` first, and it is load-bearing twice over. sbt 2's thin client reuses
