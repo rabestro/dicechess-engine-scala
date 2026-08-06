@@ -3,7 +3,13 @@ title: CI/CD & Automated Releases
 description: In-depth guide on the automated release pipeline, continuous integration, and release workflows for the Dice Chess Engine.
 ---
 
-The Dice Chess Engine is a high-performance cross-platform library compiled for both the JVM and Scala.js. Every release delivers **two artifacts**: the NPM package `@rabestro/dicechess-engine` (Scala.js, for web consumers) and the Maven artifact `lv.id.jc:dicechess-engine-scala_3` (JVM, for backends such as `dicechess-analytics`). To ensure absolute stability and ease of deployment, the repository implements a highly automated **CI/CD and Release pipeline** split into two primary workflows: **CI (Continuous Integration)** and **Ops (Release Automation & Delivery)**.
+The Dice Chess Engine is a high-performance cross-platform library compiled for JVM, Scala.js, and WebAssembly. Every release delivers **three artifacts**:
+
+* **Maven artifact** `lv.id.jc:dicechess-engine-scala_3` (JVM, for backends such as `dicechess-analytics`)
+* **NPM package** `@rabestro/dicechess-engine` (Scala.js, optimized ES Module for browsers)
+* **NPM package** `@rabestro/dicechess-engine-wasm` (WebAssembly, for heavy computation in Web Workers)
+
+The project uses Scala 3.8.4 and SBT 2.x. To ensure absolute stability and ease of deployment, the repository implements a highly automated **CI/CD and Release pipeline** split into two primary workflows: **CI (Continuous Integration)** and **Ops (Release Automation & Delivery)**.
 
 ---
 

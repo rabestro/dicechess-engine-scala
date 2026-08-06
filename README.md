@@ -62,7 +62,7 @@ The Scala.js module exports a global/module object named `DiceChess` for seamles
 // Request the best move sequence for a specific bot algorithm
 const result = DiceChess.getBestMove(
   "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1 P", 
-  { algorithm: "monte-carlo" }
+  { algorithm: "expectimax" }  // Options: random, checkmate-aware, greedy, cautious-greedy, aggressive, monte-carlo, expectimax
 );
 
 console.log(result);
@@ -80,23 +80,30 @@ console.log(result);
 ### 2. Check Available Bots
 ```javascript
 const bots = DiceChess.getAvailableBots();
-// Returns metadata for: [Random, Checkmate-Aware, Greedy, Cautious Greedy, Aggressive, Monte-Carlo]
+// Returns metadata for: [Random, Checkmate-Aware, Greedy, Cautious Greedy, Aggressive, Monte-Carlo, Expectimax]
 ```
 
 ### 3. Utility API Functions
 * `getLegalUciMoves(dfen)`: Returns legal moves in standard UCI format.
 * `applyMove(dfen, from, to, promotion)`: Applies a micro-move and returns the new DFEN.
 * `endTurn(dfen)`: Advances the game state to the next player's turn (color toggle, move counts, clears dice pool).
-* `shouldBotOfferDouble(dfen, currentStake, options)`: Evaluates whether the bot should double.
+
+### 4. Doubling Cube & Draw Functions
+* `shouldBotOfferDouble(dfen, currentStake, options)`: Evaluates whether the bot should offer a double.
+* `shouldBotAcceptDouble(dfen, newStake, options)`: Evaluates whether the bot should accept a double.
+* `shouldBotOfferDraw(dfen, options)`: Evaluates whether the bot should offer a draw.
+* `shouldBotAcceptDraw(dfen, options)`: Evaluates whether the bot should accept a draw.
 
 ---
 
 ## 📦 Using the Engine as a JVM Library (Maven)
 
-Every release also publishes the JVM artifact `lv.id.jc:dicechess-engine-scala_3` to the
-[GitHub Packages Maven registry](https://github.com/rabestro/dicechess-engine-scala/packages).
-This is the integration path for JVM backends (e.g. `dicechess-analytics`) that need the engine
-as the source of truth for rules validation.
+Every release publishes **three artifacts**:
+* JVM artifact `lv.id.jc:dicechess-engine-scala_3` to the [GitHub Packages Maven registry](https://github.com/rabestro/dicechess-engine-scala/packages) (for JVM backends like `dicechess-analytics`)
+* NPM package `@rabestro/dicechess-engine` (Scala.js, optimized ES Module for browsers)
+* NPM package `@rabestro/dicechess-engine-wasm` (WebAssembly, for heavy computation in Web Workers)
+
+The JVM artifact is the integration path for backends that need the engine as the source of truth for rules validation.
 
 Scala consumers use the engine API directly. **Java and Kotlin consumers** (e.g. `dicechess-bot-java`)
 bind to `dicechess.engine.jvmapi.JvmApi` instead — a narrow facade that keeps `Either` returns,
@@ -126,26 +133,50 @@ mise run publish:local
 
 ---
 
-## 🗺️ Roadmap & Hackathon Milestones
+## 🗺️ Roadmap & Milestones
+
+See the full roadmap in [Architecture & Developer Guide](https://jc.id.lv/dicechess-engine-scala/architecture/milestones/).
 
 ```
-[✅ Phase 1: Foundation & Core Types]
- ├── Bitboard, Square, Piece, Color opaque types
- └── High-performance FEN (DFEN) Parser
+[✅ v0.1 - Foundation & Core Types]
+  ├── Project setup (SBT 2.x / Scala 3), mise configuration
+  ├── Opaque types: Bitboard, Square, Piece, Color
+  └── High-performance FEN (DFEN) Parser
 
-[✅ Phase 2: Move Generation & Validation]
- ├── Sliding pieces attack tables (Magic Bitboards)
- ├── Maximum Micro-moves Rule validation & Turn Generator
- └── Fast JS API export (Scala.js) for frontend integration
+[✅ v0.2 - Move Generation (Classic)]
+  ├── Bitwise operations and precomputed attack tables (Magic Bitboards)
+  ├── Pawn, knight, king, and sliding piece move generation
+  └── Perft framework integration
 
-[✅ Phase 3: Immediate Heuristics & Local AI]
- ├── 6 Bot behaviors: Random, Checkmate-Aware, Greedy, Cautious Greedy, Aggressive, Monte-Carlo
- └── Probabilistic King Capture analysis (calculating EV over 3d6 combinations)
+[✅ v0.3 - Dice Chess Mechanics]
+  ├── Dice roll representations and filtering
+  ├── Game state management with random events
+  └── Turn lifecycle: roll → micro-moves → endTurn
 
-[🚀 Phase 4: Hackathon Goals & Advanced AI]
- ├── 2-ply Expectimax over a chance node (56 weighted dice outcomes), top-K material pre-ranking, time-budgeted
- ├── Learned evaluation: an externally-trained LightGBM value model (ONNX) as the leaf evaluator for 1-ply & 2-ply bots
- └── Seeded bot-vs-bot arena for win-rate gating + JMH throughput benchmarks & low-level memory optimizations
+[✅ v0.4 - Basic Bot & Gameplay]
+  ├── 7 Bot behaviors: Random, Checkmate-Aware, Greedy, Cautious Greedy, Aggressive, Monte-Carlo, Expectimax
+  ├── Scala.js integration for browser execution
+  └── Svelte/Vite PWA test harness
+
+[✅ v0.5 - Evaluation & Heuristics]
+  ├── Static evaluation (Material balance, Piece-Square Tables)
+  ├── Zobrist Hashing and Transposition Tables
+  └── King Capture Probability (216 dice outcomes)
+
+[🚀 v0.6 - Expectimax Search Engine]
+  ├── Deep Expectimax search with chance nodes (216 ordered rolls / 56 unique multisets)
+  ├── Star1/Star2 pruning for chance nodes
+  ├── Time management and budgeted search
+  └── Rao-Blackwellized Monte-Carlo pre-roll equity estimator
+
+[🔌 v0.7 - Advanced Features]
+  ├── ONNX model integration for learned evaluation
+  ├── Opening book support
+  └── Draw and doubling cube logic
+
+[🚀 v1.0 - Production & Optimization]
+  ├── GraalVM Native Image compilation
+  └── Performance optimizations and CI/CD improvements
 ```
 
 ---
