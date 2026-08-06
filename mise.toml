@@ -35,7 +35,7 @@ run = "sbt rootJVM/compile"
 
 [tasks.run]
 description = "▶️  Start the engine application (JVM CLI)"
-run = "sbt rootJVM/run"
+run = "sbt cli/run"
 
 [tasks.test]
 description = "🧪 Execute MUnit automated tests (JVM + JS)"
@@ -65,7 +65,7 @@ run = "bash .mise/lib/sbt-cold-cache.sh 'scalafixAll --check; clean; scalafmtChe
 
 [tasks.console]
 description = "💻 Launch an interactive Scala REPL"
-run = "sbt rootJVM/console"
+run = "sbt cli/console"
 
 [tasks.bench]
 description = "⚡ Run all JMH benchmarks"

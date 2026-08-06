@@ -4,8 +4,8 @@ import dicechess.engine.domain.{GameState, PieceType, Square}
 
 /** Renders [[dicechess.engine.domain.GameState]] boards to the terminal.
   *
-  * Renders 8x8 boards to text using standard ASCII representations (e.g., 'K' / 'k') or high-resolution Unicode chess
-  * glyphs (e.g., '♔' / '♚').
+  * The printer supports both ASCII and Unicode rendering modes because some environments (like Windows cmd.exe or
+  * non-UTF8 terminals) cannot reliably display chess glyphs, requiring a standard ASCII fallback for compatibility.
   */
 object BoardPrinter:
   def printBoard(state: GameState, useUnicode: Boolean): String =

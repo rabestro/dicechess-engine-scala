@@ -5,7 +5,7 @@ import munit.FunSuite
 
 class BoardPrinterSpec extends FunSuite:
 
-  test("BoardPrinter renders starting position correctly in ASCII") {
+  test("BoardPrinter renders starting position correctly in ASCII"):
     val fen    = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     val state  = FenParser.parse(fen).toOption.get
     val output = BoardPrinter.printBoard(state, useUnicode = false)
@@ -25,9 +25,8 @@ class BoardPrinterSpec extends FunSuite:
 """.trim
 
     assert(output.contains(expectedPart))
-  }
 
-  test("BoardPrinter renders starting position correctly in Unicode") {
+  test("BoardPrinter renders starting position correctly in Unicode"):
     val fen    = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     val state  = FenParser.parse(fen).toOption.get
     val output = BoardPrinter.printBoard(state, useUnicode = true)
@@ -47,4 +46,3 @@ class BoardPrinterSpec extends FunSuite:
 """.trim
 
     assert(output.contains(expectedPart))
-  }
