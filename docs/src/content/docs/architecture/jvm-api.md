@@ -12,6 +12,9 @@ surface that hides the Scala-shaped parts of the API.
 For dependency coordinates and authentication, see
 [Maven Artifact & JVM Integration](/dicechess-engine-scala/guidelines/maven-artifact/).
 
+> [!NOTE]
+> The facade also exposes utility methods for doubling cube and draw offer logic via `DrawOfferLogic`. See the Scaladoc for `JvmApi` for the complete method list.
+
 ## Why a facade exists
 
 Most of the engine's Scala API is reachable from Java only in theory. Three constructs break at

@@ -82,7 +82,7 @@ function getBestMove(dfen: string, options?: { algorithm?: string }): {
 }
 ```
 
-- `options.algorithm`: The bot ID to use (e.g., `"greedy"` or `"random"`). Defaults to `"greedy"`.
+- `options.algorithm`: The bot ID to use. Available algorithms: `"random"`, `"checkmate-aware"`, `"greedy"`, `"cautious-greedy"`, `"aggressive"`, `"monte-carlo"`, `"expectimax"`. Defaults to `"greedy"`.
 
 
 ---
@@ -96,9 +96,63 @@ Returns the piece type notation associated with a dice roll.
 function getPieceFromDice(dice: number): string | null
 ```
 
-* `1` → `"p"`
-* `2` → `"n"`
-* `3` → `"b"`
-* `4` → `"r"`
-* `5` → `"q"`
-* `6` → `"k"`
+* `1` → `"p"` (Pawn)
+* `2` → `"n"` (Knight)
+* `3` → `"b"` (Bishop)
+* `4` → `"r"` (Rook)
+* `5` → `"q"` (Queen)
+* `6` → `"k"` (King)
+
+---
+
+### Doubling Cube Functions
+
+#### `shouldBotOfferDouble`
+
+Evaluates whether the bot should offer a double before its turn.
+
+```typescript
+function shouldBotOfferDouble(dfen: string, currentStake: number, options?: { algorithm?: string }): boolean
+```
+
+- `dfen`: The current game state in DFEN format.
+- `currentStake`: The current stake value.
+- `options.algorithm`: The bot ID to use for evaluation. Defaults to `"greedy-v2"`.
+
+#### `shouldBotAcceptDouble`
+
+Evaluates whether the bot should accept a double offered by the opponent.
+
+```typescript
+function shouldBotAcceptDouble(dfen: string, newStake: number, options?: { algorithm?: string }): boolean
+```
+
+- `dfen`: The current game state in DFEN format.
+- `newStake`: The new stake value after accepting the double.
+- `options.algorithm`: The bot ID to use for evaluation. Defaults to `"greedy-v2"`.
+
+---
+
+### Draw Offer Functions
+
+#### `shouldBotOfferDraw`
+
+Evaluates whether the bot should offer a draw.
+
+```typescript
+function shouldBotOfferDraw(dfen: string, options?: { algorithm?: string }): boolean
+```
+
+- `dfen`: The current game state in DFEN format.
+- `options.algorithm`: The bot ID to use for evaluation. Defaults to `"greedy-v2"`.
+
+#### `shouldBotAcceptDraw`
+
+Evaluates whether the bot should accept a draw offered by the opponent.
+
+```typescript
+function shouldBotAcceptDraw(dfen: string, options?: { algorithm?: string }): boolean
+```
+
+- `dfen`: The current game state in DFEN format.
+- `options.algorithm`: The bot ID to use for evaluation. Defaults to `"greedy-v2"`.
