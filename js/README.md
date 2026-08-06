@@ -58,16 +58,16 @@ console.log("Bot moves:", botResult.moves);
 
 // 6. Doubling Cube & Draw Offers (New)
 // Check if the bot wants to offer a double before its turn:
-const shouldDouble = DiceChess.shouldBotOfferDouble(finalDfen, 1, { algorithm: "greedy-v2" });
+const shouldDouble = DiceChess.shouldBotOfferDouble(finalDfen, 1);
 
 // Check if the bot accepts a double proposed by the opponent (Take/Drop):
-const acceptDouble = DiceChess.shouldBotAcceptDouble(finalDfen, 2, { algorithm: "greedy-v2" });
+const acceptDouble = DiceChess.shouldBotAcceptDouble(finalDfen, 2);
 
 // Check if the bot wants to offer a draw:
-const offerDraw = DiceChess.shouldBotOfferDraw(finalDfen, { algorithm: "greedy-v2" });
+const offerDraw = DiceChess.shouldBotOfferDraw(finalDfen);
 
 // Check if the bot accepts a draw proposed by the opponent:
-const acceptDraw = DiceChess.shouldBotAcceptDraw(finalDfen, { algorithm: "greedy-v2" });
+const acceptDraw = DiceChess.shouldBotAcceptDraw(finalDfen);
 
 ```
 

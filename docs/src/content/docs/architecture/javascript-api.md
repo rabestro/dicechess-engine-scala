@@ -117,7 +117,7 @@ function shouldBotOfferDouble(dfen: string, currentStake: number, options?: { al
 
 - `dfen`: The current game state in DFEN format.
 - `currentStake`: The current stake value.
-- `options.algorithm`: The bot ID to use for evaluation. Defaults to `"greedy-v2"`.
+- `options.algorithm`: The bot ID to use for evaluation. Defaults to `"greedy"`.
 
 #### `shouldBotAcceptDouble`
 
@@ -129,7 +129,7 @@ function shouldBotAcceptDouble(dfen: string, newStake: number, options?: { algor
 
 - `dfen`: The current game state in DFEN format.
 - `newStake`: The new stake value after accepting the double.
-- `options.algorithm`: The bot ID to use for evaluation. Defaults to `"greedy-v2"`.
+- `options.algorithm`: The bot ID to use for evaluation. Defaults to `"greedy"`.
 
 ---
 
@@ -144,7 +144,7 @@ function shouldBotOfferDraw(dfen: string, options?: { algorithm?: string }): boo
 ```
 
 - `dfen`: The current game state in DFEN format.
-- `options.algorithm`: The bot ID to use for evaluation. Defaults to `"greedy-v2"`.
+- `options.algorithm`: The bot ID to use for evaluation. Defaults to `"greedy"`.
 
 #### `shouldBotAcceptDraw`
 
@@ -155,4 +155,4 @@ function shouldBotAcceptDraw(dfen: string, options?: { algorithm?: string }): bo
 ```
 
 - `dfen`: The current game state in DFEN format.
-- `options.algorithm`: The bot ID to use for evaluation. Defaults to `"greedy-v2"`.
+- `options.algorithm`: The bot ID to use for evaluation. Defaults to `"greedy"`.
