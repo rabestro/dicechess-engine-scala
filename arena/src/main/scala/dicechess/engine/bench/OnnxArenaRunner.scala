@@ -1,15 +1,9 @@
 package dicechess.engine.bench
 
-import dicechess.engine.domain.{Color, GameState}
-import dicechess.engine.search.{
-  BotInfo,
-  BotRegistry,
-  KcpFeatures,
-  OnnxEvalSearch,
-  OnnxFeatures,
-  RawBoardFeatures,
-  RichFeatures
-}
+import com.monovore.decline.*
+import cats.implicits.*
+
+import dicechess.engine.search.{BotInfo, BotRegistry, OnnxEvalSearch}
 
 /** Local arena between an externally-trained (LightGBM, via ONNX) one-ply evaluator and a built-in bot — the
   * acceptance-gate check for the Dice Chess AI hackathon project (>= 55% win rate over enough games to be a real
@@ -23,50 +17,42 @@ import dicechess.engine.search.{
   * it outside version control (it lives in a private repository's `models/` directory, not published alongside this
   * codebase).
   *
-  * Usage: `runMain dicechess.engine.bench.OnnxArenaRunner <modelPath> [opponentBotId] [gamesPerColor] [features]`,
-  * where `features` selects the extractor (must match how the model at `modelPath` was trained): `material` (default,
-  * 7-feature [[OnnxFeatures]]), `rich` (9-feature [[RichFeatures]]), or `kcp` (13-feature [[KcpFeatures]] — one-ply
-  * only; its capture-probability columns are far too heavy for a deep search's leaves).
+  * Usage: `sbt 'arena/runMain dicechess.engine.bench.OnnxArenaRunner <model.onnx> --opponent <base> --games <N>'`
   */
 object OnnxArenaRunner:
-
-  private val StartFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-
   def main(args: Array[String]): Unit =
-    val modelPath = args.headOption.getOrElse(
-      sys.error("Usage: OnnxArenaRunner <modelPath> [opponentBotId] [gamesPerColor] [features]")
-    )
-    val opponentId = args.lift(1).getOrElse("aggressive")
-    val games      = args.lift(2).flatMap(_.toIntOption).getOrElse(200)
+    val command = Command(
+      name = "OnnxArenaRunner",
+      header = "Dice Chess Bot Arena - ONNX Model Runner"
+    ) {
+      import ArenaOptions.*
+      (modelPathOpt, opponentOpt("aggressive"), gamesOpt(200), featuresOpt("material"), seedOpt()).mapN {
+        (modelPath, opponentId, games, featureSet, seed) =>
+          val extractFeatures = ArenaOptions.extractFeatures(featureSet)
 
-    val featureSet                                          = args.lift(3).getOrElse("material")
-    val extractFeatures: (GameState, Color) => Array[Float] = featureSet.toLowerCase match
-      case "material" => OnnxFeatures.extract
-      case "rich"     => RichFeatures.extract
-      case "kcp"      => KcpFeatures.extract
-      case "rawboard" => RawBoardFeatures.extract
-      case other      =>
-        sys.error(s"Unknown feature set '$other' (expected 'material', 'rich', 'kcp', or 'rawboard')")
+          val opponentInfo = BotRegistry.availableBots
+            .find(_.id.equalsIgnoreCase(opponentId))
+            .getOrElse(sys.error(s"Unknown opponent bot '$opponentId'"))
 
-    val opponentInfo = BotRegistry.availableBots
-      .find(_.id.equalsIgnoreCase(opponentId))
-      .getOrElse(sys.error(s"Unknown opponent bot '$opponentId'"))
+          val onnxId = "onnx-eval"
+          val bot    = new OnnxEvalSearch(modelPath, extractFeatures)
+          try
+            BotRegistry.registerCustomBot(
+              BotInfo(
+                id = onnxId,
+                name = "ONNX LightGBM Eval",
+                description = s"One-ply search scored by an externally-trained LightGBM model ($modelPath)",
+                difficulty = opponentInfo.difficulty,
+                isExperimental = true
+              ),
+              bot
+            )
 
-    val onnxId = "onnx-eval"
-    val bot    = new OnnxEvalSearch(modelPath, extractFeatures)
-    try
-      BotRegistry.registerCustomBot(
-        BotInfo(
-          id = onnxId,
-          name = "ONNX LightGBM Eval",
-          description = s"One-ply search scored by an externally-trained LightGBM model ($modelPath)",
-          difficulty = opponentInfo.difficulty,
-          isExperimental = true
-        ),
-        bot
-      )
-
-      println(s"Loaded ONNX model from $modelPath (features=$featureSet)")
-      // Opponent as baseline, ONNX bot as the measured side: the table row is the model's stats.
-      BotMatchRunner.runArena(opponentInfo.id, Some(onnxId), games, StartFen)
-    finally bot.close()
+            println(s"Loaded ONNX model from $modelPath (features=$featureSet)")
+            // Opponent as baseline, ONNX bot as the measured side: the table row is the model's stats.
+            BotMatchRunner
+              .runArena(opponentInfo.id, Some(onnxId), games, BotMatchRunner.StartFen, seed = seed, jsonPath = None)
+          finally bot.close()
+      }
+    }
+    ArenaOptions.runCommand(command, args)

@@ -5,46 +5,34 @@ import dicechess.engine.search.*
 import java.nio.file.{Files, Path}
 import scala.util.Random
 
+import com.monovore.decline.*
+import cats.implicits.*
+
 /** Executable task that runs bot-vs-bot matches in memory.
   *
   * Simulates matches between different search algorithms to evaluate their playing strength. Measures wins, losses,
   * draws, and computes win rates relative to a baseline bot.
   */
 object BotMatchRunner:
+  def main(args: Array[String]): Unit =
+    val command = Command(
+      name = "BotMatchRunner",
+      header = "Dice Chess Bot Arena - JVM Match Runner"
+    ) {
+      import ArenaOptions.*
+      (baseBotOpt(), opponentOpt("").orNone, gamesOpt(), seedOpt(), jsonPathOpt).mapN {
+        (baseBotId, opponentOptStr, gamesPerColor, seed, jsonPath) =>
+          val opponentBotId = opponentOptStr.filter(_.nonEmpty)
+          try runArena(baseBotId, opponentBotId, gamesPerColor, StartFen, seed, jsonPath)
+          catch
+            case e: Exception =>
+              System.err.println(e.getMessage)
+              sys.exit(1)
+      }
+    }
+    ArenaOptions.runCommand(command, args)
 
   private[bench] val StartFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-
-  /** @param args
-    *   `baseBotId` (default `greedy`), `gamesPerColor` (default `50`), a trailing optional `seed` (default `42`), and
-    *   an optional `--json <path>` flag (anywhere in `args`) that additionally writes the machine-readable report from
-    *   [[arenaReportJson]] to `path` — the human-readable table is always printed regardless. Distinct seeds draw
-    *   independent samples of the same matchup — run K shards with distinct seeds spaced at least `gamesPerColor` apart
-    *   (e.g. `0, 1000, 2000, ...`) on separate cores or machines, and sum the tallies for K times the games in the same
-    *   wall-clock time.
-    */
-  def main(args: Array[String]): Unit =
-    val (positional, jsonPath) = extractJsonPath(args)
-    val baseBotId              = positional.headOption.getOrElse("greedy")
-    val gamesPerColor          = positional.lift(1).flatMap(_.toIntOption).getOrElse(50)
-    val seed                   = positional.lift(2) match
-      case None       => 42L
-      case Some(spec) => spec.toLongOption.getOrElse(sys.error(s"Invalid seed '$spec': not a valid Long"))
-
-    try runArena(baseBotId, None, gamesPerColor, StartFen, seed, jsonPath)
-    catch
-      case e: Exception =>
-        System.err.println(e.getMessage)
-        sys.exit(1)
-
-  /** Extracts an optional `--json <path>` flag from `args`, returning the remaining positional arguments (with both
-    * tokens removed) and the path, if the flag was present. Shared by both runners' `main` so `--json` can sit anywhere
-    * in the argument list without disturbing the existing positional argument indices.
-    */
-  private[bench] def extractJsonPath(args: Array[String]): (Array[String], Option[String]) =
-    val idx = args.indexOf("--json")
-    if idx < 0 then (args, None)
-    else if idx + 1 >= args.length then sys.error("--json requires a path argument")
-    else (args.patch(idx, Nil, 2), Some(args(idx + 1)))
 
   def runArena(
       baseBotId: String,
