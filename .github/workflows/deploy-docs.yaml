@@ -68,7 +68,9 @@ jobs:
         working-directory: ${{ env.BUILD_PATH }}
 
       - name: Generate Scaladoc
-        run: sbt doc
+        # Use cold cache to ensure the compiler runs and generates Scaladoc
+        # (see .mise/lib/sbt-cold-cache.sh and AGENTS.md #531 for rationale)
+        run: bash .mise/lib/sbt-cold-cache.sh 'doc'
 
       - name: Merge Scaladoc into Astro dist
         # sbt 2's shared build cache moved output from jvm/target/... to
@@ -76,7 +78,16 @@ jobs:
         # bump (see AGENTS.md Documentation section).
         run: |
           mkdir -p ${{ env.BUILD_PATH }}/dist/api
-          cp -r target/out/jvm/scala-3.8.4/dicechess-engine-scala/api/* ${{ env.BUILD_PATH }}/dist/api/
+          # Find the actual Scaladoc API directory dynamically
+          # Look for the api directory under any scala version
+          api_dir=$(find target/out/jvm -type d -name 'api' -print -quit)
+          if [ -z "$api_dir" ]; then
+            echo "::error::Scaladoc API directory not found in target/out/jvm"
+            echo "Contents of target/out/jvm:"
+            ls -la target/out/jvm/ || true
+            exit 1
+          fi
+          cp -r "$api_dir"/* ${{ env.BUILD_PATH }}/dist/api/
 
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
