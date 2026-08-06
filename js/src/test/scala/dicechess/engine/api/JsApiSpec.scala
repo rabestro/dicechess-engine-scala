@@ -251,11 +251,11 @@ class JsApiSpec extends FunSuite:
     val state  = FenParser.parse(dfen).toOption.get
     val path   = TurnGenerator.generateAllLegalTurnPaths(state).head
     val booked = path.map(m => m.fromSquare.toNotation + m.toSquare.toNotation)
-    val json   = s"""{"${OpeningBook.key(state).get}": "${booked.mkString(",")}"}"""
+    val tsv    = s"${OpeningBook.key(state).get}\t${booked.mkString(",")}\n"
 
-    assert(JsApi.registerOpeningBookBot(json, "greedy", "greedy-book-test", "Greedy + Book"))
-    assert(!JsApi.registerOpeningBookBot(json, "no-such-bot", "x", "X"))   // unknown base bot
-    assert(!JsApi.registerOpeningBookBot("{not json", "greedy", "y", "Y")) // malformed JSON
+    assert(JsApi.registerOpeningBookBot(tsv, "greedy", "greedy-book-test", "Greedy + Book"))
+    assert(!JsApi.registerOpeningBookBot(tsv, "no-such-bot", "x", "X"))                 // unknown base bot
+    assert(!JsApi.registerOpeningBookBot("not tsv\tformat\textra", "greedy", "y", "Y")) // malformed TSV
 
     val result = JsApi.getBestMove(dfen, js.Dynamic.literal(algorithm = "greedy-book-test"))
     val played = result.moves

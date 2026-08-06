@@ -141,9 +141,9 @@ class OpeningBookBotSpec extends FunSuite:
     assert(!new OpeningBookBot(silentBot(), Map.empty).shouldAcceptDraw(state))
   }
 
-  test("OpeningBookParser parses a canonical-key JSON map") {
-    val json   = """{"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - BPR": "e2e4,f1c4"}"""
-    val parsed = OpeningBookParser.parse(json)
+  test("OpeningBookParser parses a canonical-key TSV format") {
+    val tsv    = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - BPR\te2e4,f1c4"
+    val parsed = OpeningBookParser.parse(tsv)
     assert(parsed.isRight)
     assertEquals(
       parsed.toOption.get.get("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - BPR"),
@@ -151,8 +151,7 @@ class OpeningBookBotSpec extends FunSuite:
     )
   }
 
-  test("OpeningBookParser returns an empty map for {} and fails on malformed or non-string values") {
-    assertEquals(OpeningBookParser.parse("{}").toOption, Some(Map.empty[String, String]))
-    assert(OpeningBookParser.parse("{").isLeft)
-    assert(OpeningBookParser.parse("""{"k": 5}""").isLeft)
+  test("OpeningBookParser returns an empty map for empty string and fails on malformed values") {
+    assertEquals(OpeningBookParser.parse("").toOption, Some(Map.empty[String, String]))
+    assert(OpeningBookParser.parse("k: 5").isLeft) // No tab character
   }

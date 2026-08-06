@@ -78,29 +78,29 @@ object JsApi:
 
   /** Registers a runtime bot that consults an opening book before delegating to an existing bot.
     *
-    * `jsonString` is an [[dicechess.engine.search.OpeningBook]] JSON map (canonical key → comma-separated moves); the
-    * new bot wraps `baseBotId` with an [[dicechess.engine.search.OpeningBookBot]] and is exposed under `newBotId` for
-    * subsequent [[getBestMove]] calls. This lets a host (a private extension, the analytics backend, the trainer)
+    * `tsvString` is an [[dicechess.engine.search.OpeningBook]] TSV string (canonical key, tab, comma-separated moves);
+    * the new bot wraps `baseBotId` with an [[dicechess.engine.search.OpeningBookBot]] and is exposed under `newBotId`
+    * for subsequent [[getBestMove]] calls. This lets a host (a private extension, the analytics backend, the trainer)
     * attach a data-driven opening book at runtime without shipping the book inside the engine. See
     * [[dicechess.engine.search.BotRegistry.registerCustomBot]] for the single-threaded-setup expectation.
     *
     * @return
-    *   `true` when the base bot exists and the JSON parses (the bot is registered); `false` otherwise (no change).
+    *   `true` when the base bot exists and the TSV parses (the bot is registered); `false` otherwise (no change).
     */
   @JSExport
   @JSExportTopLevel("registerOpeningBookBot")
   def registerOpeningBookBot(
-      jsonString: String,
+      tsvString: String,
       baseBotId: String,
       newBotId: String,
       newBotName: String
   ): Boolean =
     // Exported to JS, so any argument may arrive as `null`; reject rather than throw on eager parsing.
-    if Option(jsonString).isEmpty || Option(baseBotId).isEmpty
+    if Option(tsvString).isEmpty || Option(baseBotId).isEmpty
       || Option(newBotId).isEmpty || Option(newBotName).isEmpty
     then false
     else
-      (BotRegistry.getAlgorithm(baseBotId), OpeningBookParser.parse(jsonString)) match
+      (BotRegistry.getAlgorithm(baseBotId), OpeningBookParser.parse(tsvString)) match
         case (Some(baseBot), Right(book)) =>
           val difficulty =
             BotRegistry.availableBots.find(_.id.equalsIgnoreCase(baseBotId)).map(_.difficulty).getOrElse(5)
