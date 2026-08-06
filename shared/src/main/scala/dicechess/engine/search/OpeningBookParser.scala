@@ -1,8 +1,8 @@
 package dicechess.engine.search
 
-/** Parses an opening book from its TSV form: mapping each canonical [[OpeningBook.key]] to the comma-separated
-  * continuation.
+/** Validates and parses opening-book TSV data, rejecting malformed entries before bot registration.
   *
+  * Expected TSV format (canonical [[OpeningBook.key]] mapped to comma-separated continuations):
   * ```text
   * rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - BPR	e2e4,f1c4
   * ```
@@ -16,8 +16,8 @@ object OpeningBookParser:
       .map(_.split("\t", -1))
       .toList
       .partitionMap {
-        case Array(k, v) => Right(k.trim -> v.trim)
-        case other       => Left(s"Malformed line: ${other.mkString}")
+        case Array(k, v) if k.trim.nonEmpty && v.trim.nonEmpty => Right(k.trim -> v.trim)
+        case other                                             => Left(s"Malformed line: ${other.mkString("\t")}")
       }
 
     parsed match

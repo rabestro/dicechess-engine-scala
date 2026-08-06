@@ -153,5 +153,9 @@ class OpeningBookBotSpec extends FunSuite:
 
   test("OpeningBookParser returns an empty map for empty string and fails on malformed values") {
     assertEquals(OpeningBookParser.parse("").toOption, Some(Map.empty[String, String]))
-    assert(OpeningBookParser.parse("k: 5").isLeft) // No tab character
+    assert(OpeningBookParser.parse("k: 5").isLeft)     // No tab character
+    assert(OpeningBookParser.parse("\t1.e2e4").isLeft) // Missing key
+    assert(
+      OpeningBookParser.parse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - BPR\t").isLeft
+    ) // Missing continuation
   }
