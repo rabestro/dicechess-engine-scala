@@ -1,9 +1,11 @@
 package dicechess.engine.bench
 
+import scala.util.Random
+
+import com.monovore.decline.Command
 import dicechess.engine.domain.*
 import dicechess.engine.search.*
 import munit.FunSuite
-import scala.util.Random
 
 class BotMatchRunnerSpec extends FunSuite:
 
@@ -284,8 +286,7 @@ class BotMatchRunnerSpec extends FunSuite:
   }
 
   test("ArenaOptions.sprtConfigOpt: valid and malformed specs") {
-    import com.monovore.decline.Command
-    val cmd = Command("test", "test")(dicechess.engine.bench.ArenaOptions.sprtConfigOpt)
+    val cmd = Command("test", "test")(ArenaOptions.sprtConfigOpt)
 
     assertEquals(cmd.parse(Seq("--sprt", "0,20,0.05,0.05"), sys.env), Right(Some(SprtConfig(0, 20, 0.05, 0.05))))
     assertEquals(cmd.parse(Seq(), sys.env), Right(None))
@@ -296,8 +297,7 @@ class BotMatchRunnerSpec extends FunSuite:
   }
 
   test("ArenaOptions.sprtConfigOpt: rejects degenerate elo/error-rate ranges") {
-    import com.monovore.decline.Command
-    val cmd = Command("test", "test")(dicechess.engine.bench.ArenaOptions.sprtConfigOpt)
+    val cmd = Command("test", "test")(ArenaOptions.sprtConfigOpt)
 
     // elo0 must be strictly below elo1 (equal collapses s1 - s0 to 0; reversed inverts the hypotheses).
     assert(cmd.parse(Seq("--sprt", "20,20,0.05,0.05"), sys.env).isLeft)
@@ -313,12 +313,13 @@ class BotMatchRunnerSpec extends FunSuite:
 
   test("TimedArenaRunner.main: --sprt runs without error and stops a decisive matchup early") {
     val out = new java.io.ByteArrayOutputStream()
-    Console.withOut(out) {
-      TimedArenaRunner.main(
+    val res = Console.withOut(out) {
+      ArenaOptions.parseAndRun(
+        TimedArenaRunner.command,
         Array(
-          "--base-bot",
+          "--bot",
           "greedy",
-          "--opponent",
+          "--baseline",
           "random",
           "--games",
           "60",
@@ -329,11 +330,16 @@ class BotMatchRunnerSpec extends FunSuite:
         )
       )
     }
+    assertEquals(res, Right(()))
     assert(out.toString("UTF-8").contains("SPRT:"))
   }
 
   test("TimedArenaRunner.main: runs a small matrix without error") {
-    TimedArenaRunner.main(Array("--base-bot", "greedy", "--opponent", "random", "--games", "1", "--presets", "6+0"))
+    val res = ArenaOptions.parseAndRun(
+      TimedArenaRunner.command,
+      Array("--bot", "greedy", "--baseline", "random", "--games", "1", "--presets", "6+0")
+    )
+    assertEquals(res, Right(()))
   }
 
   test("arenaReportJson: schema round-trips through render/parse") {

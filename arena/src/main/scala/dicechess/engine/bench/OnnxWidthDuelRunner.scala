@@ -1,5 +1,8 @@
 package dicechess.engine.bench
 
+import com.monovore.decline.*
+import cats.implicits.*
+
 import dicechess.engine.search.*
 
 /** Duels one model against itself at two different `candidateLimit` values, under a clock.
@@ -28,12 +31,9 @@ import dicechess.engine.search.*
   * Usage:
   * `sbt 'arena/runMain dicechess.engine.bench.OnnxWidthDuelRunner <model.onnx> --wide-k 48 --narrow-k 24 --features rich --games 10 --presets 3+2'`
   */
-import com.monovore.decline.*
-import cats.implicits.*
+object OnnxWidthDuelRunner:
 
-object OnnxWidthDuelRunner {
-
-  def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit =
     import ArenaOptions.*
 
     val command = Command(
@@ -57,36 +57,34 @@ object OnnxWidthDuelRunner {
 
         // Two sessions over the SAME file rather than one shared session: each side owns its own ONNX session exactly as a
         // deployed bot does, so neither gains from a warmed cache the other filled.
-        val wide   = new OnnxExpectimaxSearch(modelPath, ExpectimaxConfig(wideK), extractFeatures)
-        val narrow = new OnnxExpectimaxSearch(modelPath, ExpectimaxConfig(narrowK), extractFeatures)
+        val wide = new OnnxExpectimaxSearch(modelPath, ExpectimaxConfig(wideK), extractFeatures)
         try
-          println(
-            s"Width duel: $modelPath ($featureSet) K=$wideK vs K=$narrowK, " +
-              s"$games mirrored pairs per control, controls=$presets, seed=$seed" +
-              sprtConfig.fold("")(_ => " (SPRT stopping on)")
-          )
-          // The WIDE side is the bot under test, so a reported score above 50% means widening helped.
-          val results = TimedArenaRunner
-            .parsePresets(presets)
-            .map(tc =>
-              BotMatchRunner
-                .runTimedMatch(wide, narrow, TimedMatchSetup(games, tc, seed = seed, sprtConfig = sprtConfig))
+          val narrow = new OnnxExpectimaxSearch(modelPath, ExpectimaxConfig(narrowK), extractFeatures)
+          try
+            println(
+              s"Width duel: $modelPath ($featureSet) K=$wideK vs K=$narrowK, " +
+                s"$games mirrored pairs per control, controls=$presets, seed=$seed" +
+                sprtConfig.fold("")(_ => " (SPRT stopping on)")
             )
+            // The WIDE side is the bot under test, so a reported score above 50% means widening helped.
+            val results = TimedArenaRunner
+              .parsePresets(presets)
+              .map(tc =>
+                BotMatchRunner
+                  .runTimedMatch(wide, narrow, TimedMatchSetup(games, tc, seed = seed, sprtConfig = sprtConfig))
+              )
 
-          val wideId   = s"K=$wideK"
-          val narrowId = s"K=$narrowK"
-          BotMatchRunner.printTimedSummary(wideId, narrowId, results)
-          jsonPath.foreach { path =>
-            BotMatchRunner
-              .writeJsonReport(path, BotMatchRunner.timedReportJson(wideId, narrowId, games, seed, results))
-            println(s"Wrote $path")
-          }
-        finally
-          wide.close()
-          narrow.close()
+            val wideId   = s"K=$wideK"
+            val narrowId = s"K=$narrowK"
+            BotMatchRunner.printTimedSummary(wideId, narrowId, results)
+            jsonPath.foreach { path =>
+              BotMatchRunner
+                .writeJsonReport(path, BotMatchRunner.timedReportJson(wideId, narrowId, games, seed, results))
+              println(s"Wrote $path")
+            }
+          finally narrow.close()
+        finally wide.close()
       }
     )
 
     ArenaOptions.runCommand(command, args)
-  }
-}

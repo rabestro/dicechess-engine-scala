@@ -1,5 +1,8 @@
 package dicechess.engine.bench
 
+import com.monovore.decline.*
+import cats.implicits.*
+
 /** Executable entry point for the time-controlled arena (the #372 gate).
   *
   * Plays a time-budgeted bot against a baseline across one or more controls and prints win-rate, flag-rate, and the
@@ -29,48 +32,41 @@ package dicechess.engine.bench
   * is decisive — see [[BotMatchRunner.runTimedMatch]].
   *
   * Example:
-  * `sbt 'arena/runMain dicechess.engine.bench.TimedArenaRunner --base-bot monte-carlo --opponent aggressive --games 10 --presets 1+0,3+2,10+10'`
+  * `sbt 'arena/runMain dicechess.engine.bench.TimedArenaRunner --bot monte-carlo --baseline aggressive --games 10 --presets 1+0,3+2,10+10'`
   */
-import com.monovore.decline.*
-import cats.implicits.*
-
 object TimedArenaRunner:
   def main(args: Array[String]): Unit =
-    val command = Command(
-      name = "TimedArenaRunner",
-      header = "Dice Chess Bot Arena - JVM Timed Match Runner"
-    ) {
-      import ArenaOptions.*
-      (
-        baseBotOpt("monte-carlo"),
-        opponentOpt("aggressive"),
-        gamesOpt(10),
-        presetsOpt(),
-        seedOpt(),
-        jsonPathOpt,
-        sprtConfigOpt
-      ).mapN { (botId, baseline, games, presets, seed, jsonPath, sprtConfig) =>
-        try
-          val timeControls = TimedArenaRunner.parsePresets(presets)
-          val results      =
-            timeControls.map(tc =>
-              BotMatchRunner.runTimedMatch(
-                botId,
-                baseline,
-                TimedMatchSetup(games, tc, seed = seed, sprtConfig = sprtConfig)
-              )
-            )
-          BotMatchRunner.printTimedSummary(botId, baseline, results)
-          jsonPath.foreach { path =>
-            BotMatchRunner.writeJsonReport(path, BotMatchRunner.timedReportJson(botId, baseline, games, seed, results))
-          }
-        catch
-          case e: Exception =>
-            System.err.println(e.getMessage)
-            sys.exit(1)
+    ArenaOptions.runCommand(command, args)
+
+  private[bench] val command: Command[Unit] = Command(
+    name = "TimedArenaRunner",
+    header = "Dice Chess Bot Arena - JVM Timed Match Runner"
+  ) {
+    import ArenaOptions.*
+    (
+      botUnderTestOpt("monte-carlo"),
+      baselineOpt("aggressive"),
+      gamesOpt(10),
+      presetsOpt(),
+      seedOpt(),
+      jsonPathOpt,
+      sprtConfigOpt
+    ).mapN { (botId, baseline, games, presets, seed, jsonPath, sprtConfig) =>
+      val timeControls = TimedArenaRunner.parsePresets(presets)
+      val results      =
+        timeControls.map(tc =>
+          BotMatchRunner.runTimedMatch(
+            botId,
+            baseline,
+            TimedMatchSetup(games, tc, seed = seed, sprtConfig = sprtConfig)
+          )
+        )
+      BotMatchRunner.printTimedSummary(botId, baseline, results)
+      jsonPath.foreach { path =>
+        BotMatchRunner.writeJsonReport(path, BotMatchRunner.timedReportJson(botId, baseline, games, seed, results))
       }
     }
-    ArenaOptions.runCommand(command, args)
+  }
 
   /** Parses comma-separated chess-clock presets in `minutes[+incrementSeconds]` notation (e.g. `1+0`, `3+2`, `10+10`)
     * into [[TimeControl]]s. The base is a positive integer number of minutes; the increment a non-negative number of

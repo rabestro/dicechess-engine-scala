@@ -16,6 +16,18 @@ private[bench] object ArenaOptions:
   val rescoreWeightOpt: Opts[Double] =
     Opts.option[Double]("rescore-weight", help = "Weight for rescore model").withDefault(0.5)
 
+  def botUnderTestOpt(default: String = "monte-carlo"): Opts[String] =
+    Opts
+      .option[String]("bot", help = s"Bot under test ID (default: $default)")
+      .orElse(Opts.option[String]("base-bot", help = s"Alias for --bot (default: $default)"))
+      .withDefault(default)
+
+  def baselineOpt(default: String = "aggressive"): Opts[String] =
+    Opts
+      .option[String]("baseline", help = s"Baseline bot ID (default: $default)")
+      .orElse(Opts.option[String]("opponent", help = s"Alias for --baseline (default: $default)"))
+      .withDefault(default)
+
   def baseBotOpt(default: String = "greedy"): Opts[String] =
     Opts.option[String]("base-bot", help = s"Baseline bot ID (default: $default)").withDefault(default)
 
@@ -45,9 +57,13 @@ private[bench] object ArenaOptions:
             val elo1  = parts(1).toDouble
             val alpha = parts(2).toDouble
             val beta  = parts(3).toDouble
-            if elo0 >= elo1 then Validated.invalidNel("SPRT config values must have elo0 < elo1")
-            else if alpha <= 0.0 || alpha >= 1.0 then Validated.invalidNel("SPRT alpha must be strictly in (0.0, 1.0)")
-            else if beta <= 0.0 || beta >= 1.0 then Validated.invalidNel("SPRT beta must be strictly in (0.0, 1.0)")
+            if elo0.isNaN || elo1.isNaN || elo0.isInfinite || elo1.isInfinite then
+              Validated.invalidNel("SPRT elo values must be finite numbers")
+            else if elo0 >= elo1 then Validated.invalidNel("SPRT config values must have elo0 < elo1")
+            else if alpha.isNaN || alpha <= 0.0 || alpha >= 1.0 then
+              Validated.invalidNel("SPRT alpha must be strictly in (0.0, 1.0)")
+            else if beta.isNaN || beta <= 0.0 || beta >= 1.0 then
+              Validated.invalidNel("SPRT beta must be strictly in (0.0, 1.0)")
             else Validated.valid(SprtConfig(elo0, elo1, alpha, beta))
           catch case _: NumberFormatException => Validated.invalidNel("SPRT config values must be numbers")
         else Validated.invalidNel("SPRT config must be 4 comma-separated values: elo0,elo1,alpha,beta")
@@ -80,6 +96,9 @@ private[bench] object ArenaOptions:
 
   val preRankWithModelOpt: Opts[Boolean] =
     Opts.flag("pre-rank-with-model", help = "Use rescore model for pre-ranking").orFalse
+
+  def bookOpt(default: String = "opening_book.json"): Opts[String] =
+    Opts.option[String]("book", help = s"Path to the opening book JSON file (default: $default)").withDefault(default)
 
   val bookPathOpt: Opts[Option[String]] =
     Opts.option[String]("book", help = "Path to the opening book JSON file").orNone
@@ -117,9 +136,19 @@ private[bench] object ArenaOptions:
       .withDefault(default)
       .validate("limit must be > 0")(_ > 0)
 
-  def runCommand(command: Command[Unit], args: Array[String]): Unit =
+  def parseAndRun(command: Command[Unit], args: Array[String]): Either[String, Unit] =
     command.parse(args.toIndexedSeq, sys.env) match
-      case Left(help) =>
-        System.err.println(help)
+      case Left(help) => Left(help.toString)
+      case Right(fn)  =>
+        try Right(fn)
+        catch
+          case e: Exception =>
+            val msg = Option(e.getMessage).getOrElse(e.toString)
+            Left(msg)
+
+  def runCommand(command: Command[Unit], args: Array[String]): Unit =
+    parseAndRun(command, args) match
+      case Left(err) =>
+        System.err.println(err)
         sys.exit(1)
-      case Right(fn) => fn
+      case Right(()) => ()

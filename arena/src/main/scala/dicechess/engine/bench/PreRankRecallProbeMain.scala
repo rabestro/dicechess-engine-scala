@@ -6,6 +6,9 @@ import java.util.zip.GZIPInputStream
 import scala.io.Source
 import scala.util.{Random, Using}
 
+import com.monovore.decline.*
+import cats.implicits.*
+
 import dicechess.engine.domain.*
 import dicechess.engine.search.*
 
@@ -31,9 +34,6 @@ import dicechess.engine.search.*
   * Usage:
   * `sbt 'arena/runMain dicechess.engine.bench.PreRankRecallProbeMain <model.onnx> <corpus.csv.gz> --positions 300 --limit 24 --features rich --seed 42'`
   */
-import com.monovore.decline.*
-import cats.implicits.*
-
 object PreRankRecallProbeMain:
   def main(args: Array[String]): Unit =
     val command = Command(
@@ -41,15 +41,12 @@ object PreRankRecallProbeMain:
       header = "Dice Chess Bot Arena - Pre-Rank Recall Probe"
     ) {
       import ArenaOptions.*
-      val corpusOpt    = Opts.argument[String]("corpus.csv.gz")
-      val limitOpt     = Opts.option[Int]("limit", "production candidate limit under test", short = "l").withDefault(24)
-      val positionsOpt = Opts.option[Int]("positions", "number of positions to probe", short = "p").withDefault(300)
 
       (
         modelPathOpt,
-        corpusOpt,
-        positionsOpt,
-        limitOpt,
+        corpusPathOpt,
+        positionsOpt(300),
+        limitOpt(24),
         featuresOpt("rich"),
         seedOpt()
       ).mapN { (modelPath, corpusPath, positions, limit, featureSet, seed) =>

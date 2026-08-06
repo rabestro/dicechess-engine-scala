@@ -2,6 +2,8 @@ package dicechess.engine.bench
 
 import scala.io.Source
 
+import com.monovore.decline.*
+import cats.implicits.*
 import dicechess.engine.search.{BotInfo, BotRegistry, OpeningBookBot, OpeningBookParser}
 
 /** Local arena between a base bot and the same bot decorated with an opening book.
@@ -11,12 +13,9 @@ import dicechess.engine.search.{BotInfo, BotRegistry, OpeningBookBot, OpeningBoo
   * [[dicechess.engine.search.OpeningBookBot]]) and pits the base bot against it via [[BotMatchRunner.runArena]].
   *
   * Usage:
-  * `runMain dicechess.engine.bench.OpeningBookArenaRunner <bookPath> --base-bot <baseBotId> --games <gamesPerColor>`
-  * (or `mise run arena:book <bookPath> --base-bot <baseBotId> --games [games]`).
+  * `runMain dicechess.engine.bench.OpeningBookArenaRunner --base-bot <baseBotId> --book <bookPath> --games <gamesPerColor> --seed <seed>`
+  * (or `mise run arena:book <base> <bookPath> [games]`).
   */
-import com.monovore.decline.*
-import cats.implicits.*
-
 object OpeningBookArenaRunner:
   def main(args: Array[String]): Unit =
     val command = Command(
@@ -24,34 +23,35 @@ object OpeningBookArenaRunner:
       header = "Dice Chess Bot Arena - Opening Book Runner"
     ) {
       import ArenaOptions.*
-      (baseBotOpt("aggressive"), reqBookPathOpt, gamesOpt(50)).mapN { (baseBotId, bookPath, games) =>
-        val baseInfo = BotRegistry.availableBots
-          .find(_.id.equalsIgnoreCase(baseBotId))
-          .getOrElse(sys.error(s"Unknown base bot '$baseBotId'"))
-        val baseAlgorithm = BotRegistry.getAlgorithm(baseBotId).get
+      (baseBotOpt("aggressive"), bookOpt("opening_book.json"), gamesOpt(50), seedOpt()).mapN {
+        (baseBotId, bookPath, games, seed) =>
+          val baseInfo = BotRegistry.availableBots
+            .find(_.id.equalsIgnoreCase(baseBotId))
+            .getOrElse(sys.error(s"Unknown base bot '$baseBotId'"))
+          val baseAlgorithm = BotRegistry.getAlgorithm(baseBotId).get
 
-        val json =
-          val source = Source.fromFile(bookPath)
-          try source.mkString
-          finally source.close()
-        val book = OpeningBookParser
-          .parse(json)
-          .fold(error => sys.error(s"Failed to parse opening book '$bookPath': ${error.getMessage}"), identity)
+          val json =
+            val source = Source.fromFile(bookPath)
+            try source.mkString
+            finally source.close()
+          val book = OpeningBookParser
+            .parse(json)
+            .fold(error => sys.error(s"Failed to parse opening book '$bookPath': ${error.getMessage}"), identity)
 
-        val bookId = s"${baseInfo.id}-book"
-        BotRegistry.registerCustomBot(
-          BotInfo(
-            id = bookId,
-            name = s"${baseInfo.name} + Book",
-            description = s"${baseInfo.id} decorated with an opening book ($bookPath)",
-            difficulty = baseInfo.difficulty,
-            isExperimental = true
-          ),
-          OpeningBookBot.decorate(baseAlgorithm, book)
-        )
+          val bookId = s"${baseInfo.id}-book"
+          BotRegistry.registerCustomBot(
+            BotInfo(
+              id = bookId,
+              name = s"${baseInfo.name} + Book",
+              description = s"${baseInfo.id} decorated with an opening book ($bookPath)",
+              difficulty = baseInfo.difficulty,
+              isExperimental = true
+            ),
+            OpeningBookBot.decorate(baseAlgorithm, book)
+          )
 
-        println(s"Loaded ${book.size} opening-book entries from $bookPath")
-        BotMatchRunner.runArena(baseBotId, Some(bookId), games, BotMatchRunner.StartFen, seed = 42L, jsonPath = None)
+          println(s"Loaded ${book.size} opening-book entries from $bookPath")
+          BotMatchRunner.runArena(baseBotId, Some(bookId), games, BotMatchRunner.StartFen, seed = seed, jsonPath = None)
       }
     }
     ArenaOptions.runCommand(command, args)

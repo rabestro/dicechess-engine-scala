@@ -1,5 +1,8 @@
 package dicechess.engine.bench
 
+import com.monovore.decline.*
+import cats.implicits.*
+
 import dicechess.engine.search.{BotInfo, BotRegistry, OnnxEvalSearch}
 
 /** Local arena between an externally-trained (LightGBM, via ONNX) one-ply evaluator and a built-in bot — the
@@ -14,11 +17,8 @@ import dicechess.engine.search.{BotInfo, BotRegistry, OnnxEvalSearch}
   * it outside version control (it lives in a private repository's `models/` directory, not published alongside this
   * codebase).
   *
-  * Usage: `sbt 'arena/runMain dicechess.engine.bench.OnnxArenaRunner <model.onnx> --base-bot <base> --games <N>'`
+  * Usage: `sbt 'arena/runMain dicechess.engine.bench.OnnxArenaRunner <model.onnx> --opponent <base> --games <N>'`
   */
-import com.monovore.decline.*
-import cats.implicits.*
-
 object OnnxArenaRunner:
   def main(args: Array[String]): Unit =
     val command = Command(

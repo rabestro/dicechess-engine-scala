@@ -1,5 +1,10 @@
 package dicechess.engine.bench
 
+import scala.io.Source
+
+import com.monovore.decline.*
+import cats.implicits.*
+
 import dicechess.engine.search.{
   BotInfo,
   BotRegistry,
@@ -12,8 +17,6 @@ import dicechess.engine.search.{
   SearchAlgorithm
 }
 
-import scala.io.Source
-
 /** Acceptance-gate arena for the 2-ply ONNX expectimax bot against a built-in baseline (`aggressive` by default) — the
   * ">= 55% win rate" check for the Dice Chess AI hackathon project.
   *
@@ -24,12 +27,24 @@ import scala.io.Source
   * The model file is read from a runtime path and never committed to this public repository.
   *
   * Usage:
-  * `sbt 'arena/runMain dicechess.engine.bench.OnnxExpectimaxArenaRunner <model.onnx> --base-bot aggressive --games 200 --features material'`
+  * `sbt 'arena/runMain dicechess.engine.bench.OnnxExpectimaxArenaRunner <model.onnx> --opponent aggressive --games 200 --features material'`
   */
-import com.monovore.decline.*
-import cats.implicits.*
-
 object OnnxExpectimaxArenaRunner:
+
+  final private case class Config(
+      modelPath: String,
+      opponentId: String,
+      games: Int,
+      candidateLimit: Int,
+      featureSet: String,
+      rescoreModelPath: Option[String],
+      rescoreWeight: Double,
+      preRankWithModel: Boolean,
+      bookPath: Option[String],
+      seed: Long,
+      jsonPath: Option[String]
+  )
+
   def main(args: Array[String]): Unit =
     val command = Command(
       name = "OnnxExpectimaxArenaRunner",
@@ -48,77 +63,64 @@ object OnnxExpectimaxArenaRunner:
         bookPathOpt,
         seedOpt(),
         jsonPathOpt
-      ).mapN {
-        (
-            modelPath,
-            opponentId,
-            games,
-            candidateLimit,
-            featureSet,
-            rescoreModelPath,
-            rescoreWeight,
-            preRankWithModel,
-            bookPath,
-            seed,
-            jsonPath
-        ) =>
-          val extractFeatures = ArenaOptions.extractFeatures(featureSet)
+      ).mapN(Config.apply).map { cfg =>
+        val extractFeatures = ArenaOptions.extractFeatures(cfg.featureSet)
 
-          val rootRescore =
-            rescoreModelPath.map(path => RootRescoreModel(path, KcpFeatures.extract, rescoreWeight))
+        val rootRescore =
+          cfg.rescoreModelPath.map(path => RootRescoreModel(path, KcpFeatures.extract, cfg.rescoreWeight))
 
-          val opponentInfo = BotRegistry.availableBots
-            .find(_.id.equalsIgnoreCase(opponentId))
-            .getOrElse(sys.error(s"Unknown opponent bot '$opponentId'"))
+        val opponentInfo = BotRegistry.availableBots
+          .find(_.id.equalsIgnoreCase(cfg.opponentId))
+          .getOrElse(sys.error(s"Unknown opponent bot '${cfg.opponentId}'"))
 
-          val botId = "onnx-expectimax"
-          val bot   = new OnnxExpectimaxSearch(
-            modelPath,
-            ExpectimaxConfig(candidateLimit),
-            extractFeatures,
-            rootRescore,
-            preRankWithModel
+        val botId = "onnx-expectimax"
+        val bot   = new OnnxExpectimaxSearch(
+          cfg.modelPath,
+          ExpectimaxConfig(cfg.candidateLimit),
+          extractFeatures,
+          rootRescore,
+          cfg.preRankWithModel
+        )
+        try
+          // With a book, the *decorated* algorithm is registered while `bot` is kept for closing the
+          // ONNX session — the decorator owns no resources of its own.
+          val book = cfg.bookPath.map { path =>
+            val json =
+              val source = Source.fromFile(path)
+              try source.mkString
+              finally source.close()
+            OpeningBookParser
+              .parse(json)
+              .fold(error => sys.error(s"Failed to parse opening book '$path': ${error.getMessage}"), identity)
+          }
+          val algorithm = book.fold(bot: SearchAlgorithm)(entries => OpeningBookBot.decorate(bot, entries))
+          BotRegistry.registerCustomBot(
+            BotInfo(
+              id = botId,
+              name = "ONNX Expectimax (2-ply)",
+              description = s"2-ply expectimax scored by an externally-trained LightGBM model (${cfg.modelPath})",
+              difficulty = opponentInfo.difficulty,
+              isExperimental = true
+            ),
+            algorithm
           )
-          try
-            // With a book, the *decorated* algorithm is registered while `bot` is kept for closing the
-            // ONNX session — the decorator owns no resources of its own.
-            val book = bookPath.map { path =>
-              val json =
-                val source = Source.fromFile(path)
-                try source.mkString
-                finally source.close()
-              OpeningBookParser
-                .parse(json)
-                .fold(error => sys.error(s"Failed to parse opening book '$path': ${error.getMessage}"), identity)
-            }
-            val algorithm = book.fold(bot: SearchAlgorithm)(entries => OpeningBookBot.decorate(bot, entries))
-            BotRegistry.registerCustomBot(
-              BotInfo(
-                id = botId,
-                name = "ONNX Expectimax (2-ply)",
-                description = s"2-ply expectimax scored by an externally-trained LightGBM model ($modelPath)",
-                difficulty = opponentInfo.difficulty,
-                isExperimental = true
-              ),
-              algorithm
-            )
 
-            val rescoreNote = rootRescore.fold("")(r => s", rootRescore=${r.modelPath} (weight=${r.weight})")
-            val preRankNote = if preRankWithModel then ", preRank=model" else ""
-            val bookNote    = book.fold("")(entries => s", book=${bookPath.getOrElse("")} (${entries.size} entries)")
-            println(
-              s"Loaded ONNX model from $modelPath (candidateLimit=$candidateLimit, features=$featureSet$rescoreNote$preRankNote$bookNote)"
-            )
-            // Opponent as baseline, expectimax bot as the measured side: the table row is the model bot's stats.
-            BotMatchRunner.runArena(
-              opponentInfo.id,
-              Some(botId),
-              games,
-              BotMatchRunner.StartFen,
-              seed = seed,
-              jsonPath = jsonPath
-            )
-          finally bot.close()
+          val rescoreNote = rootRescore.fold("")(r => s", rootRescore=${r.modelPath} (weight=${r.weight})")
+          val preRankNote = if cfg.preRankWithModel then ", preRank=model" else ""
+          val bookNote    = book.fold("")(entries => s", book=${cfg.bookPath.getOrElse("")} (${entries.size} entries)")
+          println(
+            s"Loaded ONNX model from ${cfg.modelPath} (candidateLimit=${cfg.candidateLimit}, features=${cfg.featureSet}$rescoreNote$preRankNote$bookNote)"
+          )
+          // Opponent as baseline, expectimax bot as the measured side: the table row is the model bot's stats.
+          BotMatchRunner.runArena(
+            opponentInfo.id,
+            Some(botId),
+            cfg.games,
+            BotMatchRunner.StartFen,
+            seed = cfg.seed,
+            jsonPath = cfg.jsonPath
+          )
+        finally bot.close()
       }
     }
     ArenaOptions.runCommand(command, args)

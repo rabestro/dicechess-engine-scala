@@ -62,4 +62,8 @@ class ArenaOptionsSpec extends FunSuite:
     val command = Command("test", "test")(ArenaOptions.sprtConfigOpt)
     assert(command.parse(Seq("--sprt", "-2,2,0.05,0.05"), sys.env).isRight)
     assert(command.parse(Seq("--sprt", "invalid"), sys.env).isLeft)
+    assert(command.parse(Seq("--sprt", "NaN,2,0.05,0.05"), sys.env).isLeft)
+    assert(command.parse(Seq("--sprt", "-2,Infinity,0.05,0.05"), sys.env).isLeft)
+    assert(command.parse(Seq("--sprt", "-2,2,NaN,0.05"), sys.env).isLeft)
+    assert(command.parse(Seq("--sprt", "-2,2,0.05,Infinity"), sys.env).isLeft)
   }
