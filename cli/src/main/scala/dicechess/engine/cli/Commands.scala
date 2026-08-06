@@ -9,20 +9,22 @@ import dicechess.engine.search.KingCaptureProbability
 sealed trait CliCommand
 case class EvalCommand(fen: String, unicode: Boolean) extends CliCommand
 
-/** Declares command parse schemas, completions, and execution logic using the `decline` library. */
+/** Command parsing schema and evaluation for interactive CLI usage.
+  *
+  * This module leverages `decline` to rebuild standard FEN strings from split terminal arguments and bind them to the
+  * internal command hierarchy.
+  */
 object Commands:
 
   val fenOpt = Opts.arguments[String]("FEN").map(_.toList.mkString(" "))
 
   val unicodeOpt = Opts.flag("unicode", help = "Use Unicode characters for chess pieces").orFalse
 
-  val evalCommand = Opts.subcommand("eval", "Evaluate a position and print the board") {
+  val evalCommand = Opts.subcommand("eval", "Evaluate a position and print the board"):
     (fenOpt, unicodeOpt).mapN(EvalCommand.apply)
-  }
 
-  val rootCommand = Command("dicechess", "Dice Chess Engine CLI") {
+  val rootCommand = Command("dicechess", "Dice Chess Engine CLI"):
     evalCommand
-  }
 
   def execute(command: CliCommand): Unit = command match
     case EvalCommand(fen, unicode) =>

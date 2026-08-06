@@ -7,8 +7,8 @@ import org.jline.terminal.TerminalBuilder
 
 /** Primary entry point for the Dice Chess Engine JVM CLI.
   *
-  * Initializes the interactive REPL shell with JLine-based tab-completion and parses execution inputs. Runs command
-  * loops until the user requests an exit.
+  * This object owns the interactive JVM terminal lifecycle, managing the JLine `LineReader` and the event loop. It acts
+  * as the boundary where raw terminal input is captured and converted into structured commands.
   */
 object Main:
   def main(args: Array[String]): Unit =
