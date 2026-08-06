@@ -81,8 +81,6 @@ def layout(platformDir: String) = Seq(
 lazy val commonSettings = Seq(
   name := "dicechess-engine-scala",
   libraryDependencies ++= Seq(
-    "com.monovore"  %% "decline"          % "2.6.2",
-    "org.typelevel" %% "cats-core"        % "2.13.0",
     "io.circe"      %% "circe-core"       % "0.14.16",
     "io.circe"      %% "circe-generic"    % "0.14.16",
     "io.circe"      %% "circe-parser"     % "0.14.16",
@@ -115,7 +113,6 @@ lazy val root = (projectMatrix in file("."))
     settings = layout("jvm") ++ Seq(
       // JVM-specific settings
       coverageMinimumStmtTotal                          := 90,
-      libraryDependencies += "org.jline"                 % "jline"       % "4.3.1",
       libraryDependencies += "com.microsoft.onnxruntime" % "onnxruntime" % "1.28.0",
       // sbt 2 defaults Test/exportJars to true (sbt 1 defaulted to false), packing
       // test resources into a CAS-cached jar. OnnxEvalSearchSpec/OnnxExpectimaxSearchSpec
@@ -260,7 +257,7 @@ lazy val rootJS  = root.js(ScalaV)
 // from the `test`/`coverage` gate rather than failing, so keep this in sync when adding
 // a project.
 lazy val dicechessEngineScala = (project in file("."))
-  .aggregate(rootJVM, rootJS, rootWasm, benchmark, arena)
+  .aggregate(rootJVM, rootJS, rootWasm, benchmark, arena, cli)
   .settings(
     // Must differ from rootJVM/rootJS's `name` ("dicechess-engine-scala") — sbt 2's
     // shared target/out/ layout keys output directories by project name, not base
@@ -304,7 +301,11 @@ lazy val arena = project
   .dependsOn(rootJVM)
   .settings(commonSettings)
   .settings(
-    name                     := "dicechess-arena",
+    name := "dicechess-arena",
+    libraryDependencies ++= Seq(
+      "com.monovore"  %% "decline"   % "2.6.2",
+      "org.typelevel" %% "cats-core" % "2.13.0"
+    ),
     publish / skip           := true,
     coverageMinimumStmtTotal := 70,
     coverageFailOnMinimum    := true,
@@ -324,4 +325,19 @@ lazy val arena = project
         )
       streams.value.log.info(s"Coverage instrumentation metadata present: $metadata")
     }
+  )
+
+lazy val cli = project
+  .in(file("cli"))
+  .dependsOn(rootJVM)
+  .settings(commonSettings)
+  .settings(
+    name            := "dicechess-cli",
+    publish / skip  := true,
+    coverageEnabled := false,
+    libraryDependencies ++= Seq(
+      "com.monovore"  %% "decline"   % "2.6.2",
+      "org.typelevel" %% "cats-core" % "2.13.0",
+      "org.jline"      % "jline"     % "4.3.1"
+    )
   )
