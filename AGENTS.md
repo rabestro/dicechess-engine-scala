@@ -119,10 +119,16 @@ Common failure signatures:
 - `sbt -batch` talks to a **persistent server**, so a `set` from one invocation leaks into later ones: after any `sbt coverage ...`, `coverageEnabled` stays true for the whole session. Run `sbt shutdown` between runs when comparing behaviour, or conclusions about caching/coverage will be measuring leaked state rather than the build.
 
 ## Git & PR workflow
-<!-- dc-shared:git-pr v1 — keep identical across dicechess repos -->
+<!-- dc-shared:git-pr v2 — keep identical across dicechess repos -->
 - Never commit to `main`. Branch: `<type>/<short-desc>` or `<type>/<id>-<short-desc>`
   (types: `task|feat|bug|refactor|chore|docs|ci|test|perf`). If the branch carries an issue
   id, the PR body must contain `Closes #<id>`.
+- **The branch type chooses the release-notes section** — `.github/labeler.yml` turns it into a
+  PR label and `.github/release.yml` groups by that label. `task/` is issue-driven work and counts
+  as a feature, so a fix belongs on `bug/` even when it closes an issue; `chore/` is the grab-bag
+  and files under "Other Changes". A type that maps to no label mis-files the whole PR: play-api
+  v0.16.0 shipped ten features under 📚 Documentation because every branch was `task/` (which
+  mapped to nothing) while every PR touched AGENTS.md (which mapped to `documentation`).
 - Before editing anything: run `git status`. If the tree has unrelated uncommitted work,
   stop and report — never let it bleed into your commit.
 - Stage specific files by name. `git add -A` / `git add .` are forbidden.
