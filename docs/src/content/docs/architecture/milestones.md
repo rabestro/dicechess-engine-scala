@@ -57,7 +57,7 @@ Assign tasks to these milestones logically. Each milestone must be fully tested 
   * Zobrist Hashing and Transposition Tables (TT) for caching board states.
   * King Capture Probability analysis (exact enumeration of 216 dice outcomes).
 
-### 🚀 v0.6 - Expectimax Search Engine
+### ✅ v0.6 - Expectimax Search Engine
 
 * **Status**: Completed 🏆
 * **Scope**: Deep probabilistic search with chance nodes.
@@ -68,14 +68,15 @@ Assign tasks to these milestones logically. Each milestone must be fully tested 
   * Rao-Blackwellized Monte-Carlo pre-roll equity estimator.
   * Structured concurrency with Virtual Threads (`Ox`) for parallel chance-node evaluation.
 
-### 🔌 v0.7 - Advanced Features
+### ✅ v0.7 - Advanced Features
 
+* **Status**: Completed 🏆
 * **Scope**: Production-ready features and integrations.
 * **Key Deliverables**:
   * ONNX model integration for learned evaluation (`OnnxEvalSearch`, `OnnxExpectimaxSearch`).
-  * Opening book support for common positions.
-  * Doubling cube logic and draw offer handling.
-  * JMH benchmarks and performance regression gates.
+  * Opening book support for common positions (`OpeningBook`, `OpeningBookBot`, `OpeningBookParser`).
+  * Doubling cube logic and draw offer handling (`DrawOfferLogic`).
+  * JMH benchmarks for performance validation.
 
 ### 🚀 v1.0 - Production & Optimization
 
