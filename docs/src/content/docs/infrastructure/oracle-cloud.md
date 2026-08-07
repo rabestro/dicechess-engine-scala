@@ -40,9 +40,9 @@ Here is an objective evaluation of our hosting options.
 * **The Verdict:** 🏆 **The Ultimate Champion.**
 * **Why:** Oracle's "Always Free" tier offers up to **4 ARM64 Ampere Cores** and up to **24 GB of RAM**. 
   * **Transposition Tables (TT):** In chess engines, doubling the TT size often results in a massive boost in ELO. Having access to 24GB RAM lets you dedicate 4-8GB strictly to the engine cache!
-  * **Parallelism:** 4 dedicated cores perfectly complement the **Virtual Threads (Ox)** parallelized Expectimax search planned in Milestone v0.5.
+  * **Parallelism:** 4 dedicated cores perfectly complement the **Virtual Threads (Ox)** parallelized Expectimax search (implemented in v0.6).
   * **Architecture Harmony:** Your dev machine is a Mac (Apple Silicon ARM64), and Oracle's Ampere is ARM64. This means your Docker containers will run natively on both without cross-compilation overhead.
-  * **Public Access:** It gives you a public IP and stable egress for the **WebSocket API** (v0.6) so anyone can play against it without you exposing your home lab to the internet.
+  * **Public Access:** It gives you a public IP and stable egress so anyone can play against it without you exposing your home lab to the internet.
 * **Best Use:** Production engine hosting.
 
 ---
@@ -55,7 +55,7 @@ Instead of picking only one, we utilize a highly cost-effective and robust **Mul
 Configure a single Oracle Free Tier VM with:
 * 2 to 4 Ampere OCPUs
 * 12 to 24 GB RAM
-* Public IP with Oracle Security Lists opening the WebSocket API port.
+* Public IP with Oracle Security Lists for external access.
 * *Result:* A massive transposition table, enterprise network uptime, and zero interference with home Immich/AdGuard setups.
 
 ### Tier 2: Delivery & Gateway 🚪 -> Asus Server (Home Lab)
