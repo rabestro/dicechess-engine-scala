@@ -1,5 +1,7 @@
 package dicechess.engine.bench
 
+import scala.concurrent.duration.*
+
 import munit.FunSuite
 
 /** Argument handling and end-to-end wiring for [[OnnxModelDuelRunner]], against the throwaway synthetic model shared
@@ -11,6 +13,13 @@ import munit.FunSuite
   * through to the wrong extractor would feed a model the wrong-shaped vector and quietly measure nonsense.
   */
 class OnnxModelDuelRunnerSpec extends FunSuite:
+
+  /** munit's 30s default is sized for unit tests; the duel below plays real games through move generation and two
+    * onnxruntime sessions. Uninstrumented that is ~2s, but the coverage build instruments the generator's hot path and
+    * CI took 32s — just past the default, which failed the build for being slow rather than wrong. Bounded rather than
+    * removed: a genuine hang should still fail instead of holding the suite forever.
+    */
+  override def munitTimeout: Duration = 3.minutes
 
   private val model = getClass.getResource("/synthetic_test_model.onnx").getPath
 
