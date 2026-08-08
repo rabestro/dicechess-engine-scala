@@ -58,6 +58,20 @@ class ArenaOptionsSpec extends FunSuite:
     assert(command.parse(Seq("--limit", "0"), sys.env).isLeft)
   }
 
+  test("every advertised feature set has an extractor") {
+    // FeatureSets drives both the `--features` validation and its per-side twin in OnnxModelDuelRunner, while
+    // extractFeatures does the actual dispatch. Adding a set to one and not the other passes validation and then
+    // dies with `Unknown feature set` at run time, after the models are already loaded.
+    ArenaOptions.FeatureSets.foreach(set => ArenaOptions.extractFeatures(set))
+  }
+
+  test("parseAndRun reports a failure inside the command body as Left") {
+    // Not a redundant wrapper test: these are Command[Unit], so decline runs the body during `parse`. If the catch
+    // does not wrap `parse` itself, this throws instead of returning, and every runner loses its error message.
+    val command = Command("test", "test")(ArenaOptions.gamesOpt(1).map(_ => sys.error("boom")))
+    assertEquals(ArenaOptions.parseAndRun(command, Array("--games", "1")), Left("boom"))
+  }
+
   test("sprt config parsing") {
     val command = Command("test", "test")(ArenaOptions.sprtConfigOpt)
     assert(command.parse(Seq("--sprt", "-2,2,0.05,0.05"), sys.env).isRight)

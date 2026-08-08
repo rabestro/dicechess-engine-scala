@@ -70,13 +70,18 @@ private[bench] object ArenaOptions:
       }
       .orNone
 
+  /** The feature sets [[extractFeatures]] knows how to build, in help-text order.
+    *
+    * Shared rather than inlined per option: a runner that takes a feature set for each of two sides would otherwise
+    * carry a second copy of this list, and the copies drift the moment a set is added.
+    */
+  val FeatureSets: List[String] = List("material", "rich", "kcp", "rawboard")
+
   def featuresOpt(default: String = "rich"): Opts[String] =
     Opts
-      .option[String]("features", help = s"Feature set: material, rich, kcp, rawboard (default: $default)")
+      .option[String]("features", help = s"Feature set: ${FeatureSets.mkString(", ")} (default: $default)")
       .withDefault(default)
-      .validate("Unknown feature set") { set =>
-        Set("material", "rich", "kcp", "rawboard").contains(set.toLowerCase)
-      }
+      .validate("Unknown feature set")(set => FeatureSets.contains(set.toLowerCase))
 
   def extractFeatures(
       featureSet: String
@@ -136,15 +141,23 @@ private[bench] object ArenaOptions:
       .withDefault(default)
       .validate("limit must be > 0")(_ > 0)
 
+  /** Parses `args` and runs the command, turning both a bad argument list and a failure inside the command body into a
+    * one-line `Left`.
+    *
+    * `parse` is inside the `try` deliberately. These are `Command[Unit]`, so decline has already *executed* the body by
+    * the time it hands back a `Right` — the body's effects are what produced the `Unit`. Catching around the result
+    * instead of around `parse` therefore catches nothing at all: the exception escapes first, and the runner dies with
+    * a stack trace instead of the error message this function exists to produce.
+    */
   def parseAndRun(command: Command[Unit], args: Array[String]): Either[String, Unit] =
-    command.parse(args.toIndexedSeq, sys.env) match
-      case Left(help) => Left(help.toString)
-      case Right(fn)  =>
-        try Right(fn)
-        catch
-          case e: Exception =>
-            val msg = Option(e.getMessage).getOrElse(e.toString)
-            Left(msg)
+    try
+      command.parse(args.toIndexedSeq, sys.env) match
+        case Left(help) => Left(help.toString)
+        case Right(())  => Right(())
+    catch
+      case e: Exception =>
+        val msg = Option(e.getMessage).getOrElse(e.toString)
+        Left(msg)
 
   def runCommand(command: Command[Unit], args: Array[String]): Unit =
     parseAndRun(command, args) match

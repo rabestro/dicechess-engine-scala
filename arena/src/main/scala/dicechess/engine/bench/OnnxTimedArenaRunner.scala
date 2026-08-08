@@ -1,10 +1,11 @@
 package dicechess.engine.bench
 
+import scala.util.Using
+
 import com.monovore.decline.*
 import cats.implicits.*
 
-import dicechess.engine.domain.{Color, GameState}
-import dicechess.engine.search.{BotInfo, BotRegistry, ExpectimaxConfig, OnnxExpectimaxSearch}
+import dicechess.engine.search.{BotRegistry, ExpectimaxConfig}
 
 /** Time-controlled arena for the 2-ply ONNX expectimax bot — the clock-aware counterpart of
   * [[OnnxExpectimaxArenaRunner]], filling the one cell [[TimedArenaRunner]] cannot reach on its own: it resolves both
@@ -42,25 +43,20 @@ object OnnxTimedArenaRunner:
         presetsOpt("1+0,3+2,10+10"),
         seedOpt()
       ).mapN { (modelPath, featureSet, baseline, games, candidateLimit, presets, seed) =>
-        val extractFeatures: (GameState, Color) => Array[Float] = ArenaOptions.extractFeatures(featureSet)
-
         val baselineInfo = BotRegistry.availableBots
           .find(_.id.equalsIgnoreCase(baseline))
           .getOrElse(sys.error(s"Baseline bot with ID '$baseline' not found in BotRegistry!"))
 
         val botId = "onnx-timed"
-        val bot   = new OnnxExpectimaxSearch(modelPath, ExpectimaxConfig(candidateLimit), extractFeatures)
-        try
-          BotRegistry.registerCustomBot(
-            BotInfo(
-              id = botId,
-              name = s"ONNX Expectimax ($featureSet, K=$candidateLimit)",
-              description = s"clock-aware timed arena over $modelPath",
-              difficulty = baselineInfo.difficulty,
-              isExperimental = true
-            ),
-            bot
-          )
+        val bot   = OnnxArenaBot.register(
+          botId,
+          modelPath,
+          featureSet,
+          ExpectimaxConfig(candidateLimit),
+          baselineInfo.difficulty,
+          s"clock-aware timed arena over $modelPath"
+        )
+        Using.resource(bot) { _ =>
           println(
             s"Timed arena: $modelPath (features=$featureSet, K=$candidateLimit) vs $baseline, controls=$presets, seed=$seed"
           )
@@ -68,7 +64,7 @@ object OnnxTimedArenaRunner:
           val results  =
             controls.map(tc => BotMatchRunner.runTimedMatch(botId, baseline, TimedMatchSetup(games, tc, seed = seed)))
           BotMatchRunner.printTimedSummary(botId, baseline, results)
-        finally bot.close()
+        }
       }
     }
     ArenaOptions.runCommand(command, args)
