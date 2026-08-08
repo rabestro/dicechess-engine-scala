@@ -169,3 +169,63 @@ class FenParserSpec extends FunSuite:
     assertEquals(state.dicePool, Nil)
     assertEquals(FenParser.serialize(state), "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
   }
+
+  // Regression, #551: every field these cover used to parse as a Right holding a value that was not what
+  // came in — an over-long dice pool arrived shortened, an over-large number arrived wrapped. The bug was
+  // never "a weird FEN yields a weird state"; it was the parser reporting success either way, which is how
+  // malformed input from an external ingest source reaches analytics unremarked.
+  private val boundsBase = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -"
+
+  test("return Left for a dice pool longer than the three slots a turn can hold (#551)") {
+    // Ten dice in used to come back as three: GameFlags.fromList keeps the first three and drops the rest.
+    val parsed = FenParser.parse(s"$boundsBase 0 1 PPPPPPPPPP")
+
+    assert(parsed.isLeft, s"expected a Left, got $parsed")
+    val message = parsed.left.toOption.get
+    assert(message.contains("dice-pool"), s"the message must name the field, got: $message")
+    assert(message.contains("PPPPPPPPPP"), s"the message must quote the offending field, got: $message")
+
+    // One past the bound, not just wildly over it.
+    assert(FenParser.parse(s"$boundsBase 0 1 PNBR").isLeft)
+  }
+
+  test("a full three-dice pool is still accepted and round-trips through serialize (#551)") {
+    // The guard against "reject everything": the fix must not narrow what the format legitimately allows.
+    for pool <- List("P", "PN", "PNB", "QK", "PPP", "KKK") do
+      val fen    = s"$boundsBase 0 1 $pool"
+      val parsed = FenParser.parse(fen)
+
+      assert(parsed.isRight, s"pool '$pool' should parse, got $parsed")
+      assertEquals(FenParser.serialize(parsed.toOption.get), fen, s"pool '$pool' should round-trip")
+  }
+
+  test("return Left for a half-move clock past what the 7-bit field holds (#551)") {
+    // 128 was masked to 0 and 200 to 72 — plausible numbers with no relation to the input.
+    assertEquals(
+      FenParser.parse(s"$boundsBase 128 1"),
+      Left(s"Invalid half-move clock '128': expected 0-${GameFlags.MaxHalfMoveClock}")
+    )
+    assert(FenParser.parse(s"$boundsBase 200 1").isLeft)
+
+    // The boundary value itself stays legal.
+    val atMax = FenParser.parse(s"$boundsBase ${GameFlags.MaxHalfMoveClock} 1")
+    assert(atMax.isRight, s"expected the maximum clock to parse, got $atMax")
+    assertEquals(atMax.toOption.get.flags.halfMoveClock, GameFlags.MaxHalfMoveClock)
+  }
+
+  test("return Left for numeric fields too large to hold instead of a wrapped value (#551)") {
+    // Int accumulation wrapped in silence: 99999999999 came out as 127 after masking, and 4294967296 — a
+    // clean multiple of 2^32 — as 0, which slipped past the old `v >= 0` check precisely because it wrapped
+    // to something non-negative.
+    assert(FenParser.parse(s"$boundsBase 99999999999 1").isLeft)
+    assert(FenParser.parse(s"$boundsBase 4294967296 1").isLeft)
+
+    // Same accumulator, and the full-move number has no field bound of its own to fall back on.
+    assert(FenParser.parse(s"$boundsBase 0 4294967297").isLeft)
+    assert(FenParser.parse(s"$boundsBase 0 99999999999").isLeft)
+
+    // A full-move number that merely looks big is fine — the bound is Int.MaxValue, not a digit count.
+    val large = FenParser.parse(s"$boundsBase 0 2000000000")
+    assert(large.isRight, s"expected a large but representable full-move number to parse, got $large")
+    assertEquals(large.toOption.get.fullMoveNumber, 2000000000)
+  }
