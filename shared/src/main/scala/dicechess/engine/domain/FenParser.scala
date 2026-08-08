@@ -34,18 +34,23 @@ object FenParser {
   /** FEN string for the standard chess starting position. */
   val InitialPosition: String = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
+  /** The six standard FEN fields plus the dice-pool extension — the most [[parse]] will read and the most [[serialize]]
+    * ever writes.
+    */
+  private val MaxFields: Int = 7
+
   /** Parses a FEN string into a [[GameState]].
     *
     * Validates the number of fields, the board layout (exactly 8 ranks, 8 files each), and each piece character. The
     * half-move clock and full-move number default to `0` and `1` respectively when absent (short FEN).
     *
     * Every field is also checked against what [[GameState]] can actually hold, so a `Right` never carries a value that
-    * differs from what was parsed: at most [[GameFlags.DiceSlots]] dice, a half-move clock within
+    * differs from what was parsed: at most seven fields, at most [[GameFlags.DiceSlots]] dice, a half-move clock within
     * [[GameFlags.MaxHalfMoveClock]], and numeric fields that fit an `Int`. Input past any of those bounds is a `Left`
     * rather than a silently truncated state (#551).
     *
     * @param fen
-    *   a FEN string with at least 4 space-separated fields
+    *   a FEN string with 4 to 7 space-separated fields
     * @return
     *   `Right(state)` on success, or `Left(errorMessage)` describing the first parse failure
     */
@@ -53,6 +58,10 @@ object FenParser {
     boundary {
       val parts = fen.split(" ")
       if parts.length < 4 then break(Left("Invalid FEN: insufficient parts"))
+      // Seven fields is the whole format — six standard plus the dice-pool extension — and an eighth used to
+      // be accepted and then dropped by `serialize`. That is the same silent-truncation shape as the dice pool
+      // and the numeric fields below (#551), one field further out, so it is rejected on the same grounds.
+      if parts.length > MaxFields then break(Left(s"Invalid FEN: at most $MaxFields fields, found ${parts.length}"))
 
       val board       = parts(0)
       val activeColor = parseActiveColor(parts(1))

@@ -176,6 +176,18 @@ class FenParserSpec extends FunSuite:
   // malformed input from an external ingest source reaches analytics unremarked.
   private val boundsBase = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -"
 
+  test("return Left for a field after the dice pool instead of dropping it (#551)") {
+    // An eighth token parsed fine and then vanished from serialize — the same shape as the two truncations
+    // below, one field further out.
+    val parsed = FenParser.parse(s"$boundsBase 0 1 PNB extra")
+
+    assert(parsed.isLeft, s"expected a Left, got $parsed")
+    assert(parsed.left.toOption.get.contains("at most 7 fields"), parsed.left.toOption.get)
+
+    // Exactly seven is the format, and stays legal.
+    assert(FenParser.parse(s"$boundsBase 0 1 PNB").isRight)
+  }
+
   test("return Left for a dice pool longer than the three slots a turn can hold (#551)") {
     // Ten dice in used to come back as three: GameFlags.fromList keeps the first three and drops the rest.
     val parsed = FenParser.parse(s"$boundsBase 0 1 PPPPPPPPPP")
