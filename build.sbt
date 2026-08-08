@@ -306,7 +306,18 @@ lazy val arena = project
       "com.monovore"  %% "decline"   % "2.6.2",
       "org.typelevel" %% "cats-core" % "2.13.0"
     ),
-    publish / skip           := true,
+    publish / skip := true,
+    // The ONNX runners are untestable without a model file, and the only committed one is rootJVM's synthetic
+    // fixture. Share the directory rather than keep a second copy of a binary: this puts the resource on the arena
+    // test classpath without pulling rootJVM's test *code* in — `dependsOn(rootJVM)` above stays compile-scoped.
+    // Spelled out the way `layout()` spells it, not as `rootJVM / Test / resourceDirectory`: that singular key keys
+    // off the matrix row's own synthetic base (`.sbt/matrix/<id>`) and resolves to ./src/test/resources, which does
+    // not exist — the real directories live in the `unmanagedResourceDirectories` list `layout()` overrides.
+    Test / unmanagedResourceDirectories += (ThisBuild / baseDirectory).value / "jvm" / "src" / "test" / "resources",
+    // ...and it has to stay a directory on that classpath. sbt 2 defaults Test/exportJars to true, which packs
+    // resources into a CAS-cached jar, and onnxruntime's native loader cannot open a jar-embedded path
+    // (ORT_NO_SUCHFILE) — the same reason rootJVM sets this.
+    Test / exportJars        := false,
     coverageMinimumStmtTotal := 70,
     coverageFailOnMinimum    := true,
     coverageDataCheck        := Def.uncached {
