@@ -23,9 +23,9 @@ import scala.util.boundary, boundary.break
   * rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1 pnb
   * ```
   *
-  * The 7th field is a string of piece letters (e.g. `"PNB"` for White or `"pnb"` for Black = dice pool `[1, 2, 3]`). It
-  * is absent (`"-"`) or omitted when no dice have been rolled yet. [[serialize]] appends it automatically when the pool
-  * is non-empty.
+  * The 7th field is a string of piece letters (e.g. `"PNB"` for White or `"pnb"` for Black = dice pool `[1, 2, 3]`),
+  * never longer than [[GameFlags.DiceSlots]] because a turn rolls three dice. It is absent (`"-"`) or omitted when no
+  * dice have been rolled yet. [[serialize]] appends it automatically when the pool is non-empty.
   *
   * Both [[parse]] and [[serialize]] are inverses of each other for any valid FEN string.
   */
@@ -34,13 +34,23 @@ object FenParser {
   /** FEN string for the standard chess starting position. */
   val InitialPosition: String = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
+  /** The six standard FEN fields plus the dice-pool extension — the most [[parse]] will read and the most [[serialize]]
+    * ever writes.
+    */
+  private val MaxFields: Int = 7
+
   /** Parses a FEN string into a [[GameState]].
     *
     * Validates the number of fields, the board layout (exactly 8 ranks, 8 files each), and each piece character. The
     * half-move clock and full-move number default to `0` and `1` respectively when absent (short FEN).
     *
+    * Every field is also checked against what [[GameState]] can actually hold, so a `Right` never carries a value that
+    * differs from what was parsed: at most seven fields, at most [[GameFlags.DiceSlots]] dice, a half-move clock within
+    * [[GameFlags.MaxHalfMoveClock]], and numeric fields that fit an `Int`. Input past any of those bounds is a `Left`
+    * rather than a silently truncated state (#551).
+    *
     * @param fen
-    *   a FEN string with at least 4 space-separated fields
+    *   a FEN string with 4 to 7 space-separated fields
     * @return
     *   `Right(state)` on success, or `Left(errorMessage)` describing the first parse failure
     */
@@ -48,6 +58,10 @@ object FenParser {
     boundary {
       val parts = fen.split(" ")
       if parts.length < 4 then break(Left("Invalid FEN: insufficient parts"))
+      // Seven fields is the whole format — six standard plus the dice-pool extension — and an eighth used to
+      // be accepted and then dropped by `serialize`. That is the same silent-truncation shape as the dice pool
+      // and the numeric fields below (#551), one field further out, so it is rejected on the same grounds.
+      if parts.length > MaxFields then break(Left(s"Invalid FEN: at most $MaxFields fields, found ${parts.length}"))
 
       val board       = parts(0)
       val activeColor = parseActiveColor(parts(1))
@@ -284,15 +298,25 @@ object FenParser {
       (epFiles, enPassantBb)
     }
 
-  /** Parses the dice pool FEN string into a sorted list of dice values. */
+  /** Parses the dice pool FEN string into a sorted list of dice values.
+    *
+    * Rejects a pool longer than [[GameFlags.DiceSlots]] rather than letting `GameFlags.fromList` drop the excess: a
+    * turn rolls three dice and the state has room for exactly three, so a longer pool is not a position this engine can
+    * hold. Truncating it would make `parse` report success for a state that does not correspond to its input —
+    * `PPPPPPPPPP` used to come back as three dice (#551), which is precisely how malformed input from an ingest source
+    * reaches analytics without anyone noticing.
+    */
   private inline def parseDicePool(
       poolField: String
   )(using boundary.Label[Either[String, GameState]]): List[Int] =
     if poolField == "-" then Nil
     else {
+      val len = poolField.length
+      if len > GameFlags.DiceSlots then
+        break(Left(s"Invalid dice-pool field '$poolField': at most ${GameFlags.DiceSlots} dice, found $len"))
+
       var list: List[Int] = Nil
       var idx             = 0
-      val len             = poolField.length
 
       while idx < len do {
         val c     = poolField.charAt(idx)
@@ -311,11 +335,16 @@ object FenParser {
       list.sorted
     }
 
+  /** Bounded by [[GameFlags.MaxHalfMoveClock]], not merely by sign. The 7-bit field masks what it cannot hold, so a
+    * clock of 200 was packed as 72 and reported as a success (#551); the previous `v >= 0` test caught an overflow only
+    * when it happened to land negative.
+    */
   private inline def parseHalfMove(
       s: String
   )(using boundary.Label[Either[String, GameState]]): Int = {
     val v = parsePositiveInt(s)
-    if v >= 0 then v else break(Left(s"Invalid half-move clock '$s'"))
+    if v >= 0 && v <= GameFlags.MaxHalfMoveClock then v
+    else break(Left(s"Invalid half-move clock '$s': expected 0-${GameFlags.MaxHalfMoveClock}"))
   }
 
   private inline def parseFullMove(
@@ -325,18 +354,27 @@ object FenParser {
     if v >= 1 then v else break(Left(s"Invalid full-move number '$s'"))
   }
 
-  /** Parses a positive integer from a string without allocating Option or throwing exceptions. */
+  /** Parses a positive integer from a string without allocating Option or throwing exceptions. Returns `-1` for
+    * anything it will not vouch for: an empty string, a non-digit, or a value past `Int.MaxValue`.
+    *
+    * The accumulator is a `Long` purely so that last case is detectable. With `Int` accumulation the multiply wrapped
+    * in silence and the wrapped value was returned as a success: `4294967296` parsed as `0` and `99999999999` as a
+    * large positive number unrelated to the input (#551). `Long` cannot itself overflow here — the loop stops on the
+    * first digit that carries `res` past the bound, so `res` never exceeds `Int.MaxValue * 10 + 9`.
+    */
   private inline def parsePositiveInt(s: String): Int = {
-    var res   = 0
-    var i     = 0
-    val len   = s.length
-    var valid = len > 0
+    var res: Long = 0L
+    var i         = 0
+    val len       = s.length
+    var valid     = len > 0
     while i < len && valid do {
       val c = s.charAt(i)
-      if c >= '0' && c <= '9' then res = res * 10 + (c - '0')
-      else valid = false
+      if c >= '0' && c <= '9' then {
+        res = res * 10 + (c - '0')
+        if res > Int.MaxValue then valid = false
+      } else valid = false
       i += 1
     }
-    if valid then res else -1
+    if valid then res.toInt else -1
   }
 }

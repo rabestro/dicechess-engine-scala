@@ -21,6 +21,21 @@ object GameFlags:
     */
   val empty: GameFlags = 0
 
+  /** How many dice the layout can hold: three 3-bit slots at bits 13-21, matching the three dice a turn rolls.
+    *
+    * Published because the packing is lossy in one direction only — [[fromList]] keeps the first `DiceSlots` values and
+    * drops the rest — so anything parsing external input has to check the length itself to avoid reporting success for
+    * a pool it silently shortened. [[FenParser.parse]] does.
+    */
+  val DiceSlots: Int = 3
+
+  /** The largest half-move clock the 7-bit field at bits 22-28 can hold.
+    *
+    * Published for the same reason as [[DiceSlots]]: the packing *masks* rather than clamps, so 200 arrives as 72 — a
+    * plausible number that has nothing to do with the input. Callers accepting a clock from outside must bound it.
+    */
+  val MaxHalfMoveClock: Int = 0x7f
+
   /** Builds a [[GameFlags]] integer from individual components.
     *
     * Each component is masked to its allocated bit-width before packing; values that exceed their field width are
